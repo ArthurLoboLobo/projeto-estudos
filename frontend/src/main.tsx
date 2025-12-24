@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { apolloClient } from './lib/apollo';
 import App from './App';
 import './index.css';
+import 'katex/dist/katex.min.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

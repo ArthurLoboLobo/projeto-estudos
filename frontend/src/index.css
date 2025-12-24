@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
@@ -50,4 +51,47 @@ body {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* KaTeX styling for chat messages */
+.katex-display {
+  margin: 0.75em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.katex {
+  font-size: 1em;
+}
+
+/* Prose overrides for dark theme chat bubbles */
+.prose-invert code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.prose-invert pre {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.prose-invert a {
+  color: #93c5fd;
+}
+
+.prose-invert strong {
+  color: inherit;
+}
+
+.prose-invert ul, .prose-invert ol {
+  margin: 0.5em 0;
+  padding-left: 1.25em;
+}
+
+.prose-invert li {
+  margin: 0.25em 0;
 }

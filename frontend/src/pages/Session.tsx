@@ -2,6 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, CLEAR_MESSAGES } from '../lib/graphql/mutations';
@@ -414,15 +417,20 @@ function MessageBubble({ message }: { message: Message }) {
       <div
         className={`max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 shadow-md relative ${
           isUser
-            ? 'bg-[#005c4b] text-white rounded-tr-none' // WhatsApp-like dark green for user
-            : 'bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5' // WhatsApp-like dark gray for AI
+            ? 'bg-[#005c4b] text-white rounded-tr-none'
+            : 'bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5'
         }`}
       >
-        <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
-          {message.content}
+        <div className="prose prose-sm md:prose-base prose-invert max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <ReactMarkdown
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+          >
+            {message.content}
+          </ReactMarkdown>
         </div>
         <div 
-          className={`text-[10px] mt-1 text-right ${
+          className={`text-[10px] mt-2 text-right ${
             isUser ? 'text-white/60' : 'text-gray-400'
           }`}
         >
