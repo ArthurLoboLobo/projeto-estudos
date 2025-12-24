@@ -410,23 +410,23 @@ function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div
-        className={`max-w-[90%] md:max-w-3xl rounded-2xl px-4 md:px-5 py-3 ${
+        className={`max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 shadow-md relative ${
           isUser
-            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-            : 'bg-white/10 text-purple-100 border border-white/10'
+            ? 'bg-[#005c4b] text-white rounded-tr-none' // WhatsApp-like dark green for user
+            : 'bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5' // WhatsApp-like dark gray for AI
         }`}
       >
-        {!isUser && (
-          <div className="flex items-center gap-2 mb-2 text-purple-400 text-sm">
-            <span>🤖</span>
-            <span>StudyMate AI</span>
-          </div>
-        )}
-        <div className="whitespace-pre-wrap text-sm md:text-base">{message.content}</div>
-        <div className={`text-xs mt-2 ${isUser ? 'text-white/60' : 'text-purple-300/50'}`}>
-          {new Date(message.createdAt).toLocaleTimeString()}
+        <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
+          {message.content}
+        </div>
+        <div 
+          className={`text-[10px] mt-1 text-right ${
+            isUser ? 'text-white/60' : 'text-gray-400'
+          }`}
+        >
+          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </div>

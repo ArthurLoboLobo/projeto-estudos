@@ -6,8 +6,11 @@ use crate::storage::messages::MessageRow;
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
 pub enum MessageRole {
+    #[graphql(name = "user")]
     User,
+    #[graphql(name = "assistant")]
     Assistant,
+    #[graphql(name = "system")]
     System,
 }
 
