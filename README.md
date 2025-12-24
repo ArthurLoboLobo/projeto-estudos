@@ -301,21 +301,21 @@ All subsequent requests include: Authorization: Bearer <jwt>
 
 ## 🚀 Implementation Roadmap
 
-### Phase 1: Foundation Setup
-- [ ] **1.1** Initialize Rust backend with Cargo
-- [ ] **1.2** Initialize React frontend with Vite + TypeScript
-- [ ] **1.3** Set up Supabase project (database + storage)
-- [ ] **1.4** Configure environment variables
-- [ ] **1.5** Run initial database migrations
+### Phase 1: Foundation Setup ✅
+- [x] **1.1** Initialize Rust backend with Cargo
+- [x] **1.2** Initialize React frontend with Vite + TypeScript
+- [x] **1.3** Set up Supabase project (database + storage)
+- [x] **1.4** Configure environment variables
+- [x] **1.5** Run initial database migrations
 
-### Phase 2: Backend Core + Authentication
-- [ ] **2.1** Set up Axum server with health check endpoint
-- [ ] **2.2** Implement GraphQL schema with async-graphql
-- [ ] **2.3** Create Storage Layer (SQLx connection pool + queries)
-- [ ] **2.4** Build auth service (Argon2 password hashing)
-- [ ] **2.5** Implement JWT creation & validation
-- [ ] **2.6** Create register/login GraphQL mutations
-- [ ] **2.7** Build session CRUD resolvers
+### Phase 2: Backend Core + Authentication ✅
+- [x] **2.1** Set up Axum server with health check endpoint
+- [x] **2.2** Implement GraphQL schema with async-graphql
+- [x] **2.3** Create Storage Layer (SQLx connection pool + queries)
+- [x] **2.4** Build auth service (Argon2 password hashing)
+- [x] **2.5** Implement JWT creation & validation
+- [x] **2.6** Create register/login GraphQL mutations
+- [x] **2.7** Build session CRUD resolvers
 
 ### Phase 3: Document Ingestion
 - [ ] **3.1** Implement Supabase Storage client (download files)
