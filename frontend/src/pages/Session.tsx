@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
-import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES } from '../lib/graphql/queries';
+import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, CLEAR_MESSAGES } from '../lib/graphql/mutations';
 import type { Document, Message } from '../types';
 
@@ -19,6 +19,10 @@ export default function Session() {
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,9 +45,21 @@ export default function Session() {
   const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE);
   const [clearMessages] = useMutation(CLEAR_MESSAGES);
 
+  // Lazy query for document URL
+  const [fetchDocumentUrl] = useLazyQuery(GET_DOCUMENT_URL, {
+    fetchPolicy: 'network-only',
+  });
+
   const session = sessionData?.session;
   const documents: Document[] = documentsData?.documents || [];
-  const messages: Message[] = messagesData?.messages || [];
+  const serverMessages: Message[] = messagesData?.messages || [];
+  
+  // State for optimistic UI messages
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [aiTyping, setAiTyping] = useState(false);
+  
+  // Combine server messages with optimistic messages
+  const messages: Message[] = [...serverMessages, ...optimisticMessages];
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -147,6 +163,37 @@ export default function Session() {
     setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
   };
 
+  const handleViewDocument = async (doc: Document) => {
+    console.log('Viewing document:', doc.id, doc.fileName);
+    setSelectedDocument(doc);
+    setPdfUrl(null);
+    setPdfError(null);
+    setPdfLoading(true);
+    
+    try {
+      const result = await fetchDocumentUrl({ variables: { id: doc.id } });
+      console.log('Document URL result:', result);
+      if (result.data?.documentUrl) {
+        setPdfUrl(result.data.documentUrl);
+      } else if (result.error) {
+        setPdfError(result.error.message);
+      } else {
+        setPdfError('No URL returned from server');
+      }
+    } catch (err: any) {
+      console.error('Error fetching document URL:', err);
+      setPdfError(err.message || 'Failed to fetch document');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const closePdfViewer = () => {
+    setSelectedDocument(null);
+    setPdfUrl(null);
+    setPdfError(null);
+  };
+
   const handleDeleteDocument = async (docId: string, fileName: string) => {
     if (!confirm(`Remove "${fileName}"?`)) return;
 
@@ -166,15 +213,34 @@ export default function Session() {
     const content = messageInput.trim();
     setMessageInput('');
 
+    // Create optimistic message for immediate UI feedback
+    const optimisticMessage: Message = {
+      id: `optimistic-${Date.now()}`,
+      role: 'user',
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Add optimistic message to UI immediately
+    setOptimisticMessages([optimisticMessage]);
+    setAiTyping(true);
+
     try {
+      // Send message to backend (this also triggers AI response)
       await sendMessage({
         variables: { sessionId: id, content },
       });
+      
+      // Clear optimistic messages and fetch real messages from server
+      setOptimisticMessages([]);
+      setAiTyping(false);
       refetchMessages();
     } catch (err: any) {
       console.error('Send error:', err);
       toast.error(err.message || 'Failed to send message');
       setMessageInput(content); // Restore on error
+      setOptimisticMessages([]); // Clear optimistic message on error
+      setAiTyping(false);
     }
   };
 
@@ -280,7 +346,8 @@ export default function Session() {
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="bg-white/5 rounded-xl p-3 md:p-4 border border-white/10 group"
+                  className="bg-white/5 rounded-xl p-3 md:p-4 border border-white/10 group hover:bg-white/10 transition cursor-pointer"
+                  onClick={() => handleViewDocument(doc)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
@@ -300,7 +367,10 @@ export default function Session() {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDocument(doc.id, doc.fileName);
+                      }}
                       className="opacity-100 md:opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition p-1"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -338,6 +408,20 @@ export default function Session() {
                 {messages.map((msg) => (
                   <MessageBubble key={msg.id} message={msg} />
                 ))}
+                {aiTyping && (
+                  <div className="flex justify-start mb-4">
+                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5 shadow-md">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        </div>
+                        <span className="text-sm text-purple-300/70">AI is thinking...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </>
             )}
@@ -390,6 +474,73 @@ export default function Session() {
           </div>
         </main>
       </div>
+
+      {/* PDF Viewer Modal */}
+      {selectedDocument && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={closePdfViewer}
+        >
+          <div 
+            className="bg-slate-900 rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl">📄</span>
+                <div className="min-w-0">
+                  <h3 className="text-white font-semibold truncate">{selectedDocument.fileName}</h3>
+                  <p className="text-sm text-purple-300/60">
+                    {selectedDocument.pageCount ? `${selectedDocument.pageCount} pages` : 'Document'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closePdfViewer}
+                className="text-white/50 hover:text-white transition p-2 hover:bg-white/10 rounded-lg"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* PDF Content */}
+            <div className="flex-1 overflow-hidden">
+              {pdfLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-purple-300">Loading document...</p>
+                  </div>
+                </div>
+              ) : pdfUrl ? (
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-full border-0"
+                  title={selectedDocument.fileName}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-red-400 mb-2">Failed to load document</p>
+                    {pdfError && (
+                      <p className="text-xs text-gray-400 max-w-md">{pdfError}</p>
+                    )}
+                    <button
+                      onClick={() => handleViewDocument(selectedDocument)}
+                      className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
