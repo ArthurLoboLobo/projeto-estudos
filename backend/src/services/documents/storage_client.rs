@@ -1,8 +1,15 @@
 use reqwest::Client;
+use serde::Deserialize;
 
 use crate::config::Config;
 
 const BUCKET_NAME: &str = "documents";
+
+#[derive(Debug, Deserialize)]
+struct SignedUrlResponse {
+    #[serde(rename = "signedURL")]
+    signed_url: String,
+}
 
 /// Client for interacting with Supabase Storage
 pub struct StorageClient {
@@ -151,4 +158,41 @@ pub async fn delete_file(
     }
 
     Ok(())
+}
+
+/// Create a signed URL for viewing a file (expires in 1 hour)
+pub async fn create_signed_url(
+    supabase_url: &str,
+    service_key: &str,
+    file_path: &str,
+    expires_in_seconds: u64,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let client = Client::new();
+    let url = format!(
+        "{}/storage/v1/object/sign/{}/{}",
+        supabase_url, BUCKET_NAME, file_path
+    );
+
+    let response = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", service_key))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "expiresIn": expires_in_seconds
+        }))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(format!("Failed to create signed URL ({}): {}", status, error_text).into());
+    }
+
+    let signed_response: SignedUrlResponse = response.json().await?;
+    
+    // The signed URL is relative, need to make it absolute
+    let full_url = format!("{}/storage/v1{}", supabase_url, signed_response.signed_url);
+    
+    Ok(full_url)
 }

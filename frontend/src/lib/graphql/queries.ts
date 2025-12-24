@@ -65,3 +65,11 @@ export const GET_MESSAGES = gql`
     }
   }
 `;
+
+// ============ DOCUMENT URL ============
+
+export const GET_DOCUMENT_URL = gql`
+  query GetDocumentUrl($id: ID!) {
+    documentUrl(id: $id)
+  }
+`;

@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::graphql::context::GraphQLContext;
 use crate::graphql::types::Document;
-use crate::services::documents::{ingestion, storage_client::StorageClient};
+use crate::services::documents::{ingestion, storage_client::{self, StorageClient}};
 use crate::storage::{documents, sessions};
 
 /// Get all documents for a session
@@ -125,4 +125,40 @@ pub async fn delete_document(ctx: &Context<'_>, id: ID) -> Result<bool> {
     } else {
         Ok(false)
     }
+}
+
+/// Get a signed URL to view a document (expires in 1 hour)
+pub async fn get_document_url(ctx: &Context<'_>, id: ID) -> Result<String> {
+    tracing::info!("get_document_url called for id: {:?}", id);
+    
+    let gql_ctx = ctx.data::<GraphQLContext>()?;
+    let user_id = gql_ctx.require_auth()?;
+    let pool = ctx.data::<PgPool>()?;
+    let config = ctx.data::<Config>()?;
+
+    let document_id = Uuid::parse_str(&id).map_err(|_| "Invalid document ID")?;
+    tracing::info!("Parsed document_id: {}", document_id);
+
+    // Get document and verify ownership
+    let doc = documents::get_document_by_id(pool, user_id, document_id).await?;
+    tracing::info!("Document found: {:?}", doc.is_some());
+    
+    let doc = doc.ok_or("Document not found")?;
+    tracing::info!("Document file_path: {}", doc.file_path);
+
+    // Create signed URL (expires in 1 hour = 3600 seconds)
+    let signed_url = storage_client::create_signed_url(
+        &config.supabase_url,
+        &config.supabase_service_key,
+        &doc.file_path,
+        3600,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create signed URL: {}", e);
+        async_graphql::Error::new(format!("Failed to create signed URL: {}", e))
+    })?;
+
+    tracing::info!("Signed URL created successfully");
+    Ok(signed_url)
 }

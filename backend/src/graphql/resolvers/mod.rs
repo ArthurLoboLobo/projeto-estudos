@@ -45,6 +45,11 @@ impl QueryRoot {
         document::get_documents(ctx, session_id).await
     }
 
+    /// Get a signed URL to view a document
+    async fn document_url(&self, ctx: &Context<'_>, id: ID) -> Result<String> {
+        document::get_document_url(ctx, id).await
+    }
+
     /// Get all messages for a session
     async fn messages(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Message>> {
         message::get_messages(ctx, session_id).await
