@@ -91,7 +91,15 @@ export default function Session() {
         body: formData,
       });
 
-      const data = await response.json();
+      // Handle response - safely parse JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = { error: text || 'Upload failed' };
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Upload failed');

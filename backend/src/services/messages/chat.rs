@@ -40,9 +40,16 @@ pub async fn process_message(
     user_message: &str,
 ) -> Result<String, async_graphql::Error> {
     // 1. Fetch document context
+    tracing::info!("Fetching documents for session {} by user {}", session_id, user_id);
     let doc_texts = documents::get_session_document_texts(pool, user_id, session_id).await?;
     
+    tracing::info!("Found {} documents with completed extraction", doc_texts.len());
+    for (name, content) in &doc_texts {
+        tracing::info!("  - {}: {} chars", name, content.len());
+    }
+    
     let context = if doc_texts.is_empty() {
+        tracing::warn!("No documents found with extraction_status='completed' for session {}", session_id);
         "No study materials have been uploaded yet. Please upload your course materials (slides, past exams, notes) to get personalized help.".to_string()
     } else {
         doc_texts
