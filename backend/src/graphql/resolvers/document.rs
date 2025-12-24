@@ -88,12 +88,14 @@ pub async fn add_document(
     );
 
     // Save to database
+    let content_length = processed.extracted_text.len() as i32;
     let document = documents::create_document(
         pool,
         session_uuid,
         &file_name,
         &file_path,
         &processed.extracted_text,
+        content_length,
     )
     .await?;
 

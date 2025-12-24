@@ -1,10 +1,14 @@
+use sqlx::PgPool;
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 use tokio::fs;
+use uuid::Uuid;
 
 use crate::config::Config;
+use crate::services::documents::storage_client;
 use crate::services::messages::ai_client::{encode_base64, OpenRouterClient};
+use crate::storage::documents as doc_storage;
 
 const VISION_MODEL: &str = "google/gemini-2.5-flash";
 
@@ -129,4 +133,61 @@ pub async fn download_from_storage(
         .map_err(|e| async_graphql::Error::new(format!("Failed to read file bytes: {}", e)))?;
 
     Ok(bytes.to_vec())
+}
+
+/// Process a document: download, extract text, update database
+pub async fn process_document(
+    pool: &PgPool,
+    config: &Config,
+    document_id: Uuid,
+    storage_path: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    tracing::info!("Processing document {}: {}", document_id, storage_path);
+
+    // 1. Update status to processing
+    sqlx::query("UPDATE documents SET extraction_status = 'processing' WHERE id = $1")
+        .bind(document_id)
+        .execute(pool)
+        .await?;
+
+    // 2. Download file from storage
+    let pdf_data = storage_client::download_file(
+        &config.supabase_url,
+        &config.supabase_service_key,
+        storage_path,
+    )
+    .await?;
+
+    tracing::info!("Downloaded {} bytes", pdf_data.len());
+
+    // 3. Save to temp file
+    let temp_dir = TempDir::new()?;
+    let temp_pdf_path = temp_dir.path().join("document.pdf");
+    fs::write(&temp_pdf_path, &pdf_data).await?;
+
+    // 4. Process PDF (extract text using vision)
+    let result = process_pdf(&temp_pdf_path, config)
+        .await
+        .map_err(|e| format!("PDF processing failed: {:?}", e))?;
+
+    tracing::info!(
+        "Extracted {} chars from {} pages",
+        result.extracted_text.len(),
+        result.page_count
+    );
+
+    // 5. Update database with extracted content
+    doc_storage::update_document_content(
+        pool,
+        document_id,
+        &result.extracted_text,
+        result.page_count,
+        "completed",
+    )
+    .await
+    .map_err(|e| format!("Database update failed: {:?}", e))?;
+
+    tracing::info!("Document processing complete: {}", document_id);
+
+    Ok(())
 }

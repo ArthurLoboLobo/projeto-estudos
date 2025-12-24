@@ -19,15 +19,20 @@ pub type AppSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 pub struct AppState {
     pub schema: AppSchema,
     pub config: Config,
+    pub db_pool: PgPool,
 }
 
 pub fn create_schema(pool: PgPool, config: Config) -> AppState {
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
-        .data(pool)
+        .data(pool.clone())
         .data(config.clone())
         .finish();
 
-    AppState { schema, config }
+    AppState { 
+        schema, 
+        config,
+        db_pool: pool,
+    }
 }
 
 pub async fn graphql_handler(

@@ -1,4 +1,4 @@
-use async_graphql::{Context, Object, Result, SimpleObject};
+use async_graphql::{Context, Result, SimpleObject};
 use sqlx::PgPool;
 
 use crate::config::Config;

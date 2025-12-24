@@ -1,3 +1,4 @@
+mod api;
 mod config;
 mod errors;
 mod graphql;
@@ -6,7 +7,7 @@ mod storage;
 
 use axum::{
     http::{HeaderValue, Method},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
@@ -55,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/graphql",
             get(graphql::graphql_playground).post(graphql::graphql_handler),
         )
+        .route("/api/upload", post(api::upload_file))
         .layer(cors)
         .with_state(app_state);
 

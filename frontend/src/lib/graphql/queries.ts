@@ -1,13 +1,17 @@
-import { gql } from '@apollo/client';
+import { gql } from '@apollo/client/core';
 
-export const GET_ME = gql`
-  query GetMe {
+// ============ AUTH ============
+
+export const ME = gql`
+  query Me {
     me {
       id
       email
     }
   }
 `;
+
+// ============ SESSIONS ============
 
 export const GET_SESSIONS = gql`
   query GetSessions {
@@ -27,19 +31,37 @@ export const GET_SESSION = gql`
       id
       title
       description
-      documents {
-        id
-        fileName
-        contentLength
-        createdAt
-      }
-      messages {
-        id
-        role
-        content
-        createdAt
-      }
+      createdAt
+      updatedAt
     }
   }
 `;
 
+// ============ DOCUMENTS ============
+
+export const GET_DOCUMENTS = gql`
+  query GetDocuments($sessionId: ID!) {
+    documents(sessionId: $sessionId) {
+      id
+      fileName
+      filePath
+      contentLength
+      extractionStatus
+      pageCount
+      createdAt
+    }
+  }
+`;
+
+// ============ MESSAGES ============
+
+export const GET_MESSAGES = gql`
+  query GetMessages($sessionId: ID!) {
+    messages(sessionId: $sessionId) {
+      id
+      role
+      content
+      createdAt
+    }
+  }
+`;

@@ -6,7 +6,7 @@ export interface User {
 export interface Session {
   id: string;
   title: string;
-  description?: string;
+  description: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,6 +16,8 @@ export interface Document {
   fileName: string;
   filePath: string;
   contentLength: number;
+  extractionStatus: 'pending' | 'processing' | 'completed' | 'failed';
+  pageCount: number | null;
   createdAt: string;
 }
 
@@ -25,9 +27,3 @@ export interface Message {
   content: string;
   createdAt: string;
 }
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
