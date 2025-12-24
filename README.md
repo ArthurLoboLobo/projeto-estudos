@@ -264,16 +264,45 @@ pub async fn get_session_documents(pool: &PgPool, user_id: Uuid, session_id: Uui
 All subsequent requests include: Authorization: Bearer <jwt>
 ```
 
-### 2. Document Ingestion Flow
+### 2. Document Ingestion Flow (Vision-Based Extraction)
+
+**Why Vision Extraction?**
+Traditional PDF text extraction fails with academic content containing mathematical formulas, 
+chemical equations, and scientific notation. We use **Gemini Vision** to "read" PDF pages as 
+images and extract text with proper LaTeX formatting for formulas.
+
 ```
-1. User uploads PDF → Supabase Storage
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DOCUMENT PROCESSING PIPELINE                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. Frontend uploads PDF → Supabase Storage
 2. Frontend calls: addDocument(sessionId, filePath, fileName)
-3. Backend:
-   a. Downloads file from Supabase Storage
-   b. Extracts text using PDF parser
-   c. Saves to database: INSERT INTO documents (content_text, ...)
-4. Returns success → Frontend updates UI
+3. Backend Processing:
+   ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────┐
+   │ Download PDF │────▶│ pdftoppm     │────▶│ Gemini Vision            │
+   │ from Storage │     │ (PNG images) │     │ (extract text + LaTeX)   │
+   └──────────────┘     └──────────────┘     └──────────────────────────┘
+                                                       │
+                                                       ▼
+                                             ┌──────────────────┐
+                                             │ Store in DB with │
+                                             │ LaTeX formulas   │
+                                             └──────────────────┘
+4. Returns document metadata → Frontend updates UI
 ```
+
+**Example Extraction:**
+```
+Input (PDF with formula): ∫₀^∞ e^(-x²) dx = √π/2
+
+Output (stored text): The integral $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$
+```
+
+**Tools Used:**
+- `pdftoppm` (from Poppler) — Converts PDF pages to PNG images
+- `google/gemini-2.5-flash` via OpenRouter — Vision AI for text extraction
+- LaTeX notation — Preserves mathematical formulas accurately
 
 ### 3. Chat Flow
 ```
@@ -292,7 +321,7 @@ All subsequent requests include: Authorization: Bearer <jwt>
       │ ASSISTANT: [previous response]                  │
       │ USER: [current message]                         │
       └─────────────────────────────────────────────────┘
-   d. Call OpenRouter API (gemini-flash-1.5 or gpt-4o-mini)
+   d. Call OpenRouter API (gemini-2.5-flash)
    e. Save user message + AI response to database
 3. Return AI response → Frontend displays
 ```
@@ -317,18 +346,19 @@ All subsequent requests include: Authorization: Bearer <jwt>
 - [x] **2.6** Create register/login GraphQL mutations
 - [x] **2.7** Build session CRUD resolvers
 
-### Phase 3: Document Ingestion
-- [ ] **3.1** Implement Supabase Storage client (download files)
-- [ ] **3.2** Integrate PDF text extraction (lopdf or pdf-extract)
-- [ ] **3.3** Build ingestion service (download → parse → store)
-- [ ] **3.4** Create document GraphQL resolvers
+### Phase 3: Document Ingestion ✅
+- [x] **3.1** Create OpenRouter client for vision + chat
+- [x] **3.2** Implement PDF to images conversion (pdftoppm)
+- [x] **3.3** Build vision extraction service (Gemini Flash)
+- [x] **3.4** Create document storage layer
+- [x] **3.5** Create document GraphQL resolvers
 
-### Phase 4: AI Chat Integration
-- [ ] **4.1** Set up OpenRouter client with async-openai
-- [ ] **4.2** Implement context assembly service
-- [ ] **4.3** Build chat service (prompt construction → API call)
-- [ ] **4.4** Create message GraphQL resolvers
-- [ ] **4.5** Handle chat history retrieval
+### Phase 4: AI Chat Integration ✅
+- [x] **4.1** Create message storage layer
+- [x] **4.2** Build chat service with context assembly
+- [x] **4.3** Implement sendMessage mutation with AI response
+- [x] **4.4** Handle conversation history (last 20 messages)
+- [x] **4.5** Create clearMessages mutation
 
 ### Phase 5: Frontend Foundation
 - [ ] **5.1** Set up Tailwind CSS + Shadcn/UI
@@ -366,9 +396,10 @@ All subsequent requests include: Authorization: Bearer <jwt>
 | | SQLx | Type-safe SQL queries |
 | | argon2 | Password hashing |
 | | jsonwebtoken | JWT creation/validation |
-| | lopdf | PDF parsing |
+| | Poppler (pdftoppm) | PDF to image conversion |
+| **AI/ML** | OpenRouter | Unified AI API access |
+| | Gemini 2.5 Flash | Vision extraction + chat |
 | **Infrastructure** | Supabase | Database (PostgreSQL) + file storage |
-| | OpenRouter | AI model access |
 
 ---
 
@@ -385,6 +416,27 @@ RUST_LOG=info
 
 # Frontend
 VITE_GRAPHQL_ENDPOINT=http://localhost:8080/graphql
+```
+
+---
+
+## 📋 System Requirements
+
+Before running the backend, ensure you have these installed:
+
+```bash
+# Rust (latest stable)
+rustup update stable
+
+# Poppler (for PDF to image conversion)
+# macOS:
+brew install poppler
+
+# Ubuntu/Debian:
+sudo apt install poppler-utils
+
+# Verify installation:
+pdftoppm -v
 ```
 
 ---
@@ -406,7 +458,7 @@ npm run dev
 
 ## 📌 Design Decisions
 
-1. **Full-text context over RAG**: For V1, we pass complete document text to LLMs with large context windows (Gemini Flash 1.5 = 1M tokens). This avoids embedding/vector DB complexity while being sufficient for typical study materials.
+1. **Full-text context over RAG**: For V1, we pass complete document text to LLMs with large context windows (Gemini 2.5 Flash = 1M tokens). This avoids embedding/vector DB complexity while being sufficient for typical study materials.
 
 2. **Raw SQL over ORM**: Using SQLx with explicit SQL queries gives us complete control, better performance, and easier debugging. The queries are simple enough that an ORM adds no value.
 

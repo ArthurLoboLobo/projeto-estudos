@@ -31,11 +31,14 @@ chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 thiserror = "1"
 
-# HTTP client (for Supabase Storage)
+# HTTP client (for Supabase Storage & OpenRouter)
 reqwest = { version = "0.12", features = ["json"] }
 
-# PDF parsing
-lopdf = "0.33"
+# Base64 encoding (for images)
+base64 = "0.22"
+
+# Temporary files (for PDF processing)
+tempfile = "3"
 
 # Logging
 tracing = "0.1"

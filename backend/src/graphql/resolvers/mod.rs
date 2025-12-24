@@ -1,12 +1,12 @@
 mod auth;
-mod document;
-mod message;
+pub mod document;
+pub mod message;
 pub mod session;
 
 use async_graphql::{Context, Object, Result, ID};
 
 use super::context::GraphQLContext;
-use super::types::{Session, User};
+use super::types::{Document, Message, Session, User};
 
 pub struct QueryRoot;
 
@@ -38,6 +38,16 @@ impl QueryRoot {
     /// Get a specific study session by ID
     async fn session(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Session>> {
         session::get_session(ctx, id).await
+    }
+
+    /// Get all documents for a session
+    async fn documents(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Document>> {
+        document::get_documents(ctx, session_id).await
+    }
+
+    /// Get all messages for a session
+    async fn messages(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Message>> {
+        message::get_messages(ctx, session_id).await
     }
 }
 
@@ -88,5 +98,36 @@ impl MutationRoot {
     /// Delete a study session
     async fn delete_session(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
         session::delete_session(ctx, id).await
+    }
+
+    /// Add a document to a session (triggers PDF processing with vision AI)
+    async fn add_document(
+        &self,
+        ctx: &Context<'_>,
+        session_id: ID,
+        file_path: String,
+        file_name: String,
+    ) -> Result<Document> {
+        document::add_document(ctx, session_id, file_path, file_name).await
+    }
+
+    /// Delete a document
+    async fn delete_document(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        document::delete_document(ctx, id).await
+    }
+
+    /// Send a message and get AI response
+    async fn send_message(
+        &self,
+        ctx: &Context<'_>,
+        session_id: ID,
+        content: String,
+    ) -> Result<Message> {
+        message::send_message(ctx, session_id, content).await
+    }
+
+    /// Clear all messages in a session
+    async fn clear_messages(&self, ctx: &Context<'_>, session_id: ID) -> Result<bool> {
+        message::clear_messages(ctx, session_id).await
     }
 }
