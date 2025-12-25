@@ -1,23 +1,32 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Custom scrollbar for dark theme */
+@theme {
+  --color-caky-bg: #FCFCE4;
+  --color-caky-primary: #3C5489;
+  --color-caky-secondary: #ACD9E8;
+  --color-caky-dark: #2D3A64;
+}
+
+/* Custom scrollbar for light theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(168, 85, 247, 0.4);
+  background: var(--color-caky-primary);
   border-radius: 4px;
+  opacity: 0.5;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(168, 85, 247, 0.6);
+  background: var(--color-caky-dark);
+  opacity: 0.8;
 }
 
 /* Smooth scrolling */
@@ -29,6 +38,8 @@ html {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-caky-bg);
+  color: var(--color-caky-dark);
 }
 
 /* Line clamp utility */
@@ -64,34 +75,88 @@ body {
   font-size: 1em;
 }
 
-/* Prose overrides for dark theme chat bubbles */
-.prose-invert code {
-  background: rgba(255, 255, 255, 0.1);
+/* Prose overrides for light theme chat bubbles */
+.prose {
+  color: var(--color-caky-dark);
+  max-width: none;
+}
+
+.prose code {
+  background: rgba(60, 84, 137, 0.1);
+  color: var(--color-caky-dark);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.875em;
+  font-weight: 600;
 }
 
-.prose-invert pre {
-  background: rgba(0, 0, 0, 0.3);
+.prose pre {
+  background: #1e293b; /* Keep code blocks dark for readability */
+  color: #e2e8f0;
   border-radius: 0.5rem;
   padding: 0.75rem;
   overflow-x: auto;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
 }
 
-.prose-invert a {
-  color: #93c5fd;
-}
-
-.prose-invert strong {
+.prose pre code {
+  background: transparent;
   color: inherit;
+  padding: 0;
+  font-weight: 400;
 }
 
-.prose-invert ul, .prose-invert ol {
+.prose a {
+  color: var(--color-caky-primary);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.prose strong {
+  color: inherit;
+  font-weight: 700;
+}
+
+.prose ul, .prose ol {
   margin: 0.5em 0;
   padding-left: 1.25em;
 }
 
-.prose-invert li {
+.prose li {
   margin: 0.25em 0;
+}
+
+.prose p {
+  margin: 0.5em 0;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--color-caky-dark);
+  font-weight: 700;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+/* Inverted prose (for user bubbles with dark background) */
+.prose-invert {
+  color: white;
+}
+
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3,
+.prose-invert h4,
+.prose-invert strong,
+.prose-invert blockquote {
+  color: white;
+}
+
+.prose-invert a {
+  color: var(--color-caky-secondary);
+}
+
+.prose-invert code {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
 }

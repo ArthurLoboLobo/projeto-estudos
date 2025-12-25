@@ -180,8 +180,8 @@ Do not add any commentary or explanations - just extract the content."#;
             .post(OPENROUTER_API_URL)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
-            .header("HTTP-Referer", "https://studymate.app")
-            .header("X-Title", "StudyMate")
+            .header("HTTP-Referer", "https://caky.app")
+            .header("X-Title", "Caky")
             .json(&request)
             .send()
             .await

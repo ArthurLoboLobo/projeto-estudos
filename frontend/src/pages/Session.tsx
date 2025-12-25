@@ -192,6 +192,7 @@ export default function Session() {
     setSelectedDocument(null);
     setPdfUrl(null);
     setPdfError(null);
+    // Fixed infinite recursion bug from previous thought block where I called closePdfViewer inside closePdfViewer
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
@@ -258,36 +259,36 @@ export default function Session() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-caky-bg">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm shrink-0">
+      <header className="border-b border-caky-dark/10 bg-white shadow-sm shrink-0 z-10">
         <div className="px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <Link
               to="/dashboard"
-              className="text-purple-300 hover:text-white transition shrink-0"
+              className="text-caky-primary hover:text-caky-dark transition shrink-0 font-medium"
             >
               ← Back
             </Link>
             <div className="min-w-0">
-              <h1 className="text-lg md:text-xl font-bold text-white truncate">{session.title}</h1>
+              <h1 className="text-lg md:text-xl font-bold text-caky-dark truncate">{session.title}</h1>
               {session.description && (
-                <p className="text-sm text-purple-300/60 truncate hidden md:block">{session.description}</p>
+                <p className="text-sm text-caky-dark/50 truncate hidden md:block">{session.description}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <span className="text-purple-300 text-sm hidden md:block">{user?.email}</span>
+            <span className="text-caky-dark/70 text-sm hidden md:block font-medium">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-3 md:px-4 py-2 text-sm text-purple-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
               Sign Out
             </button>
@@ -298,11 +299,11 @@ export default function Session() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Sidebar - Documents (collapsible on mobile) */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/10 bg-black/20 flex flex-col shrink-0 max-h-48 md:max-h-none">
-          <div className="p-4 border-b border-white/10">
+        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 max-h-48 md:max-h-none">
+          <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
             <div className="flex justify-between items-center mb-3 md:mb-4">
-              <h2 className="text-base md:text-lg font-semibold text-white">Study Materials</h2>
-              <span className="text-xs text-purple-300/50 md:hidden">
+              <h2 className="text-base md:text-lg font-bold text-caky-dark">Study Materials</h2>
+              <span className="text-xs text-caky-dark/50 md:hidden">
                 {documents.length} doc{documents.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -316,11 +317,11 @@ export default function Session() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full py-2 md:py-3 border-2 border-dashed border-purple-500/50 hover:border-purple-500 text-purple-300 hover:text-white rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
+              className="w-full py-2 md:py-3 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base font-semibold"
             >
               {uploading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
                   {uploadProgress || 'Uploading...'}
                 </>
               ) : (
@@ -337,29 +338,29 @@ export default function Session() {
           {/* Document List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2 md:space-y-3">
             {documents.length === 0 ? (
-              <div className="text-center py-4 md:py-8 text-purple-300/50">
-                <div className="text-2xl md:text-3xl mb-2">📄</div>
-                <p className="text-sm">No documents yet</p>
+              <div className="text-center py-8 md:py-12 text-caky-dark/40">
+                <div className="text-2xl md:text-3xl mb-2 opacity-50">📄</div>
+                <p className="text-sm font-medium">No documents yet</p>
                 <p className="text-xs mt-1 hidden md:block">Upload PDFs to give context to the AI</p>
               </div>
             ) : (
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="bg-white/5 rounded-xl p-3 md:p-4 border border-white/10 group hover:bg-white/10 transition cursor-pointer"
+                  className="bg-white rounded-xl p-3 md:p-4 border border-caky-dark/5 shadow-sm hover:shadow-md hover:border-caky-primary/30 transition cursor-pointer group"
                   onClick={() => handleViewDocument(doc)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
-                      <span className="text-xl md:text-2xl shrink-0">📄</span>
+                      <span className="text-xl md:text-2xl shrink-0 opacity-80">📄</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs md:text-sm font-medium truncate">
+                        <p className="text-caky-dark text-xs md:text-sm font-semibold truncate">
                           {doc.fileName}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <StatusBadge status={doc.extractionStatus} />
                           {doc.pageCount && (
-                            <span className="text-xs text-purple-300/50 hidden md:inline">
+                            <span className="text-xs text-caky-dark/50 hidden md:inline font-medium">
                               {doc.pageCount} pages
                             </span>
                           )}
@@ -371,7 +372,7 @@ export default function Session() {
                         e.stopPropagation();
                         handleDeleteDocument(doc.id, doc.fileName);
                       }}
-                      className="opacity-100 md:opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition p-1"
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded-full"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -385,20 +386,20 @@ export default function Session() {
         </aside>
 
         {/* Chat Area */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex flex-col min-w-0 bg-white">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg">
             {loadingMessages ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-4">
+              <div className="flex flex-col items-center justify-center h-full text-center px-4 opacity-80">
                 <div className="text-5xl md:text-6xl mb-4 md:mb-6">🤖</div>
-                <h3 className="text-xl md:text-2xl font-semibold text-white mb-2 md:mb-3">
+                <h3 className="text-xl md:text-2xl font-bold text-caky-dark mb-2 md:mb-3">
                   Ready to help you study!
                 </h3>
-                <p className="text-purple-300/70 max-w-md text-sm md:text-base">
+                <p className="text-caky-dark/60 max-w-md text-sm md:text-base font-medium">
                   Upload your course materials, then ask me anything about them.
                   I'll help you understand concepts, solve problems, and prepare for exams.
                 </p>
@@ -410,14 +411,14 @@ export default function Session() {
                 ))}
                 {aiTyping && (
                   <div className="flex justify-start mb-4">
-                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5 shadow-md">
+                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-white text-caky-dark rounded-tl-none border border-caky-secondary/30 shadow-sm">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
-                        <span className="text-sm text-purple-300/70">AI is thinking...</span>
+                        <span className="text-sm text-caky-dark/50 font-medium">AI is thinking...</span>
                       </div>
                     </div>
                   </div>
@@ -428,15 +429,15 @@ export default function Session() {
           </div>
 
           {/* Message Input */}
-          <div className="border-t border-white/10 bg-black/20 p-3 md:p-4">
+          <div className="border-t border-caky-dark/10 bg-white p-3 md:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-purple-300/50">
+              <span className="text-xs text-caky-dark/50 font-medium">
                 {documents.length} doc{documents.length !== 1 ? 's' : ''} loaded
               </span>
               {messages.length > 0 && (
                 <button
                   onClick={handleClearChat}
-                  className="text-xs text-purple-300/50 hover:text-red-400 transition ml-auto"
+                  className="text-xs text-caky-dark/40 hover:text-red-500 transition ml-auto font-medium"
                 >
                   Clear chat
                 </button>
@@ -448,13 +449,13 @@ export default function Session() {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 placeholder="Ask about your study materials..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm md:text-base"
+                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary text-sm md:text-base transition"
                 disabled={sending}
               />
               <button
                 type="submit"
                 disabled={sending || !messageInput.trim()}
-                className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base"
+                className="px-4 md:px-6 py-2 md:py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base shadow-md"
               >
                 {sending ? (
                   <>
@@ -478,27 +479,27 @@ export default function Session() {
       {/* PDF Viewer Modal */}
       {selectedDocument && (
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={closePdfViewer}
         >
           <div 
-            className="bg-slate-900 rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col border border-white/10 shadow-2xl"
+            className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-2xl">📄</span>
                 <div className="min-w-0">
-                  <h3 className="text-white font-semibold truncate">{selectedDocument.fileName}</h3>
-                  <p className="text-sm text-purple-300/60">
+                  <h3 className="text-caky-dark font-bold truncate">{selectedDocument.fileName}</h3>
+                  <p className="text-sm text-caky-dark/50 font-medium">
                     {selectedDocument.pageCount ? `${selectedDocument.pageCount} pages` : 'Document'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={closePdfViewer}
-                className="text-white/50 hover:text-white transition p-2 hover:bg-white/10 rounded-lg"
+                className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-lg"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -507,12 +508,12 @@ export default function Session() {
             </div>
 
             {/* PDF Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden bg-gray-100">
               {pdfLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-purple-300">Loading document...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-caky-dark/60 font-medium">Loading document...</p>
                   </div>
                 </div>
               ) : pdfUrl ? (
@@ -524,13 +525,13 @@ export default function Session() {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <p className="text-red-400 mb-2">Failed to load document</p>
+                    <p className="text-red-500 mb-2 font-medium">Failed to load document</p>
                     {pdfError && (
-                      <p className="text-xs text-gray-400 max-w-md">{pdfError}</p>
+                      <p className="text-xs text-gray-500 max-w-md">{pdfError}</p>
                     )}
                     <button
                       onClick={() => handleViewDocument(selectedDocument)}
-                      className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+                      className="mt-4 px-4 py-2 bg-caky-primary hover:bg-caky-dark text-white rounded-lg transition font-medium"
                     >
                       Retry
                     </button>
@@ -547,14 +548,14 @@ export default function Session() {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    pending: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    processing: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    completed: 'bg-green-500/20 text-green-300 border-green-500/30',
-    failed: 'bg-red-500/20 text-red-300 border-red-500/30',
+    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    processing: 'bg-blue-100 text-blue-700 border-blue-200',
+    completed: 'bg-green-100 text-green-700 border-green-200',
+    failed: 'bg-red-100 text-red-700 border-red-200',
   };
 
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>
+    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>
       {status}
     </span>
   );
@@ -566,13 +567,13 @@ function MessageBubble({ message }: { message: Message }) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div
-        className={`max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 shadow-md relative ${
+        className={`max-w-[85%] md:max-w-2xl rounded-2xl px-5 py-3 shadow-sm relative ${
           isUser
-            ? 'bg-[#005c4b] text-white rounded-tr-none'
-            : 'bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5'
+            ? 'bg-caky-primary text-white rounded-tr-none'
+            : 'bg-white text-caky-dark rounded-tl-none border border-caky-secondary/30'
         }`}
       >
-        <div className="prose prose-sm md:prose-base prose-invert max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+        <div className={`prose prose-sm md:prose-base max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? 'prose-invert' : ''}`}>
           <ReactMarkdown
             remarkPlugins={[remarkMath]}
             rehypePlugins={[rehypeKatex]}
@@ -581,7 +582,7 @@ function MessageBubble({ message }: { message: Message }) {
           </ReactMarkdown>
         </div>
         <div 
-          className={`text-[10px] mt-2 text-right ${
+          className={`text-[10px] mt-2 text-right font-medium ${
             isUser ? 'text-white/60' : 'text-gray-400'
           }`}
         >

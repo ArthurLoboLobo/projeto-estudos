@@ -37,48 +37,52 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center bg-caky-bg relative overflow-hidden">
+      {/* Decorative Background Elements */}
+      <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-caky-secondary/20 rounded-full blur-3xl opacity-60"></div>
+      <div className="absolute top-20 -left-20 w-96 h-96 bg-caky-primary/5 rounded-full blur-3xl opacity-60"></div>
+
+      <div className="w-full max-w-md p-6 relative z-10">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            📚 StudyMate
+          <h1 className="text-4xl font-bold text-caky-primary mb-2">
+            📚 Caky
           </h1>
-          <p className="text-purple-300">
+          <p className="text-caky-dark/70 font-medium">
             AI-powered exam preparation
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-          <h2 className="text-2xl font-semibold text-white mb-6 text-center">
+        <div className="bg-white rounded-2xl p-8 shadow-xl border border-caky-secondary/30">
+          <h2 className="text-2xl font-bold text-caky-dark mb-6 text-center">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">
+              <label className="block text-sm font-semibold text-caky-dark mb-2">
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
                 placeholder="you@university.edu"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">
+              <label className="block text-sm font-semibold text-caky-dark mb-2">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -86,7 +90,7 @@ export default function AuthForm() {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-medium">
                 {error}
               </div>
             )}
@@ -94,7 +98,7 @@ export default function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark focus:outline-none focus:ring-2 focus:ring-caky-primary focus:ring-offset-2 focus:ring-offset-white transition disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform active:scale-[0.98]"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -116,7 +120,7 @@ export default function AuthForm() {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="text-purple-300 hover:text-white transition"
+              className="text-caky-primary hover:text-caky-dark font-medium transition underline-offset-4 hover:underline"
             >
               {isLogin
                 ? "Don't have an account? Sign up"
@@ -126,11 +130,10 @@ export default function AuthForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-purple-400/60 text-sm mt-8">
+        <p className="text-center text-caky-dark/50 text-sm mt-8 font-medium">
           Upload your slides, past exams & notes — get personalized AI tutoring
         </p>
       </div>
     </div>
   );
 }
-

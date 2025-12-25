@@ -55,18 +55,18 @@ export default function Dashboard() {
   const sessions: Session[] = data?.sessions || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-caky-dark/10 bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="text-xl font-bold text-white">
-            📚 StudyMate
+          <Link to="/" className="text-xl font-bold text-caky-primary flex items-center gap-2">
+            <span>📚</span> Caky
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-purple-300 text-sm">{user?.email}</span>
+            <span className="text-caky-dark/70 text-sm font-medium">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-4 py-2 text-sm text-purple-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+              className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
               Sign Out
             </button>
@@ -78,16 +78,16 @@ export default function Dashboard() {
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
+            <h1 className="text-3xl font-bold text-caky-dark mb-2">
               Your Study Sessions
             </h1>
-            <p className="text-purple-300/70">
+            <p className="text-caky-dark/60">
               Create a session for each course or exam you're preparing for
             </p>
           </div>
           <button
             onClick={() => setShowNewSession(true)}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-lg shadow-purple-500/30"
+            className="px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             + New Session
           </button>
@@ -95,14 +95,14 @@ export default function Dashboard() {
 
         {/* New Session Modal */}
         {showNewSession && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 rounded-2xl p-8 w-full max-w-md border border-white/20 shadow-2xl">
-              <h2 className="text-2xl font-bold text-white mb-6">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border border-caky-secondary/30">
+              <h2 className="text-2xl font-bold text-caky-dark mb-6">
                 Create Study Session
               </h2>
               <form onSubmit={handleCreateSession} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-semibold text-caky-dark mb-2">
                     Session Title
                   </label>
                   <input
@@ -110,13 +110,13 @@ export default function Dashboard() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="e.g., Calculus II Final Exam"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary"
                     required
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-semibold text-caky-dark mb-2">
                     Description (optional)
                   </label>
                   <textarea
@@ -124,21 +124,21 @@ export default function Dashboard() {
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Topics, exam date, notes..."
                     rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
                   />
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowNewSession(false)}
-                    className="flex-1 py-3 text-white bg-white/10 hover:bg-white/20 rounded-xl transition"
+                    className="flex-1 py-3 text-caky-dark bg-gray-100 hover:bg-gray-200 rounded-xl transition font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={creating}
-                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50"
+                    className="flex-1 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-md"
                   >
                     {creating ? 'Creating...' : 'Create'}
                   </button>
@@ -151,24 +151,24 @@ export default function Dashboard() {
         {/* Sessions Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-caky-primary border-t-transparent"></div>
           </div>
         ) : error ? (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-red-300">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
             Error loading sessions: {error.message}
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-dark/10">
             <div className="text-6xl mb-6">📚</div>
-            <h3 className="text-2xl font-semibold text-white mb-3">
+            <h3 className="text-2xl font-bold text-caky-dark mb-3">
               No study sessions yet
             </h3>
-            <p className="text-purple-300/70 mb-8">
-              Create your first session to start studying with AI
+            <p className="text-caky-dark/60 mb-8 max-w-md mx-auto">
+              Create your first session to start studying with AI context from your documents.
             </p>
             <button
               onClick={() => setShowNewSession(true)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition"
+              className="px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-md"
             >
               + Create First Session
             </button>
@@ -178,15 +178,15 @@ export default function Dashboard() {
             {sessions.map((session) => (
               <div
                 key={session.id}
-                className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:border-purple-500/50 transition group"
+                className="bg-white rounded-2xl p-6 border border-caky-secondary/30 hover:border-caky-primary/50 hover:shadow-lg transition group relative overflow-hidden"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-semibold text-white group-hover:text-purple-300 transition">
-                    {session.title}
-                  </h3>
+                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => handleDeleteSession(session.id)}
-                    className="text-white/30 hover:text-red-400 transition p-1"
+                    onClick={(e) => {
+                      e.preventDefault(); // Prevent navigating if clicking delete
+                      handleDeleteSession(session.id);
+                    }}
+                    className="text-gray-400 hover:text-red-500 transition p-1 bg-white rounded-full shadow-sm hover:bg-red-50"
                     title="Delete session"
                   >
                     <svg
@@ -204,20 +204,34 @@ export default function Dashboard() {
                     </svg>
                   </button>
                 </div>
-                {session.description && (
-                  <p className="text-purple-200/60 text-sm mb-4 line-clamp-2">
-                    {session.description}
-                  </p>
-                )}
-                <div className="text-xs text-purple-300/50 mb-4">
-                  Created {new Date(session.createdAt).toLocaleDateString()}
+
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-caky-dark group-hover:text-caky-primary transition mb-2 pr-8">
+                    {session.title}
+                  </h3>
+                  {session.description && (
+                    <p className="text-caky-dark/60 text-sm line-clamp-2 min-h-[2.5em]">
+                      {session.description}
+                    </p>
+                  )}
+                  {!session.description && (
+                    <p className="text-caky-dark/40 text-sm italic min-h-[2.5em]">
+                      No description
+                    </p>
+                  )}
                 </div>
-                <Link
-                  to={`/session/${session.id}`}
-                  className="block w-full py-3 text-center bg-white/10 hover:bg-purple-600 text-white rounded-xl transition"
-                >
-                  Open Session →
-                </Link>
+                
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                  <div className="text-xs text-caky-dark/40 font-medium">
+                    {new Date(session.createdAt).toLocaleDateString()}
+                  </div>
+                  <Link
+                    to={`/session/${session.id}`}
+                    className="px-4 py-2 bg-caky-secondary/20 text-caky-primary font-semibold rounded-lg hover:bg-caky-primary hover:text-white transition text-sm"
+                  >
+                    Open Session →
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

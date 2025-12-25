@@ -1,4 +1,4 @@
--- StudyMate Initial Schema
+-- Caky Initial Schema
 -- Users table with password authentication
 
 CREATE TABLE users (
