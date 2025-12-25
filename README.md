@@ -28,6 +28,8 @@ Caky provides **contextual tutoring** based on the student's actual course mater
 **Key Features:**
 - 📄 **PDF Upload** — Upload slides, old exams, notes (with formula support)
 - 🧠 **Context-Aware AI** — Gemini 2.5 Flash uses your materials to answer questions
+- 📋 **AI-Generated Study Plans** — Personalized study plans created from your materials
+- ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance
 - 💬 **Chat History** — Conversations are saved per study session
 - 📱 **Responsive Design** — Works on desktop and mobile
 
@@ -73,10 +75,11 @@ cd projeto-estudos
    - Project URL (e.g., `https://xxx.supabase.co`)
    - `service_role` key (secret, for backend only)
 4. Go to **Storage** and create a bucket called `documents` (set to **Private**)
-5. Go to **SQL Editor** and run the migration:
+5. Go to **SQL Editor** and run the migrations:
 
 ```sql
 -- Copy contents of backend/migrations/001_initial_schema.sql and run it
+-- Then copy contents of backend/migrations/002_study_plans.sql and run it
 ```
 
 ### 3. Backend Setup
@@ -125,9 +128,12 @@ The frontend will start at `http://localhost:5173`.
 
 1. Open `http://localhost:5173` in your browser
 2. Click "Get Started" to create an account
-3. Create a study session
-4. Upload a PDF document
-5. Chat with the AI about your document content
+3. Create a study session (automatically navigates to upload page)
+4. Upload PDF documents (slides, exams, notes)
+5. Wait for AI text extraction to complete
+6. Click "Start Planning" to generate a personalized study plan
+7. Review and refine the study plan with AI assistance
+8. Click "Start Studying" to begin chatting with your AI tutor
 
 ---
 
@@ -137,7 +143,7 @@ The frontend will start at `http://localhost:5173`.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         FRONTEND (React + Vite)                      │
 │                                                                       │
-│  Landing Page  →  Auth Forms  →  Dashboard  →  Session (Chat + Docs) │
+│  Landing Page  →  Auth Forms  →  Dashboard  →  Session (Upload → Plan → Chat) │
 │                                                                       │
 │  • Apollo Client for GraphQL                                          │
 │  • JWT stored in localStorage                                         │
@@ -213,7 +219,9 @@ projeto-estudos/
 │   │   │   ├── Landing.tsx        # Homepage with hero section
 │   │   │   ├── Auth.tsx           # Auth page wrapper
 │   │   │   ├── Dashboard.tsx      # List of study sessions
-│   │   │   └── Session.tsx        # Main study view (docs + chat)
+│   │   │   ├── Session.tsx        # Main study view (stage router)
+│   │   │   ├── SessionUpload.tsx  # Document upload interface
+│   │   │   └── SessionPlanning.tsx # Study plan generation/refinement
 │   │   │
 │   │   ├── lib/
 │   │   │   ├── apollo.ts          # Apollo Client configuration
@@ -266,18 +274,22 @@ projeto-estudos/
 │   │   │   ├── documents/
 │   │   │   │   ├── ingestion.rs   # process_pdf(), process_document()
 │   │   │   │   └── storage_client.rs  # Supabase Storage API
-│   │   │   └── messages/
-│   │   │       ├── ai_client.rs   # OpenRouterClient
-│   │   │       └── chat.rs        # send_message() orchestration
+│   │   │   ├── messages/
+│   │   │   │   ├── ai_client.rs   # OpenRouterClient
+│   │   │   │   └── chat.rs        # send_message() orchestration
+│   │   │   └── planning/
+│   │   │       └── mod.rs         # generate_study_plan(), revise_study_plan()
 │   │   │
 │   │   └── storage/               # Data Access Layer
 │   │       ├── users/mod.rs       # create_user, get_user_by_email
 │   │       ├── sessions/mod.rs    # CRUD for study_sessions
 │   │       ├── documents/mod.rs   # CRUD for documents
-│   │       └── messages/mod.rs    # CRUD for messages
+│   │       ├── messages/mod.rs    # CRUD for messages
+│   │       └── study_plans/mod.rs # CRUD for study_plans (versioned)
 │   │
 │   ├── migrations/
-│   │   └── 001_initial_schema.sql # Database schema
+│   │   ├── 001_initial_schema.sql # Initial database schema
+│   │   └── 002_study_plans.sql    # Study plans and session stages
 │   │
 │   ├── .env                       # All secrets (gitignored)
 │   └── Cargo.toml                 # Rust dependencies
@@ -308,6 +320,8 @@ CREATE TABLE study_sessions (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    stage VARCHAR(20) NOT NULL DEFAULT 'uploading'
+        CHECK (stage IN ('uploading', 'planning', 'studying')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -326,6 +340,16 @@ CREATE TABLE documents (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Study Plans (versioned AI-generated plans)
+CREATE TABLE study_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL DEFAULT 1,
+    content_md TEXT NOT NULL,
+    instruction TEXT, -- User instruction that led to this version
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Chat Messages
 CREATE TABLE messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -340,6 +364,8 @@ CREATE INDEX idx_sessions_user ON study_sessions(user_id);
 CREATE INDEX idx_documents_session ON documents(session_id);
 CREATE INDEX idx_messages_session ON messages(session_id);
 CREATE INDEX idx_messages_created ON messages(session_id, created_at);
+CREATE INDEX idx_study_plans_session ON study_plans(session_id);
+CREATE INDEX idx_study_plans_version ON study_plans(session_id, version DESC);
 ```
 
 ### Entity Relationships
@@ -348,12 +374,12 @@ CREATE INDEX idx_messages_created ON messages(session_id, created_at);
 ┌─────────┐       ┌─────────────────┐       ┌───────────┐
 │  users  │──1:N──│ study_sessions  │──1:N──│ documents │
 └─────────┘       └─────────────────┘       └───────────┘
-                          │
-                          │ 1:N
-                          ▼
-                   ┌───────────┐
-                   │ messages  │
-                   └───────────┘
+                          │                       │
+                          │ 1:N                  1:N
+                          ▼                       ▼
+                   ┌───────────┐           ┌─────────────┐
+                   │ messages  │           │ study_plans │
+                   └───────────┘           └─────────────┘
 ```
 
 ### Authorization Pattern
@@ -398,6 +424,8 @@ GraphQL Playground available at: `GET /graphql`
 | `session(id)` | ✅ | Get single session by ID |
 | `documents(sessionId)` | ✅ | List documents in a session |
 | `messages(sessionId)` | ✅ | Get chat history for a session |
+| `studyPlan(sessionId)` | ✅ | Get current study plan |
+| `studyPlanHistory(sessionId)` | ✅ | Get study plan version history |
 
 ### Mutations
 
@@ -409,6 +437,10 @@ GraphQL Playground available at: `GET /graphql`
 | `updateSession(id, title?, description?)` | ✅ | Update session |
 | `deleteSession(id)` | ✅ | Delete session + all docs/messages |
 | `deleteDocument(id)` | ✅ | Delete a document |
+| `startPlanning(sessionId)` | ✅ | Generate AI study plan from documents |
+| `reviseStudyPlan(sessionId, instruction)` | ✅ | Revise study plan with AI assistance |
+| `undoStudyPlan(sessionId)` | ✅ | Revert to previous plan version |
+| `startStudying(sessionId)` | ✅ | Finalize plan and begin studying |
 | `sendMessage(sessionId, content)` | ✅ | Send message, get AI response |
 | `clearMessages(sessionId)` | ✅ | Clear chat history |
 
@@ -470,6 +502,27 @@ mutation {
 query {
   messages(sessionId: "...") {
     id role content createdAt
+  }
+}
+
+# Generate study plan
+mutation {
+  startPlanning(sessionId: "...") {
+    id version contentMd createdAt
+  }
+}
+
+# Revise study plan
+mutation {
+  reviseStudyPlan(sessionId: "...", instruction: "Focus more on practice problems") {
+    id version contentMd createdAt
+  }
+}
+
+# Get current study plan
+query {
+  studyPlan(sessionId: "...") {
+    id version contentMd instruction createdAt
   }
 }
 ```
@@ -648,6 +701,54 @@ For a typical study session:
 This is why we use full-text context instead of RAG for V1.
 ```
 
+### 4. Study Plan Generation & Refinement Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     STUDY PLANNING WORKFLOW                          │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  1. User completes document upload and extraction                     │
+│                                                                       │
+│  2. User clicks "Start Planning"                                       │
+│                                                                       │
+│  3. AI analyzes all document content and generates:                    │
+│     • Study overview based on materials                              │
+│     • Ordered learning modules                                       │
+│     • Key concepts and practice suggestions                          │
+│     • Estimated study time for each section                          │
+│                                                                       │
+│  4. User can refine the plan by providing instructions:               │
+│     "Add more practice problems for integrals"                       │
+│     "Focus on chapters 5-8 only"                                     │
+│     "Make this a 2-day study plan"                                   │
+│                                                                       │
+│  5. AI revises the plan and creates a new version                      │
+│                                                                       │
+│  6. User can undo changes or continue refining                         │
+│                                                                       │
+│  7. User clicks "Start Studying" to finalize plan and begin chat      │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+
+Study Plan Structure:
+─────────────────────
+• **Overview**: Summary of exam scope based on materials
+• **Learning Objectives**: What student should master
+• **Study Modules**: Ordered topics with:
+  - Key concepts to understand
+  - Practice activities
+  - Time estimates
+  - Material references
+• **Study Tips**: Advice based on document types
+
+Version History:
+───────────────
+Each revision creates a new version that can be:
+• Viewed in history
+• Reverted to with undo
+• Compared with previous versions
+
 ---
 
 ## 🛠️ Tech Stack
@@ -662,6 +763,8 @@ This is why we use full-text context instead of RAG for V1.
 | Tailwind CSS | 4 | Styling (new v4 syntax) |
 | Apollo Client | 4 | GraphQL client |
 | React Router | 7 | Client-side routing |
+| React Markdown | Latest | Markdown rendering |
+| Remark Math | Latest | LaTeX math support |
 | Sonner | 2 | Toast notifications |
 
 ### Backend
@@ -790,6 +893,17 @@ We use GraphQL for the API layer.
 - Single endpoint simplifies infrastructure
 - Subscriptions ready for real-time features (V2)
 
+### 6. Multi-Stage Session Workflow
+
+Sessions progress through three stages: uploading → planning → studying.
+
+**Why:**
+- **Guided Experience**: Users follow a logical progression from material collection to plan creation to studying
+- **Incremental Value**: Each stage provides immediate value and builds toward comprehensive preparation
+- **AI Integration**: Study plans are generated from actual user materials, not generic templates
+- **Version Control**: Plan revisions are tracked with undo functionality
+- **Scalability**: Easy to add new stages (e.g., progress tracking, spaced repetition) in the future
+
 ---
 
 ## 🔧 Troubleshooting
@@ -844,17 +958,20 @@ sudo apt install poppler-utils  # Ubuntu
 
 ## 🔮 Future Roadmap (V2+)
 
-| Feature | Description |
-|---------|-------------|
-| **Streaming Responses** | Real-time AI response streaming via SSE |
-| **Smart Context Selection** | When documents exceed limits, use relevance scoring |
-| **Flashcard Generation** | AI-generated flashcards from materials |
-| **Quiz Mode** | Practice questions based on content |
-| **Collaboration** | Share sessions with study groups |
-| **Mobile App** | React Native companion app |
-| **Email Verification** | Verify email on signup |
-| **OAuth** | Login with Google, GitHub |
-| **Export** | Export chat history as PDF |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **AI-Generated Study Plans** | Personalized study plans from user materials | ✅ **Implemented** |
+| **Plan Refinement with AI** | Interactive plan editing with AI assistance | ✅ **Implemented** |
+| **Version Control for Plans** | Undo/redo functionality for plan revisions | ✅ **Implemented** |
+| **Streaming Responses** | Real-time AI response streaming via SSE | Planned |
+| **Smart Context Selection** | When documents exceed limits, use relevance scoring | Planned |
+| **Flashcard Generation** | AI-generated flashcards from materials | Planned |
+| **Quiz Mode** | Practice questions based on content | Planned |
+| **Collaboration** | Share sessions with study groups | Planned |
+| **Mobile App** | React Native companion app | Planned |
+| **Email Verification** | Verify email on signup | Planned |
+| **OAuth** | Login with Google, GitHub | Planned |
+| **Export** | Export chat history as PDF | Planned |
 
 ---
 

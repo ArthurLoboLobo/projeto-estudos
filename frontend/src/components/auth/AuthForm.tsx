@@ -26,11 +26,15 @@ export default function AuthForm() {
         variables: { email, password },
       });
 
-      const result = isLogin ? data.login : data.register;
-      toast.success(isLogin ? 'Welcome back!' : 'Account created!');
-      authLogin(result.token, result.user);
-    } catch (err: any) {
-      const message = err.message || 'An error occurred';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedData = data as any;
+      const result = isLogin ? typedData?.login : typedData?.register;
+      if (result) {
+        toast.success(isLogin ? 'Welcome back!' : 'Account created!');
+        authLogin(result.token, result.user);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred';
       setError(message);
       toast.error(message);
     }

@@ -6,15 +6,116 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
-import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL } from '../lib/graphql/queries';
+import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, CLEAR_MESSAGES } from '../lib/graphql/mutations';
-import type { Document, Message } from '../types';
+import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
+import SessionUpload from './SessionUpload';
+import SessionPlanning from './SessionPlanning';
 
 const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') || 'http://localhost:8080';
 
 export default function Session() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [session, setSession] = useState<SessionType | null>(null);
+  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
+
+  // Fetch session data
+  const { data: sessionData, error: sessionError, refetch: refetchSession } = useQuery<{ session: SessionType }>(GET_SESSION, {
+    variables: { id },
+    skip: !id,
+  });
+
+  // Fetch study plan
+  const { data: planData, refetch: refetchPlan } = useQuery<{ studyPlan: StudyPlan | null }>(GET_STUDY_PLAN, {
+    variables: { sessionId: id },
+    skip: !id,
+  });
+
+  // Update local state when data changes
+  useEffect(() => {
+    if (sessionData?.session) {
+      setSession(sessionData.session);
+    }
+  }, [sessionData]);
+
+  useEffect(() => {
+    if (planData?.studyPlan !== undefined) {
+      setStudyPlan(planData.studyPlan);
+    }
+  }, [planData]);
+
+  // Redirect if session not found
+  useEffect(() => {
+    if (sessionError) {
+      toast.error('Session not found');
+      navigate('/dashboard');
+    }
+  }, [sessionError, navigate]);
+
+  // Loading state
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-caky-bg">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // Route based on stage
+  if (session.stage === 'UPLOADING') {
+    return (
+      <SessionUpload
+        session={session}
+        onPlanGenerated={(plan) => {
+          setStudyPlan(plan);
+          setSession({ ...session, stage: 'PLANNING' });
+          refetchSession();
+          refetchPlan();
+        }}
+      />
+    );
+  }
+
+  if (session.stage === 'PLANNING') {
+    if (!studyPlan) {
+      // Still loading plan
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-caky-bg">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent"></div>
+        </div>
+      );
+    }
+    return (
+      <SessionPlanning
+        session={session}
+        initialPlan={studyPlan}
+        onStartStudying={(updatedSession) => {
+          setSession(updatedSession);
+          refetchSession();
+        }}
+      />
+    );
+  }
+
+  // STUDYING stage - render the main study view
+  return (
+    <SessionStudying
+      session={session}
+      studyPlan={studyPlan}
+      onRefetchPlan={refetchPlan}
+    />
+  );
+}
+
+// The main studying interface
+interface SessionStudyingProps {
+  session: SessionType;
+  studyPlan: StudyPlan | null;
+  onRefetchPlan: () => void;
+}
+
+function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   const { user, logout } = useAuth();
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -23,21 +124,16 @@ export default function Session() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [showPlan, setShowPlan] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Queries
-  const { data: sessionData, error: sessionError } = useQuery(GET_SESSION, {
-    variables: { id },
-    skip: !id,
+  const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
+    variables: { sessionId: session.id },
   });
-  const { data: documentsData, refetch: refetchDocs } = useQuery(GET_DOCUMENTS, {
-    variables: { sessionId: id },
-    skip: !id,
-  });
-  const { data: messagesData, refetch: refetchMessages, loading: loadingMessages } = useQuery(GET_MESSAGES, {
-    variables: { sessionId: id },
-    skip: !id,
+  const { data: messagesData, refetch: refetchMessages, loading: loadingMessages } = useQuery<{ messages: Message[] }>(GET_MESSAGES, {
+    variables: { sessionId: session.id },
   });
 
   // Mutations
@@ -46,11 +142,10 @@ export default function Session() {
   const [clearMessages] = useMutation(CLEAR_MESSAGES);
 
   // Lazy query for document URL
-  const [fetchDocumentUrl] = useLazyQuery(GET_DOCUMENT_URL, {
+  const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
     fetchPolicy: 'network-only',
   });
 
-  const session = sessionData?.session;
   const documents: Document[] = documentsData?.documents || [];
   const serverMessages: Message[] = messagesData?.messages || [];
   
@@ -66,14 +161,6 @@ export default function Session() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Redirect if session not found
-  useEffect(() => {
-    if (sessionError) {
-      toast.error('Session not found');
-      navigate('/dashboard');
-    }
-  }, [sessionError, navigate]);
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -83,7 +170,7 @@ export default function Session() {
       return;
     }
 
-    if (file.size > 50 * 1024 * 1024) { // 50MB limit
+    if (file.size > 50 * 1024 * 1024) {
       toast.error('File size must be less than 50MB');
       return;
     }
@@ -97,10 +184,9 @@ export default function Session() {
         throw new Error('Not authenticated');
       }
 
-      // Upload file to backend (which handles storage + processing)
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('sessionId', id!);
+      formData.append('sessionId', session.id);
 
       const response = await fetch(`${API_BASE}/api/upload`, {
         method: 'POST',
@@ -110,7 +196,6 @@ export default function Session() {
         body: formData,
       });
 
-      // Handle response - safely parse JSON
       let data;
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
@@ -126,8 +211,6 @@ export default function Session() {
 
       toast.success('Document uploaded! Text extraction in progress...');
       refetchDocs();
-
-      // Poll for extraction completion
       pollDocumentStatus();
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -141,7 +224,6 @@ export default function Session() {
     }
   };
 
-  // Poll for document extraction status
   const pollDocumentStatus = () => {
     const interval = setInterval(() => {
       refetchDocs().then(({ data }) => {
@@ -157,14 +239,12 @@ export default function Session() {
           }
         }
       });
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
 
-    // Stop polling after 5 minutes
     setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
   };
 
   const handleViewDocument = async (doc: Document) => {
-    console.log('Viewing document:', doc.id, doc.fileName);
     setSelectedDocument(doc);
     setPdfUrl(null);
     setPdfError(null);
@@ -172,7 +252,6 @@ export default function Session() {
     
     try {
       const result = await fetchDocumentUrl({ variables: { id: doc.id } });
-      console.log('Document URL result:', result);
       if (result.data?.documentUrl) {
         setPdfUrl(result.data.documentUrl);
       } else if (result.error) {
@@ -181,7 +260,6 @@ export default function Session() {
         setPdfError('No URL returned from server');
       }
     } catch (err: any) {
-      console.error('Error fetching document URL:', err);
       setPdfError(err.message || 'Failed to fetch document');
     } finally {
       setPdfLoading(false);
@@ -192,7 +270,6 @@ export default function Session() {
     setSelectedDocument(null);
     setPdfUrl(null);
     setPdfError(null);
-    // Fixed infinite recursion bug from previous thought block where I called closePdfViewer inside closePdfViewer
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
@@ -214,7 +291,6 @@ export default function Session() {
     const content = messageInput.trim();
     setMessageInput('');
 
-    // Create optimistic message for immediate UI feedback
     const optimisticMessage: Message = {
       id: `optimistic-${Date.now()}`,
       role: 'user',
@@ -222,25 +298,22 @@ export default function Session() {
       createdAt: new Date().toISOString(),
     };
     
-    // Add optimistic message to UI immediately
     setOptimisticMessages([optimisticMessage]);
     setAiTyping(true);
 
     try {
-      // Send message to backend (this also triggers AI response)
       await sendMessage({
-        variables: { sessionId: id, content },
+        variables: { sessionId: session.id, content },
       });
       
-      // Clear optimistic messages and fetch real messages from server
       setOptimisticMessages([]);
       setAiTyping(false);
       refetchMessages();
     } catch (err: any) {
       console.error('Send error:', err);
       toast.error(err.message || 'Failed to send message');
-      setMessageInput(content); // Restore on error
-      setOptimisticMessages([]); // Clear optimistic message on error
+      setMessageInput(content);
+      setOptimisticMessages([]);
       setAiTyping(false);
     }
   };
@@ -249,21 +322,13 @@ export default function Session() {
     if (!confirm('Clear all chat history?')) return;
 
     try {
-      await clearMessages({ variables: { sessionId: id } });
+      await clearMessages({ variables: { sessionId: session.id } });
       toast.success('Chat cleared');
       refetchMessages();
     } catch (err: any) {
       toast.error(err.message || 'Failed to clear chat');
     }
   };
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-caky-bg">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex flex-col bg-caky-bg">
@@ -301,73 +366,63 @@ export default function Session() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Sidebar - Documents (collapsible on mobile) */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 max-h-48 md:max-h-none">
-          <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
-            <div className="flex justify-between items-center mb-3 md:mb-4">
-              <h2 className="text-base md:text-lg font-bold text-caky-dark">Study Materials</h2>
-              <span className="text-xs text-caky-dark/50 md:hidden">
-                {documents.length} doc{documents.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".pdf"
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="w-full py-2 md:py-3 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base font-semibold"
-            >
-              {uploading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
-                  {uploadProgress || 'Uploading...'}
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Upload PDF
-                </>
-              )}
-            </button>
+        {/* Left Sidebar - Documents + Study Plan */}
+        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 h-48 md:h-full max-h-48 md:max-h-none">
+          {/* Documents Section - Half height */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-base font-bold text-caky-dark">Study Materials</h2>
+                <span className="text-xs text-caky-dark/50">
+                  {documents.length} doc{documents.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".pdf"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full py-2 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+              >
+                {uploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
+                    {uploadProgress || 'Uploading...'}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload PDF
+                  </>
+                )}
+              </button>
           </div>
 
-          {/* Document List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 md:space-y-3">
+            {/* Document List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {documents.length === 0 ? (
-              <div className="text-center py-8 md:py-12 text-caky-dark/40">
-                <div className="text-2xl md:text-3xl mb-2 opacity-50">📄</div>
-                <p className="text-sm font-medium">No documents yet</p>
-                <p className="text-xs mt-1 hidden md:block">Upload PDFs to give context to the AI</p>
+              <div className="text-center py-4 text-caky-dark/40">
+                <p className="text-xs font-medium">No documents yet</p>
               </div>
             ) : (
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="bg-white rounded-xl p-3 md:p-4 border border-caky-dark/5 shadow-sm hover:shadow-md hover:border-caky-primary/30 transition cursor-pointer group"
+                  className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
                   onClick={() => handleViewDocument(doc)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
-                      <span className="text-xl md:text-2xl shrink-0 opacity-80">📄</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <div className="min-w-0 flex-1">
-                        <p className="text-caky-dark text-xs md:text-sm font-semibold truncate">
-                          {doc.fileName}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <StatusBadge status={doc.extractionStatus} />
-                          {doc.pageCount && (
-                            <span className="text-xs text-caky-dark/50 hidden md:inline font-medium">
-                              {doc.pageCount} pages
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
+                        <StatusBadge status={doc.extractionStatus} />
                       </div>
                     </div>
                     <button
@@ -375,9 +430,9 @@ export default function Session() {
                         e.stopPropagation();
                         handleDeleteDocument(doc.id, doc.fileName);
                       }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded-full"
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -386,6 +441,41 @@ export default function Session() {
               ))
             )}
           </div>
+          </div>
+
+          {/* Study Plan Section */}
+          {studyPlan && (
+            <div className="flex-1 flex flex-col border-t border-caky-dark/10 min-h-0">
+              <button
+                onClick={() => setShowPlan(!showPlan)}
+                className="p-3 flex items-center justify-between bg-caky-primary/5 hover:bg-caky-primary/10 transition shrink-0"
+              >
+                <span className="font-bold text-caky-dark text-sm flex items-center gap-2">
+                  Study Plan
+                </span>
+                <svg
+                  className={`w-4 h-4 text-caky-dark/50 transition-transform ${showPlan ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showPlan && (
+                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0">
+                  <div className="prose prose-xs max-w-none text-caky-dark/80 prose-headings:text-caky-dark prose-headings:text-sm prose-p:text-xs prose-li:text-xs">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                    >
+                      {studyPlan.contentMd}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
 
         {/* Chat Area */}
@@ -398,13 +488,11 @@ export default function Session() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4 opacity-80">
-                <div className="text-5xl md:text-6xl mb-4 md:mb-6">🤖</div>
                 <h3 className="text-xl md:text-2xl font-bold text-caky-dark mb-2 md:mb-3">
                   Ready to help you study!
                 </h3>
                 <p className="text-caky-dark/60 max-w-md text-sm md:text-base font-medium">
-                  Upload your course materials, then ask me anything about them.
-                  I'll help you understand concepts, solve problems, and prepare for exams.
+                  Ask me anything about your study materials. I'll help you understand concepts, solve problems, and prepare for your exam.
                 </p>
               </div>
             ) : (
@@ -489,10 +577,8 @@ export default function Session() {
             className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-2xl">📄</span>
                 <div className="min-w-0">
                   <h3 className="text-caky-dark font-bold truncate">{selectedDocument.fileName}</h3>
                   <p className="text-sm text-caky-dark/50 font-medium">
@@ -510,7 +596,6 @@ export default function Session() {
               </button>
             </div>
 
-            {/* PDF Content */}
             <div className="flex-1 overflow-hidden bg-gray-100">
               {pdfLoading ? (
                 <div className="flex items-center justify-center h-full">

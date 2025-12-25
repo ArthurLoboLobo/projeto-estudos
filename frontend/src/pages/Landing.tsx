@@ -79,26 +79,22 @@ export default function Landing() {
                 step: '01',
                 title: 'Upload Materials',
                 description: 'Drop your slides, past exams, lecture notes, and textbook PDFs into your study session.',
-                icon: '📄',
               },
               {
                 step: '02',
                 title: 'AI Reads Everything',
                 description: 'Our AI uses vision technology to extract text, formulas, and diagrams with perfect accuracy.',
-                icon: '🤖',
               },
               {
                 step: '03',
                 title: 'Study Smarter',
                 description: 'Ask questions, get explanations, practice problems — all based on YOUR specific materials.',
-                icon: '🎯',
               },
             ].map((item) => (
               <div
                 key={item.step}
                 className="bg-caky-bg rounded-2xl p-8 border border-caky-secondary/30 hover:border-caky-primary/50 transition group hover:shadow-md"
               >
-                <span className="text-5xl mb-6 block opacity-90">{item.icon}</span>
                 <div className="text-caky-primary font-bold font-mono text-sm mb-2 uppercase tracking-wider">
                   Step {item.step}
                 </div>
@@ -134,7 +130,6 @@ export default function Landing() {
               {
                 title: 'Context-Aware Responses',
                 description: 'Every answer is grounded in your uploaded materials. No hallucinations, just relevant help.',
-                icon: '🎯',
               },
               {
                 title: 'Session-Based Learning',

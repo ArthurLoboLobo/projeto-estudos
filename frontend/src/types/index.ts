@@ -3,10 +3,13 @@ export interface User {
   email: string;
 }
 
+export type SessionStage = 'UPLOADING' | 'PLANNING' | 'STUDYING';
+
 export interface Session {
   id: string;
   title: string;
   description: string | null;
+  stage: SessionStage;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,5 +28,14 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  createdAt: string;
+}
+
+export interface StudyPlan {
+  id: string;
+  sessionId: string;
+  version: number;
+  contentMd: string;
+  instruction: string | null;
   createdAt: string;
 }

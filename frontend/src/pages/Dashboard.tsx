@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/auth';
@@ -9,18 +9,24 @@ import type { Session } from '../types';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [showNewSession, setShowNewSession] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
 
-  const { data, loading, error, refetch } = useQuery(GET_SESSIONS);
-  const [createSession, { loading: creating }] = useMutation(CREATE_SESSION, {
-    onCompleted: () => {
+  const { data, loading, error, refetch } = useQuery<{ sessions: Session[] }>(GET_SESSIONS);
+  const [createSession, { loading: creating }] = useMutation<{ createSession: Session }>(CREATE_SESSION, {
+    onCompleted: (data) => {
       setShowNewSession(false);
       setNewTitle('');
       setNewDescription('');
       toast.success('Session created!');
-      refetch();
+      // Navigate to the new session automatically
+      if (data?.createSession?.id) {
+        navigate(`/session/${data.createSession.id}`);
+      } else {
+        refetch(); // Fallback: refresh dashboard if navigation fails
+      }
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to create session');
@@ -160,7 +166,6 @@ export default function Dashboard() {
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-dark/10">
-            <div className="text-6xl mb-6">📚</div>
             <h3 className="text-2xl font-bold text-caky-dark mb-3">
               No study sessions yet
             </h3>
@@ -207,9 +212,12 @@ export default function Dashboard() {
                 </div>
 
                 <div className="mb-4">
-                  <h3 className="text-xl font-bold text-caky-dark group-hover:text-caky-primary transition mb-2 pr-8">
-                    {session.title}
-                  </h3>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="text-xl font-bold text-caky-dark group-hover:text-caky-primary transition pr-8">
+                      {session.title}
+                    </h3>
+                    <StageBadge stage={session.stage} />
+                  </div>
                   {session.description && (
                     <p className="text-caky-dark/60 text-sm line-clamp-2 min-h-[2.5em]">
                       {session.description}
@@ -239,5 +247,30 @@ export default function Dashboard() {
         )}
       </main>
     </div>
+  );
+}
+
+function StageBadge({ stage }: { stage: string }) {
+  const config: Record<string, { label: string; className: string }> = {
+    UPLOADING: {
+      label: 'Upload',
+      className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    },
+    PLANNING: {
+      label: 'Planning',
+      className: 'bg-blue-100 text-blue-700 border-blue-200',
+    },
+    STUDYING: {
+      label: 'Studying',
+      className: 'bg-green-100 text-green-700 border-green-200',
+    },
+  };
+
+  const stageConfig = config[stage] || config.UPLOADING;
+
+  return (
+    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full border whitespace-nowrap ${stageConfig.className}`}>
+{stageConfig.label}
+    </span>
   );
 }

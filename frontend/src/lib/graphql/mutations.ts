@@ -34,6 +34,7 @@ export const CREATE_SESSION = gql`
       id
       title
       description
+      stage
       createdAt
       updatedAt
     }
@@ -46,6 +47,7 @@ export const UPDATE_SESSION = gql`
       id
       title
       description
+      stage
       updatedAt
     }
   }
@@ -82,5 +84,59 @@ export const SEND_MESSAGE = gql`
 export const CLEAR_MESSAGES = gql`
   mutation ClearMessages($sessionId: ID!) {
     clearMessages(sessionId: $sessionId)
+  }
+`;
+
+// ============ PLANNING ============
+
+export const START_PLANNING = gql`
+  mutation StartPlanning($sessionId: ID!) {
+    startPlanning(sessionId: $sessionId) {
+      id
+      sessionId
+      version
+      contentMd
+      instruction
+      createdAt
+    }
+  }
+`;
+
+export const REVISE_STUDY_PLAN = gql`
+  mutation ReviseStudyPlan($sessionId: ID!, $instruction: String!) {
+    reviseStudyPlan(sessionId: $sessionId, instruction: $instruction) {
+      id
+      sessionId
+      version
+      contentMd
+      instruction
+      createdAt
+    }
+  }
+`;
+
+export const UNDO_STUDY_PLAN = gql`
+  mutation UndoStudyPlan($sessionId: ID!) {
+    undoStudyPlan(sessionId: $sessionId) {
+      id
+      sessionId
+      version
+      contentMd
+      instruction
+      createdAt
+    }
+  }
+`;
+
+export const START_STUDYING = gql`
+  mutation StartStudying($sessionId: ID!) {
+    startStudying(sessionId: $sessionId) {
+      id
+      title
+      description
+      stage
+      createdAt
+      updatedAt
+    }
   }
 `;

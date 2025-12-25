@@ -19,6 +19,7 @@ export const GET_SESSIONS = gql`
       id
       title
       description
+      stage
       createdAt
       updatedAt
     }
@@ -31,8 +32,37 @@ export const GET_SESSION = gql`
       id
       title
       description
+      stage
       createdAt
       updatedAt
+    }
+  }
+`;
+
+// ============ STUDY PLANS ============
+
+export const GET_STUDY_PLAN = gql`
+  query GetStudyPlan($sessionId: ID!) {
+    studyPlan(sessionId: $sessionId) {
+      id
+      sessionId
+      version
+      contentMd
+      instruction
+      createdAt
+    }
+  }
+`;
+
+export const GET_STUDY_PLAN_HISTORY = gql`
+  query GetStudyPlanHistory($sessionId: ID!) {
+    studyPlanHistory(sessionId: $sessionId) {
+      id
+      sessionId
+      version
+      contentMd
+      instruction
+      createdAt
     }
   }
 `;
