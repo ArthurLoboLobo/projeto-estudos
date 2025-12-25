@@ -45,8 +45,9 @@ export default function AuthForm() {
       <div className="w-full max-w-md p-6 relative z-10">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
+          <img src="/caky_logo.png" alt="Caky Logo" className="w-20 h-20 mx-auto mb-4 drop-shadow-md" />
           <h1 className="text-4xl font-bold text-caky-primary mb-2">
-            📚 Caky
+            Caky
           </h1>
           <p className="text-caky-dark/70 font-medium">
             AI-powered exam preparation

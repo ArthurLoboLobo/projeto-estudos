@@ -6,6 +6,7 @@
   --color-caky-primary: #3C5489;
   --color-caky-secondary: #ACD9E8;
   --color-caky-dark: #2D3A64;
+  --color-caky-card: #FFFEF5;
 }
 
 /* Custom scrollbar for light theme */
@@ -40,6 +41,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-caky-bg);
   color: var(--color-caky-dark);
+}
+
+.bg-white {
+  background-color: var(--color-caky-card) !important;
+}
+
+.bg-gray-50, .bg-gray-100 {
+  background-color: var(--color-caky-bg) !important;
 }
 
 /* Line clamp utility */

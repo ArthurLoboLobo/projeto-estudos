@@ -268,7 +268,7 @@ export default function Session() {
   return (
     <div className="h-screen flex flex-col bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-white shadow-sm shrink-0 z-10">
+      <header className="border-b border-caky-dark/10 bg-caky-card shadow-sm shrink-0 z-10">
         <div className="px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <Link
@@ -277,11 +277,14 @@ export default function Session() {
             >
               ← Back
             </Link>
-            <div className="min-w-0">
-              <h1 className="text-lg md:text-xl font-bold text-caky-dark truncate">{session.title}</h1>
-              {session.description && (
-                <p className="text-sm text-caky-dark/50 truncate hidden md:block">{session.description}</p>
-              )}
+            <div className="flex items-center gap-3 min-w-0">
+              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 object-contain hidden md:block" />
+              <div className="min-w-0">
+                <h1 className="text-lg md:text-xl font-bold text-caky-dark truncate">{session.title}</h1>
+                {session.description && (
+                  <p className="text-sm text-caky-dark/50 truncate hidden md:block">{session.description}</p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">

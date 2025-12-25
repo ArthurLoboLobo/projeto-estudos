@@ -57,10 +57,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+      <header className="border-b border-caky-dark/10 bg-caky-card/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link to="/" className="text-xl font-bold text-caky-primary flex items-center gap-2">
-            <span>📚</span> Caky
+            <img src="/caky_logo.png" alt="Caky Logo" className="w-8 h-8 object-contain" />
+            Caky
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-caky-dark/70 text-sm font-medium">{user?.email}</span>

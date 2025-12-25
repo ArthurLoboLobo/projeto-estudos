@@ -9,10 +9,13 @@ export default function Landing() {
       {/* Navigation */}
       <nav className="absolute top-0 left-0 right-0 p-6 z-10">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-caky-primary tracking-tight">📚 Caky</h1>
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/caky_logo.png" alt="Caky Logo" className="w-10 h-10 object-contain" />
+            <h1 className="text-3xl font-bold text-caky-primary tracking-tight">Caky</h1>
+          </Link>
           <Link
             to={isAuthenticated ? '/dashboard' : '/auth'}
-            className="px-6 py-2 bg-white text-caky-primary font-semibold rounded-full border-2 border-caky-primary hover:bg-caky-primary hover:text-white transition shadow-sm"
+            className="px-6 py-2 bg-caky-card text-caky-primary font-semibold rounded-full border-2 border-caky-primary hover:bg-caky-primary hover:text-white transition shadow-sm"
           >
             {isAuthenticated ? 'Dashboard' : 'Get Started'}
           </Link>
@@ -27,6 +30,7 @@ export default function Landing() {
 
         <div className="max-w-4xl mx-auto text-center relative z-10 pt-20">
           <div className="mb-8">
+            <img src="/caky_logo.png" alt="Caky Logo" className="w-24 h-24 mx-auto mb-6 drop-shadow-lg" />
             <span className="inline-block px-4 py-2 bg-caky-secondary/20 text-caky-primary rounded-full text-sm font-bold border border-caky-secondary/50 mb-6 tracking-wide">
               ✨ AI-Powered Study Assistant
             </span>
@@ -179,9 +183,12 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-caky-dark/10 py-8 px-6 bg-white">
-        <div className="max-w-6xl mx-auto text-center text-caky-dark/50 text-sm font-medium">
-          © 2024 Caky. Built with React, Rust, and ❤️
+      <footer className="border-t border-caky-dark/10 py-12 px-6 bg-caky-card">
+        <div className="max-w-6xl mx-auto text-center">
+          <img src="/caky_logo.png" alt="Caky Logo" className="w-12 h-12 mx-auto mb-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition" />
+          <div className="text-caky-dark/50 text-sm font-medium">
+            © 2024 Caky. Built with React, Rust, and ❤️
+          </div>
         </div>
       </footer>
     </div>
