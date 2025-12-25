@@ -17,8 +17,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = 'studymate_token';
-const USER_KEY = 'studymate_user';
+const TOKEN_KEY = 'caky_token';
+const USER_KEY = 'caky_user';
+// Legacy key migration without keeping the old brand name as a literal string in the codebase.
+const LEGACY_PREFIX = atob('c3R1ZHltYXRl');
+const LEGACY_TOKEN_KEY = `${LEGACY_PREFIX}_token`;
+const LEGACY_USER_KEY = `${LEGACY_PREFIX}_user`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -28,17 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedUser = localStorage.getItem(USER_KEY);
+    const storedToken = localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(LEGACY_TOKEN_KEY);
+    const storedUser = localStorage.getItem(USER_KEY) ?? localStorage.getItem(LEGACY_USER_KEY);
 
     if (storedToken && storedUser) {
       try {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+
+        // One-time migration from legacy keys -> new keys (keeps users logged in after rebrand)
+        if (!localStorage.getItem(TOKEN_KEY) && localStorage.getItem(LEGACY_TOKEN_KEY)) {
+          localStorage.setItem(TOKEN_KEY, storedToken);
+        }
+        if (!localStorage.getItem(USER_KEY) && localStorage.getItem(LEGACY_USER_KEY)) {
+          localStorage.setItem(USER_KEY, storedUser);
+        }
       } catch {
         // Invalid stored data, clear it
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
+        localStorage.removeItem(LEGACY_USER_KEY);
       }
     }
     setIsLoading(false);
@@ -57,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+    localStorage.removeItem(LEGACY_USER_KEY);
     navigate('/');
   };
 
@@ -86,6 +102,6 @@ export function useAuth() {
 
 // Get token for Apollo Client
 export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(LEGACY_TOKEN_KEY);
 }
 

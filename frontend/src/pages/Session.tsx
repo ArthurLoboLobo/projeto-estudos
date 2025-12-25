@@ -258,36 +258,36 @@ export default function Session() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--caky-bg)]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[color:var(--caky-accent)] border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col bg-[var(--caky-bg)]">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm shrink-0">
+      <header className="border-b border-[color:var(--caky-border)] bg-[color:rgba(0,0,0,0.18)] backdrop-blur-sm shrink-0">
         <div className="px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <Link
               to="/dashboard"
-              className="text-purple-300 hover:text-white transition shrink-0"
+              className="text-[color:var(--caky-muted)] hover:text-white transition shrink-0"
             >
               ← Back
             </Link>
             <div className="min-w-0">
               <h1 className="text-lg md:text-xl font-bold text-white truncate">{session.title}</h1>
               {session.description && (
-                <p className="text-sm text-purple-300/60 truncate hidden md:block">{session.description}</p>
+                <p className="text-sm text-[color:var(--caky-muted)]/70 truncate hidden md:block">{session.description}</p>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <span className="text-purple-300 text-sm hidden md:block">{user?.email}</span>
+            <span className="text-[color:var(--caky-muted)] text-sm hidden md:block">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-3 md:px-4 py-2 text-sm text-purple-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+              className="px-3 md:px-4 py-2 text-sm text-[color:var(--caky-muted)] hover:text-white hover:bg-white/10 rounded-lg transition"
             >
               Sign Out
             </button>
@@ -298,11 +298,11 @@ export default function Session() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Sidebar - Documents (collapsible on mobile) */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/10 bg-black/20 flex flex-col shrink-0 max-h-48 md:max-h-none">
-          <div className="p-4 border-b border-white/10">
+        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-[color:var(--caky-border)] bg-[color:rgba(0,0,0,0.12)] flex flex-col shrink-0 max-h-48 md:max-h-none">
+          <div className="p-4 border-b border-[color:var(--caky-border)]">
             <div className="flex justify-between items-center mb-3 md:mb-4">
               <h2 className="text-base md:text-lg font-semibold text-white">Study Materials</h2>
-              <span className="text-xs text-purple-300/50 md:hidden">
+              <span className="text-xs text-[color:var(--caky-muted)]/60 md:hidden">
                 {documents.length} doc{documents.length !== 1 ? 's' : ''}
               </span>
             </div>
@@ -316,11 +316,11 @@ export default function Session() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full py-2 md:py-3 border-2 border-dashed border-purple-500/50 hover:border-purple-500 text-purple-300 hover:text-white rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
+              className="w-full py-2 md:py-3 border-2 border-dashed border-[color:rgba(172,217,232,0.35)] hover:border-[color:var(--caky-accent)] text-[color:var(--caky-muted)] hover:text-white rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
             >
               {uploading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-[color:var(--caky-accent)] border-t-transparent"></div>
                   {uploadProgress || 'Uploading...'}
                 </>
               ) : (
@@ -337,7 +337,7 @@ export default function Session() {
           {/* Document List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2 md:space-y-3">
             {documents.length === 0 ? (
-              <div className="text-center py-4 md:py-8 text-purple-300/50">
+              <div className="text-center py-4 md:py-8 text-[color:var(--caky-muted)]/60">
                 <div className="text-2xl md:text-3xl mb-2">📄</div>
                 <p className="text-sm">No documents yet</p>
                 <p className="text-xs mt-1 hidden md:block">Upload PDFs to give context to the AI</p>
@@ -346,7 +346,7 @@ export default function Session() {
               documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="bg-white/5 rounded-xl p-3 md:p-4 border border-white/10 group hover:bg-white/10 transition cursor-pointer"
+                  className="bg-[color:var(--caky-surface)] rounded-xl p-3 md:p-4 border border-[color:var(--caky-border)] group hover:bg-white/10 transition cursor-pointer"
                   onClick={() => handleViewDocument(doc)}
                 >
                   <div className="flex items-start justify-between">
@@ -359,7 +359,7 @@ export default function Session() {
                         <div className="flex items-center gap-2 mt-1">
                           <StatusBadge status={doc.extractionStatus} />
                           {doc.pageCount && (
-                            <span className="text-xs text-purple-300/50 hidden md:inline">
+                            <span className="text-xs text-[color:var(--caky-muted)]/60 hidden md:inline">
                               {doc.pageCount} pages
                             </span>
                           )}
@@ -390,7 +390,7 @@ export default function Session() {
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
             {loadingMessages ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-[color:var(--caky-accent)] border-t-transparent"></div>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
@@ -398,7 +398,7 @@ export default function Session() {
                 <h3 className="text-xl md:text-2xl font-semibold text-white mb-2 md:mb-3">
                   Ready to help you study!
                 </h3>
-                <p className="text-purple-300/70 max-w-md text-sm md:text-base">
+                <p className="text-[color:var(--caky-muted)] max-w-md text-sm md:text-base">
                   Upload your course materials, then ask me anything about them.
                   I'll help you understand concepts, solve problems, and prepare for exams.
                 </p>
@@ -410,14 +410,14 @@ export default function Session() {
                 ))}
                 {aiTyping && (
                   <div className="flex justify-start mb-4">
-                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5 shadow-md">
+                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-[color:var(--caky-surface)] text-[color:var(--caky-text)] rounded-tl-none border border-[color:var(--caky-border)] shadow-md">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          <span className="w-2 h-2 bg-[color:var(--caky-accent)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-[color:var(--caky-accent)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-[color:var(--caky-accent)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
-                        <span className="text-sm text-purple-300/70">AI is thinking...</span>
+                        <span className="text-sm text-[color:var(--caky-muted)]">AI is thinking...</span>
                       </div>
                     </div>
                   </div>
@@ -428,15 +428,15 @@ export default function Session() {
           </div>
 
           {/* Message Input */}
-          <div className="border-t border-white/10 bg-black/20 p-3 md:p-4">
+          <div className="border-t border-[color:var(--caky-border)] bg-[color:rgba(0,0,0,0.12)] p-3 md:p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-purple-300/50">
+              <span className="text-xs text-[color:var(--caky-muted)]/60">
                 {documents.length} doc{documents.length !== 1 ? 's' : ''} loaded
               </span>
               {messages.length > 0 && (
                 <button
                   onClick={handleClearChat}
-                  className="text-xs text-purple-300/50 hover:text-red-400 transition ml-auto"
+                  className="text-xs text-[color:var(--caky-muted)]/60 hover:text-red-400 transition ml-auto"
                 >
                   Clear chat
                 </button>
@@ -448,13 +448,13 @@ export default function Session() {
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 placeholder="Ask about your study materials..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm md:text-base"
+                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-white/10 border border-[color:var(--caky-border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)] text-sm md:text-base"
                 disabled={sending}
               />
               <button
                 type="submit"
                 disabled={sending || !messageInput.trim()}
-                className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base"
+                className="px-4 md:px-6 py-2 md:py-3 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base"
               >
                 {sending ? (
                   <>
@@ -482,16 +482,16 @@ export default function Session() {
           onClick={closePdfViewer}
         >
           <div 
-            className="bg-slate-900 rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col border border-white/10 shadow-2xl"
+            className="bg-[var(--caky-bg)] rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col border border-[color:var(--caky-border)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-[color:var(--caky-border)]">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-2xl">📄</span>
                 <div className="min-w-0">
                   <h3 className="text-white font-semibold truncate">{selectedDocument.fileName}</h3>
-                  <p className="text-sm text-purple-300/60">
+                  <p className="text-sm text-[color:var(--caky-muted)]/70">
                     {selectedDocument.pageCount ? `${selectedDocument.pageCount} pages` : 'Document'}
                   </p>
                 </div>
@@ -511,8 +511,8 @@ export default function Session() {
               {pdfLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-purple-300">Loading document...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[color:var(--caky-accent)] border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-[color:var(--caky-muted)]">Loading document...</p>
                   </div>
                 </div>
               ) : pdfUrl ? (
@@ -530,7 +530,7 @@ export default function Session() {
                     )}
                     <button
                       onClick={() => handleViewDocument(selectedDocument)}
-                      className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+                      className="mt-4 px-4 py-2 bg-[var(--caky-primary)] hover:bg-[#334b80] text-white rounded-lg transition"
                     >
                       Retry
                     </button>
@@ -568,8 +568,8 @@ function MessageBubble({ message }: { message: Message }) {
       <div
         className={`max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 shadow-md relative ${
           isUser
-            ? 'bg-[#005c4b] text-white rounded-tr-none'
-            : 'bg-[#202c33] text-gray-100 rounded-tl-none border border-white/5'
+            ? 'bg-[var(--caky-primary)] text-white rounded-tr-none'
+            : 'bg-[color:var(--caky-surface)] text-[color:var(--caky-text)] rounded-tl-none border border-[color:var(--caky-border)]'
         }`}
       >
         <div className="prose prose-sm md:prose-base prose-invert max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
@@ -582,7 +582,7 @@ function MessageBubble({ message }: { message: Message }) {
         </div>
         <div 
           className={`text-[10px] mt-2 text-right ${
-            isUser ? 'text-white/60' : 'text-gray-400'
+            isUser ? 'text-white/60' : 'text-[color:var(--caky-muted)]/70'
           }`}
         >
           {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

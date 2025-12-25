@@ -37,48 +37,48 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--caky-bg)] via-[var(--caky-bg-2)] to-[#1f2848]">
       <div className="w-full max-w-md p-8">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
-            📚 StudyMate
+            📚 Caky
           </h1>
-          <p className="text-purple-300">
+          <p className="text-[color:var(--caky-muted)]">
             AI-powered exam preparation
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+        <div className="bg-[color:var(--caky-surface)] backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-[color:var(--caky-border)]">
           <h2 className="text-2xl font-semibold text-white mb-6 text-center">
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">
+              <label className="block text-sm font-medium text-[color:var(--caky-muted)] mb-2">
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white/10 border border-[color:var(--caky-border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)] focus:border-transparent transition"
                 placeholder="you@university.edu"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-purple-200 mb-2">
+              <label className="block text-sm font-medium text-[color:var(--caky-muted)] mb-2">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 bg-white/10 border border-[color:var(--caky-border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)] focus:border-transparent transition"
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -94,7 +94,7 @@ export default function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)] focus:ring-offset-2 focus:ring-offset-[color:var(--caky-bg)] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -116,7 +116,7 @@ export default function AuthForm() {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="text-purple-300 hover:text-white transition"
+              className="text-[color:var(--caky-muted)] hover:text-white transition"
             >
               {isLogin
                 ? "Don't have an account? Sign up"
@@ -126,7 +126,7 @@ export default function AuthForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-purple-400/60 text-sm mt-8">
+        <p className="text-center text-[color:var(--caky-muted)]/70 text-sm mt-8">
           Upload your slides, past exams & notes — get personalized AI tutoring
         </p>
       </div>

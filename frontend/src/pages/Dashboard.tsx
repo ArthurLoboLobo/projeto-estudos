@@ -55,18 +55,18 @@ export default function Dashboard() {
   const sessions: Session[] = data?.sessions || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--caky-bg)] via-[var(--caky-bg-2)] to-[#1f2848]">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b border-[color:var(--caky-border)] bg-[color:rgba(0,0,0,0.18)] backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link to="/" className="text-xl font-bold text-white">
-            📚 StudyMate
+            📚 Caky
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-purple-300 text-sm">{user?.email}</span>
+            <span className="text-[color:var(--caky-muted)] text-sm">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-4 py-2 text-sm text-purple-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+              className="px-4 py-2 text-sm text-[color:var(--caky-muted)] hover:text-white hover:bg-white/10 rounded-lg transition"
             >
               Sign Out
             </button>
@@ -81,13 +81,13 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-white mb-2">
               Your Study Sessions
             </h1>
-            <p className="text-purple-300/70">
+            <p className="text-[color:var(--caky-muted)]">
               Create a session for each course or exam you're preparing for
             </p>
           </div>
           <button
             onClick={() => setShowNewSession(true)}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-lg shadow-purple-500/30"
+            className="px-6 py-3 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition shadow-lg shadow-black/25"
           >
             + New Session
           </button>
@@ -96,13 +96,13 @@ export default function Dashboard() {
         {/* New Session Modal */}
         {showNewSession && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 rounded-2xl p-8 w-full max-w-md border border-white/20 shadow-2xl">
+            <div className="bg-[color:rgba(0,0,0,0.25)] rounded-2xl p-8 w-full max-w-md border border-[color:var(--caky-border)] shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">
                 Create Study Session
               </h2>
               <form onSubmit={handleCreateSession} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--caky-muted)] mb-2">
                     Session Title
                   </label>
                   <input
@@ -110,13 +110,13 @@ export default function Dashboard() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="e.g., Calculus II Final Exam"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-3 bg-white/10 border border-[color:var(--caky-border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)]"
                     required
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--caky-muted)] mb-2">
                     Description (optional)
                   </label>
                   <textarea
@@ -124,7 +124,7 @@ export default function Dashboard() {
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Topics, exam date, notes..."
                     rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    className="w-full px-4 py-3 bg-white/10 border border-[color:var(--caky-border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[color:var(--caky-accent)] resize-none"
                   />
                 </div>
                 <div className="flex gap-3 pt-4">
@@ -138,7 +138,7 @@ export default function Dashboard() {
                   <button
                     type="submit"
                     disabled={creating}
-                    className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50"
+                    className="flex-1 py-3 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition disabled:opacity-50"
                   >
                     {creating ? 'Creating...' : 'Create'}
                   </button>
@@ -151,7 +151,7 @@ export default function Dashboard() {
         {/* Sessions Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-[color:var(--caky-accent)] border-t-transparent"></div>
           </div>
         ) : error ? (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-red-300">
@@ -163,12 +163,12 @@ export default function Dashboard() {
             <h3 className="text-2xl font-semibold text-white mb-3">
               No study sessions yet
             </h3>
-            <p className="text-purple-300/70 mb-8">
+            <p className="text-[color:var(--caky-muted)] mb-8">
               Create your first session to start studying with AI
             </p>
             <button
               onClick={() => setShowNewSession(true)}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition"
+              className="px-6 py-3 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition"
             >
               + Create First Session
             </button>
@@ -178,10 +178,10 @@ export default function Dashboard() {
             {sessions.map((session) => (
               <div
                 key={session.id}
-                className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:border-purple-500/50 transition group"
+                className="bg-[color:var(--caky-surface)] rounded-2xl p-6 border border-[color:var(--caky-border)] hover:border-[color:rgba(172,217,232,0.35)] transition group"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-semibold text-white group-hover:text-purple-300 transition">
+                  <h3 className="text-xl font-semibold text-white group-hover:text-[color:var(--caky-accent)] transition">
                     {session.title}
                   </h3>
                   <button
@@ -205,16 +205,16 @@ export default function Dashboard() {
                   </button>
                 </div>
                 {session.description && (
-                  <p className="text-purple-200/60 text-sm mb-4 line-clamp-2">
+                  <p className="text-[color:var(--caky-muted)]/80 text-sm mb-4 line-clamp-2">
                     {session.description}
                   </p>
                 )}
-                <div className="text-xs text-purple-300/50 mb-4">
+                <div className="text-xs text-[color:var(--caky-muted)]/60 mb-4">
                   Created {new Date(session.createdAt).toLocaleDateString()}
                 </div>
                 <Link
                   to={`/session/${session.id}`}
-                  className="block w-full py-3 text-center bg-white/10 hover:bg-purple-600 text-white rounded-xl transition"
+                  className="block w-full py-3 text-center bg-white/10 hover:bg-[var(--caky-primary)] text-white rounded-xl transition"
                 >
                   Open Session →
                 </Link>

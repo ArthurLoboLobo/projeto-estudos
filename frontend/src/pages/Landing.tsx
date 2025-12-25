@@ -5,14 +5,14 @@ export default function Landing() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--caky-bg)] via-[var(--caky-bg-2)] to-[#1f2848]">
       {/* Navigation */}
       <nav className="absolute top-0 left-0 right-0 p-6">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">📚 StudyMate</h1>
+          <h1 className="text-2xl font-bold text-white">📚 Caky</h1>
           <Link
             to={isAuthenticated ? '/dashboard' : '/auth'}
-            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/20 transition"
+            className="px-6 py-2 bg-white/10 hover:bg-white/15 text-white rounded-full border border-[color:var(--caky-border)] transition"
           >
             {isAuthenticated ? 'Dashboard' : 'Get Started'}
           </Link>
@@ -23,20 +23,20 @@ export default function Landing() {
       <section className="min-h-screen flex items-center justify-center px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-8">
-            <span className="inline-block px-4 py-2 bg-purple-500/20 text-purple-300 rounded-full text-sm font-medium border border-purple-500/30 mb-6">
+            <span className="inline-block px-4 py-2 bg-[color:rgba(172,217,232,0.12)] text-[color:var(--caky-accent)] rounded-full text-sm font-medium border border-[color:var(--caky-border)] mb-6">
               ✨ AI-Powered Study Assistant
             </span>
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
             Ace Your Exams with{' '}
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[var(--caky-accent)] to-white bg-clip-text text-transparent">
               Hyper-Focused
             </span>{' '}
             Study
           </h1>
           
-          <p className="text-xl text-purple-200/80 mb-10 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-[color:var(--caky-muted)] mb-10 max-w-2xl mx-auto leading-relaxed">
             Upload your slides, past exams, and notes. Get a personalized AI tutor that
             knows exactly what you need to study for your specific course.
           </p>
@@ -44,13 +44,13 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/auth"
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-lg shadow-purple-500/30"
+              className="px-8 py-4 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition shadow-lg shadow-black/25"
             >
               Start Studying Free →
             </Link>
             <a
               href="#how-it-works"
-              className="px-8 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition border border-white/20"
+              className="px-8 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition border border-[color:var(--caky-border)]"
             >
               See How It Works
             </a>
@@ -88,16 +88,16 @@ export default function Landing() {
             ].map((item) => (
               <div
                 key={item.step}
-                className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-purple-500/50 transition group"
+                className="bg-[color:var(--caky-surface)] backdrop-blur-sm rounded-2xl p-8 border border-[color:var(--caky-border)] hover:border-[color:rgba(172,217,232,0.35)] transition group"
               >
                 <span className="text-6xl mb-6 block">{item.icon}</span>
-                <div className="text-purple-400 font-mono text-sm mb-2">
+                <div className="text-[color:var(--caky-accent)] font-mono text-sm mb-2">
                   Step {item.step}
                 </div>
                 <h3 className="text-2xl font-semibold text-white mb-3">
                   {item.title}
                 </h3>
-                <p className="text-purple-200/70 leading-relaxed">
+                <p className="text-[color:var(--caky-muted)] leading-relaxed">
                   {item.description}
                 </p>
               </div>
@@ -107,13 +107,13 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="py-24 px-6 bg-black/20">
+      <section className="py-24 px-6 bg-[color:rgba(0,0,0,0.18)]">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-white text-center mb-4">
-            Why StudyMate?
+            Why Caky?
           </h2>
-          <p className="text-purple-200/70 text-center mb-16 max-w-2xl mx-auto">
-            Unlike generic AI tutors, StudyMate focuses on YOUR specific course materials
+          <p className="text-[color:var(--caky-muted)] text-center mb-16 max-w-2xl mx-auto">
+            Unlike generic AI tutors, Caky focuses on YOUR specific course materials
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -141,14 +141,14 @@ export default function Landing() {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="flex gap-4 p-6 bg-white/5 rounded-xl border border-white/10"
+                className="flex gap-4 p-6 bg-[color:var(--caky-surface)] rounded-xl border border-[color:var(--caky-border)]"
               >
                 <span className="text-3xl">{feature.icon}</span>
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-purple-200/70">{feature.description}</p>
+                  <p className="text-[color:var(--caky-muted)]">{feature.description}</p>
                 </div>
               </div>
             ))}
@@ -162,12 +162,12 @@ export default function Landing() {
           <h2 className="text-4xl font-bold text-white mb-6">
             Ready to Study Smarter?
           </h2>
-          <p className="text-xl text-purple-200/80 mb-10">
+          <p className="text-xl text-[color:var(--caky-muted)] mb-10">
             Join students who are acing their exams with personalized AI tutoring.
           </p>
           <Link
             to="/auth"
-            className="inline-block px-10 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-lg shadow-purple-500/30 text-lg"
+            className="inline-block px-10 py-4 bg-[var(--caky-primary)] text-white font-semibold rounded-xl hover:bg-[#334b80] transition shadow-lg shadow-black/25 text-lg"
           >
             Create Free Account
           </Link>
@@ -176,8 +176,8 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 px-6">
-        <div className="max-w-6xl mx-auto text-center text-purple-300/50 text-sm">
-          © 2024 StudyMate. Built with React, Rust, and ❤️
+        <div className="max-w-6xl mx-auto text-center text-[color:var(--caky-muted)]/60 text-sm">
+          © 2024 Caky. Built with React and Rust.
         </div>
       </footer>
     </div>

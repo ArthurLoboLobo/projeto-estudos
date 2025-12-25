@@ -1,4 +1,4 @@
-# 📚 StudyMate - AI-Powered Exam Preparation Platform
+# 📚 Caky - AI-Powered Exam Preparation Platform
 
 A web platform that helps university students prepare for exams through hyper-focused, context-aware AI tutoring. Students upload their study materials (past exams, slides, notes), and the AI becomes a personalized tutor that understands their specific course content.
 
@@ -23,7 +23,7 @@ A web platform that helps university students prepare for exams through hyper-fo
 
 ## 🎯 Core Value Proposition
 
-StudyMate provides **contextual tutoring** based on the student's actual course materials. Upload your professor's slides, past exams, and notes — the AI will answer questions, explain concepts, and help you study using exactly what you need to know.
+Caky provides **contextual tutoring** based on the student's actual course materials. Upload your professor's slides, past exams, and notes — the AI will answer questions, explain concepts, and help you study using exactly what you need to know.
 
 **Key Features:**
 - 📄 **PDF Upload** — Upload slides, old exams, notes (with formula support)
