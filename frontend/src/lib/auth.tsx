@@ -17,8 +17,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = 'studymate_token';
-const USER_KEY = 'studymate_user';
+const TOKEN_KEY = 'caky_token';
+const USER_KEY = 'caky_user';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
