@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::config::Config;
-use crate::storage::{documents, messages};
+use crate::storage::{documents, messages, study_plans};
 
 use super::ai_client::OpenRouterClient;
 
@@ -18,6 +18,7 @@ Your role is to:
 3. Help the student understand difficult topics
 4. Provide examples when helpful
 5. Quiz the student when appropriate
+6. Be aware of the student's knowledge level for each topic in their study plan
 
 IMPORTANT GUIDELINES:
 - Base your answers primarily on the provided study materials
@@ -25,6 +26,9 @@ IMPORTANT GUIDELINES:
 - When formulas are involved, show step-by-step solutions
 - Use LaTeX notation for mathematical expressions (e.g., $x^2$ for inline, $$\int_0^1 x dx$$ for block)
 - Be encouraging and supportive
+- Adjust explanations based on the student's indicated knowledge level for each topic
+
+{study_plan}
 
 STUDY MATERIALS:
 {context}
@@ -59,10 +63,39 @@ pub async fn process_message(
             .join("\n\n")
     };
 
-    // 2. Build system prompt with context
-    let system_prompt = SYSTEM_PROMPT_TEMPLATE.replace("{context}", &context);
+    // 2. Fetch study plan if it exists
+    let study_plan_text = match study_plans::get_current_plan(pool, session_id).await? {
+        Some(plan) => {
+            if let Some(json_value) = &plan.content_json {
+                if let Ok(content) = serde_json::from_value::<study_plans::StudyPlanContent>(json_value.clone()) {
+                    let mut plan_text = String::from("STUDY PLAN WITH YOUR KNOWLEDGE LEVELS:\n\n");
+                    for (i, topic) in content.topics.iter().enumerate() {
+                        let status_label = match topic.status.as_str() {
+                            "need_to_learn" => "Need to Learn",
+                            "need_review" => "Need Review",
+                            "know_well" => "Know Well",
+                            _ => "Unknown",
+                        };
+                        plan_text.push_str(&format!("{}. {} [{}]\n   {}\n\n", 
+                            i + 1, topic.title, status_label, topic.description));
+                    }
+                    plan_text
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        }
+        None => String::new(),
+    };
 
-    // 3. Fetch recent conversation history
+    // 3. Build system prompt with context and study plan
+    let system_prompt = SYSTEM_PROMPT_TEMPLATE
+        .replace("{study_plan}", &study_plan_text)
+        .replace("{context}", &context);
+
+    // 4. Fetch recent conversation history
     let recent_messages = messages::get_recent_messages(
         pool, 
         user_id, 
@@ -70,13 +103,13 @@ pub async fn process_message(
         MAX_HISTORY_MESSAGES
     ).await?;
 
-    // 4. Build conversation history for the AI
+    // 5. Build conversation history for the AI
     let history: Vec<(String, String)> = recent_messages
         .iter()
         .map(|m| (m.role.clone(), m.content.clone()))
         .collect();
 
-    // 5. Call AI
+    // 6. Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
     
     let ai_response = ai_client

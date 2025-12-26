@@ -96,6 +96,14 @@ export const START_PLANNING = gql`
       sessionId
       version
       contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
       instruction
       createdAt
     }
@@ -109,6 +117,14 @@ export const REVISE_STUDY_PLAN = gql`
       sessionId
       version
       contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
       instruction
       createdAt
     }
@@ -122,6 +138,35 @@ export const UNDO_STUDY_PLAN = gql`
       sessionId
       version
       contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
+      instruction
+      createdAt
+    }
+  }
+`;
+
+export const UPDATE_TOPIC_STATUS = gql`
+  mutation UpdateTopicStatus($sessionId: ID!, $topicId: String!, $status: String!) {
+    updateTopicStatus(sessionId: $sessionId, topicId: $topicId, status: $status) {
+      id
+      sessionId
+      version
+      contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
       instruction
       createdAt
     }

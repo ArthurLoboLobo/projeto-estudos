@@ -48,6 +48,14 @@ export const GET_STUDY_PLAN = gql`
       sessionId
       version
       contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
       instruction
       createdAt
     }
@@ -61,6 +69,14 @@ export const GET_STUDY_PLAN_HISTORY = gql`
       sessionId
       version
       contentMd
+      content {
+        topics {
+          id
+          title
+          description
+          status
+        }
+      }
       instruction
       createdAt
     }

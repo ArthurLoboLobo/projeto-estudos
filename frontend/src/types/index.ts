@@ -31,11 +31,25 @@ export interface Message {
   createdAt: string;
 }
 
+export type TopicStatus = 'need_to_learn' | 'need_review' | 'know_well';
+
+export interface StudyPlanTopic {
+  id: string;
+  title: string;
+  description: string;
+  status: TopicStatus;
+}
+
+export interface StudyPlanContent {
+  topics: StudyPlanTopic[];
+}
+
 export interface StudyPlan {
   id: string;
   sessionId: string;
   version: number;
   contentMd: string;
+  content: StudyPlanContent;
   instruction: string | null;
   createdAt: string;
 }

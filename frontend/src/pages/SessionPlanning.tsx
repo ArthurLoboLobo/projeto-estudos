@@ -2,13 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import { useAuth } from '../lib/auth';
 import { GET_STUDY_PLAN_HISTORY } from '../lib/graphql/queries';
-import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING } from '../lib/graphql/mutations';
-import type { Session, StudyPlan } from '../types';
+import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING, UPDATE_TOPIC_STATUS } from '../lib/graphql/mutations';
+import type { Session, StudyPlan, TopicStatus } from '../types';
 
 interface SessionPlanningProps {
   session: Session;
@@ -29,6 +26,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
   const [revisePlan] = useMutation<{ reviseStudyPlan: StudyPlan }>(REVISE_STUDY_PLAN);
   const [undoPlan] = useMutation<{ undoStudyPlan: StudyPlan }>(UNDO_STUDY_PLAN);
   const [startStudying] = useMutation<{ startStudying: Session }>(START_STUDYING);
+  const [updateTopicStatus] = useMutation<{ updateTopicStatus: StudyPlan }>(UPDATE_TOPIC_STATUS);
 
   const planHistory: StudyPlan[] = historyData?.studyPlanHistory || [];
   const canUndo = currentPlan.version > 1;
@@ -80,6 +78,33 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to start studying');
+    }
+  };
+
+  const handleStatusChange = async (topicId: string, newStatus: TopicStatus) => {
+    try {
+      const result = await updateTopicStatus({
+        variables: {
+          sessionId: session.id,
+          topicId,
+          status: newStatus,
+        },
+      });
+      if (result.data?.updateTopicStatus) {
+        setCurrentPlan(result.data.updateTopicStatus);
+      }
+      toast.success('Topic status updated');
+    } catch (err: any) {
+      console.error('Status update error:', err);
+      toast.error(err.message || 'Failed to update status');
+    }
+  };
+
+  const getStatusColor = (status: TopicStatus): string => {
+    switch (status) {
+      case 'need_to_learn': return 'bg-red-100 text-red-700 border-red-200';
+      case 'need_review': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'know_well': return 'bg-green-100 text-green-700 border-green-200';
     }
   };
 
@@ -166,15 +191,37 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
               </div>
             </div>
 
-            {/* Plan Content */}
+            {/* Plan Content - Topics List */}
             <div className="p-8">
-              <div className="prose prose-sm max-w-none text-caky-dark/80 prose-headings:text-caky-dark prose-p:text-sm prose-li:text-sm mb-8">
-                <ReactMarkdown
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {currentPlan.contentMd}
-                </ReactMarkdown>
+              <div className="space-y-4 mb-8">
+                {currentPlan.content.topics.map((topic, index) => (
+                  <div
+                    key={topic.id}
+                    className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-caky-primary/30 transition"
+                  >
+                    {/* Topic Number */}
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+
+                    {/* Topic Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-caky-dark mb-1">{topic.title}</h3>
+                      <p className="text-sm text-caky-dark/60">{topic.description}</p>
+                    </div>
+
+                    {/* Status Dropdown */}
+                    <select
+                      value={topic.status}
+                      onChange={(e) => handleStatusChange(topic.id, e.target.value as TopicStatus)}
+                      className={`shrink-0 px-3 py-2 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 transition ${getStatusColor(topic.status)}`}
+                    >
+                      <option value="need_to_learn">Need to Learn</option>
+                      <option value="need_review">Need Review</option>
+                      <option value="know_well">Know Well</option>
+                    </select>
+                  </div>
+                ))}
               </div>
 
               {/* Refine Section */}

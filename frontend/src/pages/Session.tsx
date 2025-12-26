@@ -463,15 +463,46 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
                 </svg>
               </button>
               {showPlan && (
-                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0">
-                  <div className="prose prose-xs max-w-none text-caky-dark/80 prose-headings:text-caky-dark prose-headings:text-sm prose-p:text-xs prose-li:text-xs">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                    >
-                      {studyPlan.contentMd}
-                    </ReactMarkdown>
-                  </div>
+                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
+                  {studyPlan.content.topics.map((topic, index) => {
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'bg-red-100 text-red-700';
+                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
+                        case 'know_well': return 'bg-green-100 text-green-700';
+                        default: return 'bg-gray-100 text-gray-700';
+                      }
+                    };
+
+                    const getStatusLabel = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'Need to Learn';
+                        case 'need_review': return 'Need Review';
+                        case 'know_well': return 'Know Well';
+                        default: return 'Unknown';
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={topic.id}
+                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
+                      >
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
+                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
+                          </div>
+                        </div>
+                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
+                          {getStatusLabel(topic.status)}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

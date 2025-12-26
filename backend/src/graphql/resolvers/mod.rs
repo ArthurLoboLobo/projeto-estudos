@@ -167,6 +167,17 @@ impl MutationRoot {
         planning::undo_study_plan(ctx, session_id).await
     }
 
+    /// Update a topic's knowledge status
+    async fn update_topic_status(
+        &self,
+        ctx: &Context<'_>,
+        session_id: ID,
+        topic_id: String,
+        status: String,
+    ) -> Result<StudyPlan> {
+        planning::update_topic_status(ctx, session_id, topic_id, status).await
+    }
+
     /// Finalize the plan and start studying
     async fn start_studying(&self, ctx: &Context<'_>, session_id: ID) -> Result<Session> {
         planning::start_studying(ctx, session_id).await

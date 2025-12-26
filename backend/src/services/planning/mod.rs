@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::storage::documents;
+use crate::storage::study_plans::StudyPlanContent;
 use crate::services::messages::ai_client::OpenRouterClient;
 
 const PLANNING_MODEL: &str = "google/gemini-2.5-flash";
@@ -10,22 +11,28 @@ const PLANNING_MODEL: &str = "google/gemini-2.5-flash";
 /// System prompt for generating the initial study plan
 const GENERATE_PLAN_PROMPT: &str = r#"You are an expert academic tutor creating a personalized study plan for a university student.
 
-Based on the study materials provided below, create a comprehensive study plan that will help the student prepare for their exam.
+Based on the study materials provided below, create a study plan as a sequence of topics the student needs to learn.
 
-Your study plan MUST include:
-1. **Overview** - A brief summary of what the exam covers based on the materials
-2. **Learning Objectives** - What the student should be able to do after completing this plan
-3. **Study Modules** - Ordered list of topics to study, each with:
-   - Topic name
-   - Key concepts to understand
-   - Estimated study time
-   - Practice suggestions
-4. **Study Tips** - Specific advice based on the material type (past exams, slides, notes)
-5. **Recommended Study Order** - The optimal sequence to tackle the topics
+Your response MUST be valid JSON with this exact structure:
+{
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Topic Name",
+      "description": "Brief explanation of what the student will learn in this topic",
+      "status": "need_to_learn"
+    }
+  ]
+}
 
-Format your response in clean Markdown. Use headers (##, ###), bullet points, and numbered lists for clarity.
-
-If some topics appear in past exams but aren't covered in the slides/notes, mark them as "⚠️ Not fully covered in materials - seek additional resources".
+REQUIREMENTS:
+- Create a logical sequence of topics from foundational to advanced
+- Each topic should be specific and actionable
+- Descriptions should be 1-2 sentences explaining what will be learned
+- ALL topics must have status: "need_to_learn" (this is the default)
+- Use simple sequential IDs: "topic-1", "topic-2", etc.
+- Focus ONLY on topics to learn, not overviews or objectives
+- Order topics in the optimal learning sequence
 
 STUDY MATERIALS:
 {materials}
@@ -33,14 +40,14 @@ STUDY MATERIALS:
 SESSION TITLE: {title}
 SESSION DESCRIPTION: {description}
 
-Generate a focused, actionable study plan now."#;
+Generate the JSON study plan now. Output ONLY valid JSON, no markdown formatting or code blocks."#;
 
 /// System prompt for revising the study plan
 const REVISE_PLAN_PROMPT: &str = r#"You are an expert academic tutor helping a student refine their study plan.
 
-The student has provided feedback on their current study plan. Apply their requested changes while maintaining the plan's structure and quality.
+The student has provided feedback. Apply their requested changes while maintaining a logical learning sequence.
 
-CURRENT STUDY PLAN:
+CURRENT STUDY PLAN (JSON):
 {current_plan}
 
 STUDENT'S FEEDBACK/INSTRUCTIONS:
@@ -49,9 +56,16 @@ STUDENT'S FEEDBACK/INSTRUCTIONS:
 ORIGINAL STUDY MATERIALS (for reference):
 {materials}
 
-Apply the student's requested changes to the study plan. Keep the same Markdown format. Only modify what the student asked for - don't make unnecessary changes.
+Generate an updated JSON study plan with the requested changes.
 
-Output the complete revised study plan."#;
+IMPORTANT:
+- Keep the same JSON structure
+- Reset ALL topics to status: "need_to_learn" 
+- Use sequential IDs: "topic-1", "topic-2", etc.
+- Only change what the student requested
+- Maintain logical topic progression
+
+Output ONLY valid JSON, no markdown formatting or code blocks."#;
 
 /// Generate an initial study plan from documents
 pub async fn generate_study_plan(
@@ -61,7 +75,7 @@ pub async fn generate_study_plan(
     session_id: Uuid,
     session_title: &str,
     session_description: Option<&str>,
-) -> Result<String, async_graphql::Error> {
+) -> Result<StudyPlanContent, async_graphql::Error> {
     // Fetch all document texts
     let doc_texts = documents::get_session_document_texts(pool, user_id, session_id).await?;
     
@@ -86,11 +100,14 @@ pub async fn generate_study_plan(
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
-    let plan_md = ai_client
-        .chat(PLANNING_MODEL, "You are a helpful academic tutor.", &prompt)
+    let ai_response = ai_client
+        .chat(PLANNING_MODEL, "You are a helpful academic tutor. Output valid JSON only.", &prompt)
         .await?;
 
-    Ok(plan_md)
+    // Parse JSON response
+    let plan_content = parse_json_response(&ai_response)?;
+
+    Ok(plan_content)
 }
 
 /// Revise an existing study plan based on user instruction
@@ -99,9 +116,9 @@ pub async fn revise_study_plan(
     config: &Config,
     user_id: Uuid,
     session_id: Uuid,
-    current_plan: &str,
+    current_plan: &StudyPlanContent,
     instruction: &str,
-) -> Result<String, async_graphql::Error> {
+) -> Result<StudyPlanContent, async_graphql::Error> {
     // Fetch document texts for context
     let doc_texts = documents::get_session_document_texts(pool, user_id, session_id).await?;
     
@@ -115,18 +132,54 @@ pub async fn revise_study_plan(
             .join("\n\n---\n\n")
     };
 
+    // Serialize current plan to JSON string
+    let current_plan_json = serde_json::to_string_pretty(current_plan)
+        .map_err(|e| async_graphql::Error::new(format!("JSON serialization error: {}", e)))?;
+
     // Build the revision prompt
     let prompt = REVISE_PLAN_PROMPT
-        .replace("{current_plan}", current_plan)
+        .replace("{current_plan}", &current_plan_json)
         .replace("{instruction}", instruction)
         .replace("{materials}", &materials);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
-    let revised_plan = ai_client
-        .chat(PLANNING_MODEL, "You are a helpful academic tutor.", &prompt)
+    let ai_response = ai_client
+        .chat(PLANNING_MODEL, "You are a helpful academic tutor. Output valid JSON only.", &prompt)
         .await?;
 
+    // Parse JSON response
+    let revised_plan = parse_json_response(&ai_response)?;
+
     Ok(revised_plan)
+}
+
+/// Helper function to parse JSON response from AI (handles markdown code blocks)
+fn parse_json_response(response: &str) -> Result<StudyPlanContent, async_graphql::Error> {
+    // Try to extract JSON from markdown code blocks if present
+    let json_str = if response.contains("```") {
+        // Extract content between ```json and ``` or just ``` and ```
+        response
+            .split("```")
+            .nth(1)
+            .and_then(|s| {
+                // Remove language identifier if present
+                if s.starts_with("json") {
+                    Some(s.trim_start_matches("json").trim())
+                } else {
+                    Some(s.trim())
+                }
+            })
+            .unwrap_or(response)
+    } else {
+        response.trim()
+    };
+
+    // Parse JSON
+    serde_json::from_str::<StudyPlanContent>(json_str)
+        .map_err(|e| {
+            tracing::error!("Failed to parse AI response as JSON: {}\nResponse was: {}", e, json_str);
+            async_graphql::Error::new(format!("Failed to parse AI response as JSON: {}", e))
+        })
 }
 
