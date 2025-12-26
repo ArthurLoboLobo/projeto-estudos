@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
@@ -275,7 +276,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
-    if (!confirm(`Remove "${fileName}"?`)) return;
+    if (!confirm(`Remover "${fileName}"?`)) return;
 
     try {
       await deleteDocument({ variables: { id: docId } });
@@ -330,27 +331,28 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   return (
     <div className="h-screen flex flex-col bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-caky-card shadow-sm shrink-0 z-10">
+      <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10">
         <div className="px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <Link
               to="/dashboard"
-              className="text-caky-primary hover:text-caky-dark transition shrink-0 font-medium"
+              className="text-caky-primary hover:text-caky-text transition shrink-0 font-medium"
             >
-              ← Back
+              ← Voltar
             </Link>
             <div className="flex items-center gap-3 min-w-0">
               <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 object-contain hidden md:block" />
               <div className="min-w-0">
-                <h1 className="text-lg md:text-xl font-bold text-caky-dark truncate">{session.title}</h1>
+                <h1 className="text-lg md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-caky-dark/50 truncate hidden md:block">{session.description}</p>
+                  <p className="text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
                 )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <span className="text-caky-dark/70 text-sm hidden md:block font-medium">{user?.email}</span>
+            <ThemeToggle />
+            <span className="text-caky-text/70 text-sm hidden md:block font-medium">{user?.email}</span>
             <button
               onClick={logout}
               className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
@@ -364,53 +366,54 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar - Study Materials */}
-        <aside className={`border-b lg:border-b-0 lg:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+        <aside className={`border-b lg:border-b-0 lg:border-r border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
           materialsCollapsed
             ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
             : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
         }`}>
           <div className="flex-1 flex flex-col min-h-0">
-            <div className={`border-b border-caky-dark/5 bg-caky-secondary/5 ${materialsCollapsed ? 'lg:border-b-0' : ''}`}>
-              <button
-                onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
-                className={`hover:bg-caky-secondary/10 transition-colors text-left ${
-                  materialsCollapsed
-                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2'
-                    : 'w-full p-4'
-                }`}
-              >
-                {materialsCollapsed ? (
-                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+            <button
+              onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
+              className={`border-b border-caky-text/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
+                materialsCollapsed
+                  ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
+                  : 'w-full p-4'
+              }`}
+            >
+              {materialsCollapsed ? (
+                <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+                  <svg
+                    className="w-4 h-4 text-caky-text/50 transition-transform hover:text-caky-text"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <h2 className="text-base font-bold text-caky-text">Materiais de Estudo</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-caky-text/50">
+                      {documents.length} doc{documents.length !== 1 ? 's' : ''}
+                    </span>
                     <svg
-                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      className="w-4 h-4 text-caky-text/50 transition-transform"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-caky-dark/50">
-                        {documents.length} doc{documents.length !== 1 ? 's' : ''}
-                      </span>
-                      <svg
-                        className="w-4 h-4 text-caky-dark/50 transition-transform"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
-              </button>
-              {!materialsCollapsed && (
-                <>
+                </div>
+              )}
+            </button>
+
+            {!materialsCollapsed && (
+              <>
+                <div className="px-4 pt-4 pb-4">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -421,7 +424,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="mx-auto py-5 px-15 mb-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+                    className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-text hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
                   >
                     {uploading ? (
                       <>
@@ -437,47 +440,44 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                       </>
                     )}
                   </button>
-                </>
-              )}
-            </div>
+                </div>
 
-            {/* Document List */}
-            {!materialsCollapsed && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {documents.length === 0 ? (
-                  <div className="text-center py-4 text-caky-dark/40">
-                    <p className="text-xs font-medium">No documents yet</p>
-                  </div>
-                ) : (
-                  documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
-                      onClick={() => handleViewDocument(doc)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
-                            <StatusBadge status={doc.extractionStatus} />
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDocument(doc.id, doc.fileName);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                  {documents.length === 0 ? (
+                    <div className="text-center py-4 text-caky-text/40">
+                      <p className="text-xs font-medium">Nenhum documento ainda</p>
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="bg-white dark:bg-caky-card rounded-lg p-2 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
+                        onClick={() => handleViewDocument(doc)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-caky-text font-semibold truncate">{doc.fileName}</p>
+                              <StatusBadge status={doc.extractionStatus} />
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDocument(doc.id, doc.fileName);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
             )}
           </div>
         </aside>
@@ -492,10 +492,10 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4 opacity-80">
-                <h3 className="text-xl md:text-2xl font-bold text-caky-dark mb-2 md:mb-3">
+                <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
                   Ready to help you study!
                 </h3>
-                <p className="text-caky-dark/60 max-w-md text-sm md:text-base font-medium">
+                <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
                   Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
                 </p>
               </div>
@@ -506,14 +506,14 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                 ))}
                 {aiTyping && (
                   <div className="flex justify-start mb-4">
-                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-white text-caky-dark rounded-tl-none border border-caky-secondary/30 shadow-sm">
+                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1">
                           <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                           <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                           <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
-                        <span className="text-sm text-caky-dark/50 font-medium">AI is thinking...</span>
+                        <span className="text-sm text-caky-text/50 font-medium">AI is thinking...</span>
                       </div>
                     </div>
                   </div>
@@ -524,7 +524,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
           </div>
 
           {/* Message Input */}
-          <div className="border-t border-caky-dark/10 bg-white p-3 md:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+          <div className="border-t border-caky-text/10 bg-white p-3 md:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-2 mb-2">
             </div>
             <form onSubmit={handleSendMessage} className="flex gap-2 md:gap-3">
@@ -533,7 +533,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 placeholder="Pergunte qualquer coisa..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary text-sm md:text-base transition"
+                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary text-sm md:text-base transition"
                 disabled={sending}
               />
               <button
@@ -561,7 +561,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
 
         {/* Right Sidebar - Study Plan */}
         {studyPlan && (
-          <aside className={`border-b lg:border-b-0 lg:border-l border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+          <aside className={`border-b lg:border-b-0 lg:border-l border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
             studyPlanCollapsed
               ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
               : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
@@ -569,7 +569,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
             <div className="flex-1 flex flex-col min-h-0">
               <button
                 onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
-                className={`border-b border-caky-dark/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
+                className={`border-b border-caky-text/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
                   studyPlanCollapsed
                     ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
                     : 'w-full p-4'
@@ -578,7 +578,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                 {studyPlanCollapsed ? (
                   <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
                     <svg
-                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      className="w-4 h-4 text-caky-text/50 transition-transform hover:text-caky-text"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -588,13 +588,13 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                   </div>
                 ) : (
                   <div className="flex justify-between items-center">
-                    <h2 className="text-base font-bold text-caky-dark">Plano de Estudos</h2>
+                    <h2 className="text-base font-bold text-caky-text">Plano de Estudos</h2>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-caky-dark/50">
+                      <span className="text-xs text-caky-text/50">
                         {studyPlan.content.topics.length} tópico{studyPlan.content.topics.length !== 1 ? 's' : ''}
                       </span>
                       <svg
-                        className="w-4 h-4 text-caky-dark/50 transition-transform"
+                        className="w-4 h-4 text-caky-text/50 transition-transform"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -607,10 +607,10 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               </button>
               {!studyPlanCollapsed && (
                 <>
-                  <div className="px-4 pb-4">
+                  <div className="px-4 pt-4 pb-4">
                     <button
                       onClick={() => setShowEditPlanModal(true)}
-                      className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 text-sm font-semibold"
+                      className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-text hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 text-sm font-semibold"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -618,14 +618,14 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                       Editar plano de estudos
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
+                  <div className="flex-1 overflow-y-auto p-4 min-h-0 space-y-3">
                   {studyPlan.content.topics.map((topic, index) => {
                     const getStatusColor = (status: string) => {
                       switch (status) {
                         case 'need_to_learn': return 'bg-red-100 text-red-700';
                         case 'need_review': return 'bg-yellow-100 text-yellow-700';
                         case 'know_well': return 'bg-green-100 text-green-700';
-                        default: return 'bg-gray-100 text-gray-700';
+                        default: return 'bg-gray-100 dark:bg-caky-card text-gray-700 dark:text-gray-300';
                       }
                     };
 
@@ -641,15 +641,15 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                     return (
                       <div
                         key={topic.id}
-                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
+                        className="p-3 bg-white dark:bg-caky-card rounded-lg shadow-sm"
                       >
                         <div className="flex items-start gap-2 mb-2">
                           <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
                             {index + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
-                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
+                            <h4 className="font-bold text-caky-text text-xs mb-1">{topic.title}</h4>
+                            <p className="text-[10px] text-caky-text/60 leading-relaxed">{topic.description}</p>
                           </div>
                         </div>
                         <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
@@ -686,18 +686,18 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
             className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="min-w-0">
-                  <h3 className="text-caky-dark font-bold truncate">{selectedDocument.fileName}</h3>
-                  <p className="text-sm text-caky-dark/50 font-medium">
+                  <h3 className="text-caky-text font-bold truncate">{selectedDocument.fileName}</h3>
+                  <p className="text-sm text-caky-text/50 font-medium">
                     {selectedDocument.pageCount ? `${selectedDocument.pageCount} pages` : 'Document'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={closePdfViewer}
-                className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition p-2 hover:bg-gray-100 dark:hover:bg-caky-card/50 rounded-lg"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -705,12 +705,12 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               </button>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-gray-100">
+            <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-caky-card/20">
               {pdfLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-caky-dark/60 font-medium">Loading document...</p>
+                    <p className="text-caky-text/60 font-medium">Carregando documento...</p>
                   </div>
                 </div>
               ) : pdfUrl ? (
@@ -724,7 +724,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                   <div className="text-center">
                     <p className="text-red-500 mb-2 font-medium">Failed to load document</p>
                     {pdfError && (
-                      <p className="text-xs text-gray-500 max-w-md">{pdfError}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">{pdfError}</p>
                     )}
                     <button
                       onClick={() => handleViewDocument(selectedDocument)}
@@ -880,7 +880,7 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
       case 'need_to_learn': return 'bg-red-100 text-red-700';
       case 'need_review': return 'bg-yellow-100 text-yellow-700';
       case 'know_well': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-gray-100 dark:bg-caky-card text-gray-700 dark:text-gray-300';
     }
   };
 
@@ -897,30 +897,30 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
           <div className="flex items-center gap-3 min-w-0">
             <div className="min-w-0">
-              <h2 className="text-xl font-bold text-caky-dark">Editar Plano de Estudos</h2>
-              <div className="flex items-center gap-4 text-xs text-caky-dark/50 mt-1">
+              <h2 className="text-xl font-bold text-caky-text">Editar Plano de Estudos</h2>
+              <div className="flex items-center gap-4 text-xs text-caky-text/50 mt-1">
                 <span>Versão {localStudyPlan.version}</span>
                 <span>•</span>
                 <span>Criado {new Date(localStudyPlan.createdAt).toLocaleTimeString()}</span>
                 <span>•</span>
                 <button
                   onClick={handleUndo}
-                  className="text-caky-primary hover:text-caky-dark font-medium flex items-center gap-1"
+                  className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                   </svg>
-                  Desfazer
+                  Voltar para versão anterior
                 </button>
               </div>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-lg"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition p-2 hover:bg-gray-100 dark:hover:bg-caky-card/50 rounded-lg"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -932,30 +932,30 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
         <div className="flex-1 overflow-y-auto">
           {/* Study Plan Topics */}
           <div className="p-6">
-            <h3 className="text-lg font-bold text-caky-dark mb-4">Tópicos do Plano</h3>
+            <h3 className="text-lg font-bold text-caky-text mb-4">Tópicos do Plano</h3>
             <div className="space-y-4">
               {localStudyPlan.content.topics.map((topic, index) => (
                 <div
                   key={topic.id}
-                  className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm"
+                  className="p-4 bg-white dark:bg-caky-card rounded-lg shadow-sm"
                 >
                   <div className="flex items-start gap-3 mb-3">
                     <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
                       {index + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-caky-dark text-sm mb-2">{topic.title}</h4>
-                      <p className="text-xs text-caky-dark/70 leading-relaxed">{topic.description}</p>
+                      <h4 className="font-bold text-caky-text text-sm mb-2">{topic.title}</h4>
+                      <p className="text-xs text-caky-text/70 leading-relaxed">{topic.description}</p>
                     </div>
                   </div>
 
                   {/* Status Selector */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-caky-dark/70">Status:</span>
+                    <span className="text-xs font-medium text-caky-text/70">Status:</span>
                     <select
                       value={topic.status}
                       onChange={(e) => handleStatusChange(topic.id, e.target.value)}
-                      className="text-xs px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-caky-primary/50"
+                      className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-caky-primary/50"
                     >
                       <option value="need_to_learn">Preciso Aprender</option>
                       <option value="need_review">Preciso Revisar</option>
@@ -971,18 +971,18 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
           </div>
 
           {/* AI Revision Section */}
-          <div className="p-6 border-t border-gray-100 bg-gray-50">
-            <h3 className="text-lg font-bold text-caky-dark mb-4">Revisar Plano com IA</h3>
+          <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
+            <h3 className="text-lg font-bold text-caky-text mb-4">Revisar Plano com IA</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-caky-dark mb-2">
+                <label className="block text-sm font-medium text-caky-text mb-2">
                   Descreva como deseja modificar o plano:
                 </label>
                 <textarea
                   value={revisionInstruction}
                   onChange={(e) => setRevisionInstruction(e.target.value)}
                   placeholder="Ex: Adicione mais exercícios de cálculo, foque nos capítulos 5-8, etc."
-                  className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
+                  className="w-full px-3 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-lg text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
                   rows={3}
                 />
               </div>
@@ -1041,7 +1041,7 @@ function MessageBubble({ message }: { message: Message }) {
         className={`max-w-[85%] md:max-w-2xl rounded-2xl px-5 py-3 shadow-sm relative ${
           isUser
             ? 'bg-caky-primary text-white rounded-tr-none'
-            : 'bg-white text-caky-dark rounded-tl-none border border-caky-secondary/30'
+            : 'bg-white text-caky-text rounded-tl-none border border-caky-secondary/30'
         }`}
       >
         <div className={`prose prose-sm md:prose-base max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? 'prose-invert' : ''}`}>
@@ -1054,7 +1054,7 @@ function MessageBubble({ message }: { message: Message }) {
         </div>
         <div 
           className={`text-[10px] mt-2 text-right font-medium ${
-            isUser ? 'text-white/60' : 'text-gray-400'
+            isUser ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'
           }`}
         >
           {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -3,6 +3,7 @@ import { useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth';
 import { LOGIN, REGISTER } from '../../lib/graphql/mutations';
+import ThemeToggle from '../ui/ThemeToggle';
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -30,11 +31,11 @@ export default function AuthForm() {
       const typedData = data as any;
       const result = isLogin ? typedData?.login : typedData?.register;
       if (result) {
-        toast.success(isLogin ? 'Welcome back!' : 'Account created!');
+        toast.success(isLogin ? 'Bem-vindo de volta!' : 'Conta criada!');
         authLogin(result.token, result.user);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An error occurred';
+      const message = err instanceof Error ? err.message : 'Ocorreu um erro';
       setError(message);
       toast.error(message);
     }
@@ -42,6 +43,9 @@ export default function AuthForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-caky-bg relative overflow-hidden">
+      <div className="absolute top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       {/* Decorative Background Elements */}
       <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-caky-secondary/20 rounded-full blur-3xl opacity-60"></div>
       <div className="absolute top-20 -left-20 w-96 h-96 bg-caky-primary/5 rounded-full blur-3xl opacity-60"></div>
@@ -53,41 +57,41 @@ export default function AuthForm() {
           <h1 className="text-4xl font-bold text-caky-primary mb-2">
             Caky
           </h1>
-          <p className="text-caky-dark/70 font-medium">
+          <p className="text-caky-text/70 font-medium">
             Preparação para provas com IA
           </p>
         </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-8 shadow-xl border border-caky-secondary/30">
-          <h2 className="text-2xl font-bold text-caky-dark mb-6 text-center">
+          <h2 className="text-2xl font-bold text-caky-text mb-6 text-center">
             {isLogin ? 'Bem-vindo de Volta' : 'Criar Conta'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-caky-dark mb-2">
+              <label className="block text-sm font-semibold text-caky-text mb-2">
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
+                className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
                 placeholder="voce@universidade.edu.br"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-caky-dark mb-2">
+              <label className="block text-sm font-semibold text-caky-text mb-2">
                 Senha
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
+                className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -125,7 +129,7 @@ export default function AuthForm() {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="text-caky-primary hover:text-caky-dark font-medium transition underline-offset-4 hover:underline"
+              className="text-caky-primary hover:text-caky-text font-medium transition underline-offset-4 hover:underline"
             >
               {isLogin
                 ? "Não tem uma conta? Cadastre-se"
@@ -135,7 +139,7 @@ export default function AuthForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-caky-dark/50 text-sm mt-8 font-medium">
+        <p className="text-center text-caky-text/50 text-sm mt-8 font-medium">
           Faça upload dos seus slides, provas antigas e anotações — obtenha tutoria personalizada de IA
         </p>
       </div>

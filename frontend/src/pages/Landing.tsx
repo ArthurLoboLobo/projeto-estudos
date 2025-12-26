@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-caky-bg text-caky-dark font-sans">
+    <div className="min-h-screen bg-caky-bg text-caky-text font-sans">
       {/* Navigation */}
       <nav className="absolute top-0 left-0 right-0 p-6 z-10">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
@@ -13,12 +14,15 @@ export default function Landing() {
             <img src="/caky_logo.png" alt="Caky Logo" className="w-10 h-10 object-contain" />
             <h1 className="text-3xl font-bold text-caky-primary tracking-tight">Caky</h1>
           </Link>
-          <Link
-            to={isAuthenticated ? '/dashboard' : '/auth'}
-            className="px-6 py-2 bg-caky-card text-caky-primary font-semibold rounded-full border-2 border-caky-primary hover:bg-caky-primary hover:text-white transition shadow-sm"
-          >
-            {isAuthenticated ? 'Painel' : 'Começar'}
-          </Link>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <Link
+              to={isAuthenticated ? '/dashboard' : '/auth'}
+              className="px-6 py-2 bg-caky-card text-caky-primary font-semibold rounded-full border-2 border-caky-primary hover:bg-caky-primary hover:text-white transition shadow-sm"
+            >
+              {isAuthenticated ? 'Painel' : 'Começar'}
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -36,7 +40,7 @@ export default function Landing() {
             </span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-extrabold text-caky-dark mb-6 leading-tight tracking-tight">
+          <h1 className="text-5xl md:text-7xl font-extrabold text-caky-text mb-6 leading-tight tracking-tight">
             Passe em Suas Provas com{' '}
             <span className="text-caky-primary underline decoration-caky-secondary/50 decoration-4 underline-offset-4">
               Estudos
@@ -44,7 +48,7 @@ export default function Landing() {
             Focados
           </h1>
           
-          <p className="text-xl text-caky-dark/70 mb-10 max-w-2xl mx-auto leading-relaxed font-medium">
+          <p className="text-xl text-caky-text/70 mb-10 max-w-2xl mx-auto leading-relaxed font-medium">
             Faça upload dos seus slides, provas antigas e anotações. Tenha um tutor de IA personalizado que
             sabe exatamente o que você precisa estudar para sua disciplina específica.
           </p>
@@ -69,7 +73,7 @@ export default function Landing() {
       {/* How It Works */}
       <section id="how-it-works" className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-caky-dark text-center mb-16">
+          <h2 className="text-4xl font-bold text-caky-text text-center mb-16">
             Como Funciona
           </h2>
 
@@ -98,10 +102,10 @@ export default function Landing() {
                 <div className="text-caky-primary font-bold font-mono text-sm mb-2 uppercase tracking-wider">
                   Step {item.step}
                 </div>
-                <h3 className="text-2xl font-bold text-caky-dark mb-3">
+                <h3 className="text-2xl font-bold text-caky-text mb-3">
                   {item.title}
                 </h3>
-                <p className="text-caky-dark/70 leading-relaxed">
+                <p className="text-caky-text/70 leading-relaxed">
                   {item.description}
                 </p>
               </div>
@@ -113,10 +117,10 @@ export default function Landing() {
       {/* Features */}
       <section className="py-24 px-6 bg-caky-secondary/10">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-caky-dark text-center mb-4">
+          <h2 className="text-4xl font-bold text-caky-text text-center mb-4">
             Por Que o Caky?
           </h2>
-          <p className="text-caky-dark/60 text-center mb-16 max-w-2xl mx-auto font-medium">
+          <p className="text-caky-text/60 text-center mb-16 max-w-2xl mx-auto font-medium">
             Ao contrário dos tutores de IA genéricos, o Caky foca nos SEUS materiais específicos da disciplina
           </p>
 
@@ -148,10 +152,10 @@ export default function Landing() {
               >
                 <span className="text-3xl text-caky-primary">{feature.icon}</span>
                 <div>
-                  <h3 className="text-xl font-bold text-caky-dark mb-2">
+                  <h3 className="text-xl font-bold text-caky-text mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-caky-dark/70 leading-relaxed">{feature.description}</p>
+                  <p className="text-caky-text/70 leading-relaxed">{feature.description}</p>
                 </div>
               </div>
             ))}
@@ -162,10 +166,10 @@ export default function Landing() {
       {/* CTA */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-caky-dark mb-6">
+          <h2 className="text-4xl font-bold text-caky-text mb-6">
             Pronto para Estudar com Inteligência?
           </h2>
-          <p className="text-xl text-caky-dark/70 mb-10">
+          <p className="text-xl text-caky-text/70 mb-10">
             Junte-se aos estudantes que estão passando em suas provas com tutoria personalizada de IA.
           </p>
           <Link
@@ -178,10 +182,10 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-caky-dark/10 py-12 px-6 bg-caky-card">
+      <footer className="border-t border-caky-text/10 py-12 px-6 bg-caky-card">
         <div className="max-w-6xl mx-auto text-center">
           <img src="/caky_logo.png" alt="Caky Logo" className="w-12 h-12 mx-auto mb-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition" />
-          <div className="text-caky-dark/50 text-sm font-medium">
+          <div className="text-caky-text/50 text-sm font-medium">
             © 2024 Caky. Built with React, Rust, and ❤️
           </div>
         </div>
