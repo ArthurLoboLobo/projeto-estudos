@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../lib/auth';
 import { GET_SESSIONS } from '../lib/graphql/queries';
 import { CREATE_SESSION, DELETE_SESSION } from '../lib/graphql/mutations';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import type { Session } from '../types';
 
 export default function Dashboard() {
@@ -63,14 +64,15 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-caky-card/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+      <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link to="/" className="text-xl font-bold text-caky-primary flex items-center gap-2">
             <img src="/caky_logo.png" alt="Caky Logo" className="w-8 h-8 object-contain" />
             Caky
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-caky-dark/70 text-sm font-medium">{user?.email}</span>
+            <ThemeToggle />
+            <span className="text-caky-text/70 text-sm font-medium">{user?.email}</span>
             <button
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
@@ -85,10 +87,10 @@ export default function Dashboard() {
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-caky-dark mb-2">
+            <h1 className="text-3xl font-bold text-caky-text mb-2">
               Suas Sessões de Estudo
             </h1>
-            <p className="text-caky-dark/60">
+            <p className="text-caky-text/60">
               Crie uma sessão para cada disciplina ou prova que você está se preparando
             </p>
           </div>
@@ -104,12 +106,12 @@ export default function Dashboard() {
         {showNewSession && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border border-caky-secondary/30">
-              <h2 className="text-2xl font-bold text-caky-dark mb-6">
+              <h2 className="text-2xl font-bold text-caky-text mb-6">
                 Criar Sessão de Estudo
               </h2>
               <form onSubmit={handleCreateSession} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-caky-dark mb-2">
+                  <label className="block text-sm font-semibold text-caky-text mb-2">
                     Título da Sessão
                   </label>
                   <input
@@ -117,13 +119,13 @@ export default function Dashboard() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="ex.: Prova Final de Cálculo II"
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary"
+                    className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary"
                     required
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-caky-dark mb-2">
+                  <label className="block text-sm font-semibold text-caky-text mb-2">
                     Descrição (opcional)
                   </label>
                   <textarea
@@ -131,14 +133,14 @@ export default function Dashboard() {
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Tópicos, data da prova, anotações..."
                     rows={3}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
+                    className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
                   />
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowNewSession(false)}
-                    className="flex-1 py-3 text-caky-dark bg-gray-100 hover:bg-gray-200 rounded-xl transition font-medium"
+                    className="flex-1 py-3 text-caky-text bg-gray-100 dark:bg-caky-card hover:bg-gray-200 dark:hover:bg-caky-card/70 rounded-xl transition font-medium"
                   >
                     Cancelar
                   </button>
@@ -165,11 +167,11 @@ export default function Dashboard() {
             Error loading sessions: {error.message}
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-dark/10">
-            <h3 className="text-2xl font-bold text-caky-dark mb-3">
+          <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-text/10">
+            <h3 className="text-2xl font-bold text-caky-text mb-3">
               Nenhuma sessão de estudo ainda
             </h3>
-            <p className="text-caky-dark/60 mb-8 max-w-md mx-auto">
+            <p className="text-caky-text/60 mb-8 max-w-md mx-auto">
               Crie sua primeira sessão para começar a estudar com contexto de IA dos seus documentos.
             </p>
             <button
@@ -192,8 +194,8 @@ export default function Dashboard() {
                       e.preventDefault(); // Prevent navigating if clicking delete
                       handleDeleteSession(session.id);
                     }}
-                    className="text-gray-400 hover:text-red-500 transition p-1 bg-white rounded-full shadow-sm hover:bg-red-50"
-                    title="Delete session"
+                    className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-1 bg-white dark:bg-caky-card rounded-full shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20"
+                    title="Excluir sessão"
                   >
                     <svg
                       className="w-5 h-5"
@@ -213,25 +215,25 @@ export default function Dashboard() {
 
                 <div className="mb-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-xl font-bold text-caky-dark group-hover:text-caky-primary transition pr-8">
+                    <h3 className="text-xl font-bold text-caky-text group-hover:text-caky-primary transition pr-8">
                       {session.title}
                     </h3>
                     <StageBadge stage={session.stage} />
                   </div>
                   {session.description && (
-                    <p className="text-caky-dark/60 text-sm line-clamp-2 min-h-[2.5em]">
+                    <p className="text-caky-text/60 text-sm line-clamp-2 min-h-[2.5em]">
                       {session.description}
                     </p>
                   )}
                   {!session.description && (
-                    <p className="text-caky-dark/40 text-sm italic min-h-[2.5em]">
+                    <p className="text-caky-text/40 text-sm italic min-h-[2.5em]">
                       Sem descrição
                     </p>
                   )}
                 </div>
                 
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                  <div className="text-xs text-caky-dark/40 font-medium">
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <div className="text-xs text-caky-text/40 font-medium">
                     {new Date(session.createdAt).toLocaleDateString()}
                   </div>
                   <Link

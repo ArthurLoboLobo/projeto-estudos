@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../lib/auth';
 import { GET_STUDY_PLAN_HISTORY } from '../lib/graphql/queries';
 import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING, UPDATE_TOPIC_STATUS } from '../lib/graphql/mutations';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import type { Session, StudyPlan, TopicStatus } from '../types';
 
 interface SessionPlanningProps {
@@ -115,27 +116,28 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
+      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
         <div className="px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link
               to="/dashboard"
-              className="text-caky-primary hover:text-caky-dark transition font-medium"
+              className="text-caky-primary hover:text-caky-text transition font-medium"
             >
-              ← Back
+              ← Voltar
             </Link>
             <div className="flex items-center gap-3">
               <img src="/caky_logo.png" alt="Caky Logo" className="w-7 h-7 object-contain" />
               <div>
-                <h1 className="text-xl font-bold text-caky-dark">{session.title}</h1>
+                <h1 className="text-xl font-bold text-caky-text">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-caky-dark/50">{session.description}</p>
+                  <p className="text-sm text-caky-text/50">{session.description}</p>
                 )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-caky-dark/70 text-sm font-medium">{user?.email}</span>
+            <ThemeToggle />
+            <span className="text-caky-text/70 text-sm font-medium">{user?.email}</span>
             <button
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
@@ -153,42 +155,42 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">1</div>
-              <span className="text-caky-dark font-semibold">Enviar Materiais</span>
+              <span className="text-caky-text font-semibold">Enviar Materiais</span>
             </div>
             <div className="w-8 h-0.5 bg-caky-primary"></div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">2</div>
               <span className="text-caky-primary font-semibold">Planejar Estudos</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-dark/20"></div>
+            <div className="w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-dark font-medium">Começar a Estudar</span>
+              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">3</div>
+              <span className="text-caky-text font-medium">Começar a Estudar</span>
             </div>
           </div>
 
           {/* Planning Card */}
           <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-dark mb-2">Seu Plano de Estudo</h2>
-              <p className="text-caky-dark/60 max-w-md mx-auto mb-4">
+              <h2 className="text-2xl font-bold text-caky-text mb-2">Seu Plano de Estudo</h2>
+              <p className="text-caky-text/60 max-w-md mx-auto mb-4">
                 Revise e refine seu plano de estudo personalizado. Diga à IA como melhorá-lo.
               </p>
-              <div className="flex items-center justify-center gap-4 text-xs text-caky-dark/50">
-                <span>Version {currentPlan.version}</span>
+              <div className="flex items-center justify-center gap-4 text-xs text-caky-text/50">
+                <span>Versão {currentPlan.version}</span>
                 <span>•</span>
-                <span>Created {new Date(currentPlan.createdAt).toLocaleTimeString()}</span>
+                <span>Criado {new Date(currentPlan.createdAt).toLocaleTimeString()}</span>
                 {canUndo && (
                   <>
                     <span>•</span>
                     <button
                       onClick={handleUndo}
-                      className="text-caky-primary hover:text-caky-dark font-medium flex items-center gap-1"
+                      className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                       </svg>
-                      Undo
+                      Voltar para versão anterior
                     </button>
                   </>
                 )}
@@ -201,7 +203,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                 {currentPlan.content.topics.map((topic, index) => (
                   <div
                     key={topic.id}
-                    className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-caky-primary/30 transition"
+                    className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-caky-primary/30 transition"
                   >
                     {/* Topic Number */}
                     <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
@@ -210,8 +212,8 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
 
                     {/* Topic Content */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-caky-dark mb-1">{topic.title}</h3>
-                      <p className="text-sm text-caky-dark/60">{topic.description}</p>
+                      <h3 className="font-bold text-caky-text mb-1">{topic.title}</h3>
+                      <p className="text-sm text-caky-text/60">{topic.description}</p>
                     </div>
 
                     {/* Status Dropdown */}
@@ -229,10 +231,10 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
               </div>
 
               {/* Refine Section */}
-              <div className="border-t border-caky-dark/10 pt-8">
+              <div className="border-t border-caky-text/10 pt-8">
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-caky-dark mb-2">Refine Seu Plano</h3>
-                  <p className="text-caky-dark/60 text-sm">
+                  <h3 className="text-lg font-bold text-caky-text mb-2">Refine Seu Plano</h3>
+                  <p className="text-caky-text/60 text-sm">
                     Diga à IA como melhorar seu plano de estudo
                   </p>
                 </div>
@@ -244,7 +246,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     value={instruction}
                     onChange={(e) => setInstruction(e.target.value)}
                     placeholder="ex.: 'Adicione mais exercícios práticos de integrais' ou 'Remova a seção sobre limites'"
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none text-sm"
+                    className="w-full p-4 bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none text-sm"
                     rows={4}
                     disabled={revising}
                   />
@@ -278,10 +280,10 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                   </div>
                 </form>
 
-                {/* Version History */}
+                {/* Histórico de Versões */}
                 {planHistory.length > 1 && (
-                  <div className="mt-6 pt-6 border-t border-caky-dark/10">
-                    <p className="text-xs font-semibold text-caky-dark/50 uppercase tracking-wide mb-3">
+                  <div className="mt-6 pt-6 border-t border-caky-text/10">
+                    <p className="text-xs font-semibold text-caky-text/50 uppercase tracking-wide mb-3">
                       Histórico de Versões ({planHistory.length})
                     </p>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -291,7 +293,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                           className={`text-xs p-2 rounded-lg ${
                             plan.version === currentPlan.version
                               ? 'bg-caky-primary/10 text-caky-primary font-semibold'
-                              : 'text-caky-dark/60 bg-gray-50'
+                              : 'text-caky-text/60 bg-gray-50 dark:bg-caky-card/30'
                           }`}
                         >
                           v{plan.version}: {plan.instruction || 'Initial plan'}
@@ -308,4 +310,3 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
     </div>
   );
 }
-

@@ -7,9 +7,24 @@
   --color-caky-secondary: #ACD9E8;
   --color-caky-dark: #2D3A64;
   --color-caky-card: #FFFEF5;
+  --color-caky-text: #2D3A64;
 }
 
-/* Custom scrollbar for light theme */
+.dark {
+  /* Using a deep slate for better contrast and harmony */
+  --color-caky-bg: #0B1120;
+  --color-caky-card: #1E293B;
+  
+  /* Logo colors */
+  --color-caky-primary: #4B689C;
+  --color-caky-secondary: #B8DFF1;
+  --color-caky-dark: #3A4D75;
+  
+  /* High contrast text for dark mode */
+  --color-caky-text: #F1F5F9;
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -17,6 +32,10 @@
 
 ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.05);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -40,7 +59,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-caky-bg);
-  color: var(--color-caky-dark);
+  color: var(--color-caky-text);
 }
 
 .bg-white {
@@ -84,29 +103,42 @@ body {
   font-size: 1em;
 }
 
-/* Prose overrides for light theme chat bubbles */
+/* Prose overrides for chat bubbles */
 .prose {
-  color: var(--color-caky-dark);
+  color: var(--color-caky-text);
   max-width: none;
+}
+
+.dark .prose {
+  color: var(--color-caky-text);
 }
 
 .prose code {
   background: rgba(60, 84, 137, 0.1);
-  color: var(--color-caky-dark);
+  color: var(--color-caky-text);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.875em;
   font-weight: 600;
 }
 
+.dark .prose code {
+  background: rgba(184, 223, 241, 0.15);
+  color: var(--color-caky-text);
+}
+
 .prose pre {
-  background: #1e293b; /* Keep code blocks dark for readability */
+  background: #1e293b;
   color: #e2e8f0;
   border-radius: 0.5rem;
   padding: 0.75rem;
   overflow-x: auto;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
+}
+
+.dark .prose pre {
+  background: #0f172a;
 }
 
 .prose pre code {
@@ -141,10 +173,17 @@ body {
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
-  color: var(--color-caky-dark);
+  color: var(--color-caky-text);
   font-weight: 700;
   margin-top: 1em;
   margin-bottom: 0.5em;
+}
+
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose h4 {
+  color: var(--color-caky-text);
 }
 
 /* Inverted prose (for user bubbles with dark background) */

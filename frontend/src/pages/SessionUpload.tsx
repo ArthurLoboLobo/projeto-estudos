@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_DOCUMENTS } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, START_PLANNING } from '../lib/graphql/mutations';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import type { Document, Session, StudyPlan } from '../types';
 
 const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') || 'http://localhost:8080';
@@ -131,27 +132,28 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-dark/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
+      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link
               to="/dashboard"
-              className="text-caky-primary hover:text-caky-dark transition font-medium"
+              className="text-caky-primary hover:text-caky-text transition font-medium"
             >
-              ← Back
+              ← Voltar
             </Link>
             <div className="flex items-center gap-3">
               <img src="/caky_logo.png" alt="Caky Logo" className="w-7 h-7 object-contain" />
               <div>
-                <h1 className="text-xl font-bold text-caky-dark">{session.title}</h1>
+                <h1 className="text-xl font-bold text-caky-text">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-caky-dark/50">{session.description}</p>
+                  <p className="text-sm text-caky-text/50">{session.description}</p>
                 )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-caky-dark/70 text-sm font-medium">{user?.email}</span>
+            <ThemeToggle />
+            <span className="text-caky-text/70 text-sm font-medium">{user?.email}</span>
             <button
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
@@ -171,23 +173,23 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">1</div>
               <span className="text-caky-primary font-semibold">Enviar Materiais</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-dark/20"></div>
+            <div className="w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">2</div>
-              <span className="text-caky-dark font-medium">Planejar Estudos</span>
+              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">2</div>
+              <span className="text-caky-text font-medium">Planejar Estudos</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-dark/20"></div>
+            <div className="w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-dark font-medium">Começar a Estudar</span>
+              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">3</div>
+              <span className="text-caky-text font-medium">Começar a Estudar</span>
             </div>
           </div>
 
           {/* Upload Card */}
           <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-dark mb-2">Envie Seus Materiais de Estudo</h2>
-              <p className="text-caky-dark/60 max-w-md mx-auto">
+              <h2 className="text-2xl font-bold text-caky-text mb-2">Envie Seus Materiais de Estudo</h2>
+              <p className="text-caky-text/60 max-w-md mx-auto">
                 Faça upload de provas antigas, slides de aula e anotações. A IA irá analisá-los para criar um plano de estudo personalizado.
               </p>
             </div>
@@ -204,7 +206,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || generating}
-                className="w-full py-6 border-2 border-dashed border-caky-primary/40 hover:border-caky-primary bg-caky-primary/5 hover:bg-caky-primary/10 text-caky-primary hover:text-caky-dark rounded-2xl transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-6 border-2 border-dashed border-caky-primary/40 hover:border-caky-primary bg-caky-primary/5 hover:bg-caky-primary/10 text-caky-primary hover:text-caky-text rounded-2xl transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading ? (
                   <>
@@ -217,7 +219,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                     <span className="font-bold text-lg">Upload de Arquivos</span>
-                    <span className="text-sm text-caky-dark/50">Provas antigas, slides, anotações (máx. 50MB)</span>
+                    <span className="text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
                   </>
                 )}
               </button>
@@ -225,19 +227,19 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               {/* Document List */}
               {documents.length > 0 && (
                 <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-bold text-caky-dark/70 uppercase tracking-wide">Documentos Enviados</h3>
+                  <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">Documentos Enviados</h3>
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100"
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-100 dark:border-gray-700"
                     >
                       <div className="flex items-center gap-3">
                         <div>
-                          <p className="text-caky-dark font-semibold text-sm">{doc.fileName}</p>
+                          <p className="text-caky-text font-semibold text-sm">{doc.fileName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <StatusBadge status={doc.extractionStatus} />
                             {doc.pageCount && (
-                              <span className="text-xs text-caky-dark/50">{doc.pageCount} pages</span>
+                              <span className="text-xs text-caky-text/50">{doc.pageCount} pages</span>
                             )}
                           </div>
                         </div>
@@ -245,7 +247,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                       <button
                         onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
                         disabled={generating}
-                        className="text-gray-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -280,7 +282,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                   )}
                 </button>
                 {documents.length === 0 && (
-                  <p className="text-center text-caky-dark/50 text-sm mt-3">
+                  <p className="text-center text-caky-text/50 text-sm mt-3">
                     Envie pelo menos um documento para continuar
                   </p>
                 )}
@@ -317,4 +319,3 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
