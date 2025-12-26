@@ -771,7 +771,7 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
       }
       setIsRevising(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Revision error:', error);
       console.error('Error details:', error.graphQLErrors, error.networkError);
 
@@ -805,7 +805,7 @@ function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: Ed
         onRefetchPlan();
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Status update error:', error);
       console.error('Error details:', error.graphQLErrors, error.networkError);
 
