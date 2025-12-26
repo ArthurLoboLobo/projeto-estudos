@@ -138,7 +138,7 @@ impl OpenRouterClient {
     ) -> Result<String, async_graphql::Error> {
         let prompt = r#"You are extracting content from an academic document page.
 
-Extract ALL text from this page exactly as shown.
+Extract ALL text from this page exactly as shown, preserving the original language.
 
 For any mathematical formulas, equations, chemical formulas, or scientific notation:
 - Represent them in LaTeX format using $...$ for inline math and $$...$$ for block equations
@@ -150,8 +150,10 @@ For tables:
 For bullet points and numbered lists:
 - Preserve the structure
 
+IMPORTANT: Keep the text in its original language (Portuguese, English, Spanish, etc.). Do not translate.
+
 Output the extracted content in plain text with LaTeX formulas embedded where appropriate.
-Do not add any commentary or explanations - just extract the content."#;
+Do not add any commentary or explanations - just extract the content as-is."#;
 
         let data_url = format!("data:{};base64,{}", mime_type, image_base64);
 

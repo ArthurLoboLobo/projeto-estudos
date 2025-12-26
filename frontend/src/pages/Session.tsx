@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, SEND_MESSAGE, CLEAR_MESSAGES } from '../lib/graphql/mutations';
+import { DELETE_DOCUMENT, SEND_MESSAGE } from '../lib/graphql/mutations';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
@@ -94,6 +94,7 @@ export default function Session() {
           setSession(updatedSession);
           refetchSession();
         }}
+        onRefetchPlan={refetchPlan}
       />
     );
   }
@@ -139,7 +140,6 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   // Mutations
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
   const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE);
-  const [clearMessages] = useMutation(CLEAR_MESSAGES);
 
   // Lazy query for document URL
   const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
@@ -318,17 +318,6 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
     }
   };
 
-  const handleClearChat = async () => {
-    if (!confirm('Clear all chat history?')) return;
-
-    try {
-      await clearMessages({ variables: { sessionId: session.id } });
-      toast.success('Chat cleared');
-      refetchMessages();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to clear chat');
-    }
-  };
 
   return (
     <div className="h-screen flex flex-col bg-caky-bg">
@@ -358,7 +347,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
               onClick={logout}
               className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
-              Sign Out
+              Sair
             </button>
           </div>
         </div>
@@ -372,7 +361,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold text-caky-dark">Study Materials</h2>
+                <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
                 <span className="text-xs text-caky-dark/50">
                   {documents.length} doc{documents.length !== 1 ? 's' : ''}
                 </span>
@@ -399,7 +388,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    Upload PDF
+                    Upload de Arquivos
                   </>
                 )}
               </button>
@@ -451,7 +440,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
                 className="p-3 flex items-center justify-between bg-caky-primary/5 hover:bg-caky-primary/10 transition shrink-0"
               >
                 <span className="font-bold text-caky-dark text-sm flex items-center gap-2">
-                  Study Plan
+                  Plano de Estudos
                 </span>
                 <svg
                   className={`w-4 h-4 text-caky-dark/50 transition-transform ${showPlan ? 'rotate-180' : ''}`}
@@ -476,10 +465,10 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
 
                     const getStatusLabel = (status: string) => {
                       switch (status) {
-                        case 'need_to_learn': return 'Need to Learn';
-                        case 'need_review': return 'Need Review';
-                        case 'know_well': return 'Know Well';
-                        default: return 'Unknown';
+                        case 'need_to_learn': return 'Preciso Aprender';
+                        case 'need_review': return 'Preciso Revisar';
+                        case 'know_well': return 'Sei Bem';
+                        default: return 'Desconhecido';
                       }
                     };
 
@@ -523,7 +512,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
                   Ready to help you study!
                 </h3>
                 <p className="text-caky-dark/60 max-w-md text-sm md:text-base font-medium">
-                  Ask me anything about your study materials. I'll help you understand concepts, solve problems, and prepare for your exam.
+                  Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
                 </p>
               </div>
             ) : (
@@ -553,24 +542,13 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
           {/* Message Input */}
           <div className="border-t border-caky-dark/10 bg-white p-3 md:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-caky-dark/50 font-medium">
-                {documents.length} doc{documents.length !== 1 ? 's' : ''} loaded
-              </span>
-              {messages.length > 0 && (
-                <button
-                  onClick={handleClearChat}
-                  className="text-xs text-caky-dark/40 hover:text-red-500 transition ml-auto font-medium"
-                >
-                  Clear chat
-                </button>
-              )}
             </div>
             <form onSubmit={handleSendMessage} className="flex gap-2 md:gap-3">
               <input
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                placeholder="Ask about your study materials..."
+                placeholder="Pergunte qualquer coisa..."
                 className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary text-sm md:text-base transition"
                 disabled={sending}
               />
@@ -586,7 +564,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
                   </>
                 ) : (
                   <>
-                    <span className="hidden md:inline">Send</span>
+                    <span className="hidden md:inline">Enviar</span>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
@@ -666,10 +644,14 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  // Don't show anything for completed status
+  if (status === 'completed') {
+    return null;
+  }
+
   const styles: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     processing: 'bg-blue-100 text-blue-700 border-blue-200',
-    completed: 'bg-green-100 text-green-700 border-green-200',
     failed: 'bg-red-100 text-red-700 border-red-200',
   };
 

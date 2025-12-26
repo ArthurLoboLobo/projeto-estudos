@@ -28,8 +28,10 @@ Caky provides **contextual tutoring** based on the student's actual course mater
 **Key Features:**
 - 📄 **PDF Upload** — Upload slides, old exams, notes (with formula support)
 - 🧠 **Context-Aware AI** — Gemini 2.5 Flash uses your materials to answer questions
-- 📋 **AI-Generated Study Plans** — Personalized study plans created from your materials
-- ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance
+- 📋 **AI-Generated Study Plans** — Personalized study plans with JSON structure and topic status tracking
+- ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance and version control
+- 🎯 **Topic Progress Tracking** — Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem)
+- 🌍 **Brazilian Portuguese** — Fully localized interface with intelligent language detection
 - 💬 **Chat History** — Conversations are saved per study session
 - 📱 **Responsive Design** — Works on desktop and mobile
 
@@ -79,7 +81,8 @@ cd projeto-estudos
 
 ```sql
 -- Copy contents of backend/migrations/001_initial_schema.sql and run it
--- Then copy contents of backend/migrations/002_study_plans.sql and run it
+-- Then copy contents of backend/migrations/003_json_study_plans.sql and run it
+-- Finally copy contents of backend/migrations/004_json_study_plans.sql and run it
 ```
 
 ### 3. Backend Setup
@@ -127,13 +130,13 @@ The frontend will start at `http://localhost:5173`.
 ### 5. Verify Everything Works
 
 1. Open `http://localhost:5173` in your browser
-2. Click "Get Started" to create an account
+2. Click "Começar" to create an account (fully in Brazilian Portuguese)
 3. Create a study session (automatically navigates to upload page)
 4. Upload PDF documents (slides, exams, notes)
 5. Wait for AI text extraction to complete
-6. Click "Start Planning" to generate a personalized study plan
-7. Review and refine the study plan with AI assistance
-8. Click "Start Studying" to begin chatting with your AI tutor
+6. Click "Começar Planejamento" to generate a personalized study plan
+7. Review and refine the study plan with topic status tracking (Preciso Aprender, Preciso Revisar, Sei Bem)
+8. Click "Começar a Estudar" to begin chatting with your AI tutor (responds in Portuguese by default)
 
 ---
 
@@ -143,7 +146,7 @@ The frontend will start at `http://localhost:5173`.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         FRONTEND (React + Vite)                      │
 │                                                                       │
-│  Landing Page  →  Auth Forms  →  Dashboard  →  Session (Upload → Plan → Chat) │
+│  Landing Page  →  Auth Forms  →  Dashboard  →  Session (Upload → Planning → Studying) │
 │                                                                       │
 │  • Apollo Client for GraphQL                                          │
 │  • JWT stored in localStorage                                         │
@@ -289,7 +292,9 @@ projeto-estudos/
 │   │
 │   ├── migrations/
 │   │   ├── 001_initial_schema.sql # Initial database schema
-│   │   └── 002_study_plans.sql    # Study plans and session stages
+│   │   ├── 002_add_document_extraction_columns.sql # Document processing
+│   │   ├── 003_json_study_plans.sql # JSON study plans structure
+│   │   └── 004_json_study_plans.sql # Add content_json field
 │   │
 │   ├── .env                       # All secrets (gitignored)
 │   └── Cargo.toml                 # Rust dependencies
@@ -340,13 +345,14 @@ CREATE TABLE documents (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Study Plans (versioned AI-generated plans)
+-- Study Plans (versioned AI-generated plans with JSON structure)
 CREATE TABLE study_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
     version INTEGER NOT NULL DEFAULT 1,
-    content_md TEXT NOT NULL,
-    instruction TEXT, -- User instruction that led to this version
+    content_md TEXT NOT NULL,            -- Markdown for display (legacy)
+    content_json JSONB,                  -- Structured JSON data
+    instruction TEXT,                    -- User instruction that led to this version
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -366,6 +372,19 @@ CREATE INDEX idx_messages_session ON messages(session_id);
 CREATE INDEX idx_messages_created ON messages(session_id, created_at);
 CREATE INDEX idx_study_plans_session ON study_plans(session_id);
 CREATE INDEX idx_study_plans_version ON study_plans(session_id, version DESC);
+CREATE INDEX idx_study_plans_content_json ON study_plans USING GIN (content_json);
+
+-- Study Plan JSON Structure:
+-- {
+--   "topics": [
+--     {
+--       "id": "topic-1",
+--       "title": "Integration by Parts",
+--       "description": "Learn to apply integration by parts technique",
+--       "status": "need_to_learn" | "need_review" | "know_well"
+--     }
+--   ]
+-- }
 ```
 
 ### Entity Relationships
@@ -424,7 +443,7 @@ GraphQL Playground available at: `GET /graphql`
 | `session(id)` | ✅ | Get single session by ID |
 | `documents(sessionId)` | ✅ | List documents in a session |
 | `messages(sessionId)` | ✅ | Get chat history for a session |
-| `studyPlan(sessionId)` | ✅ | Get current study plan |
+| `studyPlan(sessionId)` | ✅ | Get current study plan (with topics and statuses) |
 | `studyPlanHistory(sessionId)` | ✅ | Get study plan version history |
 
 ### Mutations
@@ -440,6 +459,7 @@ GraphQL Playground available at: `GET /graphql`
 | `startPlanning(sessionId)` | ✅ | Generate AI study plan from documents |
 | `reviseStudyPlan(sessionId, instruction)` | ✅ | Revise study plan with AI assistance |
 | `undoStudyPlan(sessionId)` | ✅ | Revert to previous plan version |
+| `updateTopicStatus(sessionId, topicId, status)` | ✅ | Update knowledge status for a topic |
 | `startStudying(sessionId)` | ✅ | Finalize plan and begin studying |
 | `sendMessage(sessionId, content)` | ✅ | Send message, get AI response |
 | `clearMessages(sessionId)` | ✅ | Clear chat history |
@@ -522,7 +542,26 @@ mutation {
 # Get current study plan
 query {
   studyPlan(sessionId: "...") {
-    id version contentMd instruction createdAt
+    id version contentMd
+    content {
+      topics {
+        id title description status
+      }
+    }
+    instruction createdAt
+  }
+}
+
+# Update topic status
+mutation {
+  updateTopicStatus(sessionId: "...", topicId: "topic-1", status: "know_well") {
+    id version contentMd
+    content {
+      topics {
+        id title description status
+      }
+    }
+    instruction createdAt
   }
 }
 ```
@@ -710,6 +749,60 @@ This is why we use full-text context instead of RAG for V1.
 │                                                                       │
 │  1. User completes document upload and extraction                     │
 │                                                                       │
+│  2. User clicks "Começar Planejamento"                                 │
+│                                                                       │
+│  3. AI analyzes all document content and generates JSON:              │
+│     • Sequence of topics to learn                                    │
+│     • Each topic has title, description, status                      │
+│     • All topics start with status "need_to_learn"                   │
+│                                                                       │
+│  4. User can track progress by updating topic statuses:              │
+│     • "Preciso Aprender" (Need to Learn) - Default                   │
+│     • "Preciso Revisar" (Need Review) - Know but need refresh        │
+│     • "Sei Bem" (Know Well) - Confident in topic                     │
+│                                                                       │
+│  5. User can refine the plan with AI assistance:                     │
+│     "Adicione mais exercícios de integrais"                          │
+│     "Foque apenas nos capítulos 5-8"                                 │
+│                                                                       │
+│  6. AI revises the plan and resets all statuses to default            │
+│                                                                       │
+│  7. User can undo changes to revert to previous versions             │
+│                                                                       │
+│  8. User clicks "Começar a Estudar" to finalize and begin chat        │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+
+JSON Structure:
+───────────────
+{
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Integração por Partes",
+      "description": "Aprender a aplicar a técnica de integração por partes",
+      "status": "need_to_learn"
+    }
+  ]
+}
+
+Language Intelligence:
+──────────────────────
+- Study plans generated in the language of uploaded materials
+- AI responds in Portuguese by default, but matches user language
+- Topic titles and descriptions adapt to document language
+- Status labels always in Portuguese for UI consistency
+```
+
+### 4. Study Plan Generation & Refinement Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     STUDY PLANNING WORKFLOW                          │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  1. User completes document upload and extraction                     │
+│                                                                       │
 │  2. User clicks "Start Planning"                                       │
 │                                                                       │
 │  3. AI analyzes all document content and generates:                    │
@@ -765,6 +858,7 @@ Each revision creates a new version that can be:
 | React Router | 7 | Client-side routing |
 | React Markdown | Latest | Markdown rendering |
 | Remark Math | Latest | LaTeX math support |
+| React Intl | Latest | Internationalization |
 | Sonner | 2 | Toast notifications |
 
 ### Backend
@@ -902,7 +996,19 @@ Sessions progress through three stages: uploading → planning → studying.
 - **Incremental Value**: Each stage provides immediate value and builds toward comprehensive preparation
 - **AI Integration**: Study plans are generated from actual user materials, not generic templates
 - **Version Control**: Plan revisions are tracked with undo functionality
+- **Progress Tracking**: Topic-level status management (Preciso Aprender, Preciso Revisar, Sei Bem)
 - **Scalability**: Easy to add new stages (e.g., progress tracking, spaced repetition) in the future
+
+### 7. Brazilian Portuguese Localization
+
+Complete localization to Brazilian Portuguese with intelligent language detection.
+
+**Why:**
+- **Target Market**: Brazil has a large student population and growing education technology market
+- **User Experience**: Native language interface reduces cognitive load for Portuguese speakers
+- **AI Intelligence**: Smart language detection prioritizes user language over default Portuguese
+- **Accessibility**: Makes advanced AI tutoring accessible to non-English speakers
+- **Cultural Adaptation**: Status labels and interface elements adapted for Brazilian context
 
 ---
 
@@ -960,9 +1066,12 @@ sudo apt install poppler-utils  # Ubuntu
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **AI-Generated Study Plans** | Personalized study plans from user materials | ✅ **Implemented** |
+| **AI-Generated Study Plans** | Personalized study plans from user materials with JSON structure | ✅ **Implemented** |
 | **Plan Refinement with AI** | Interactive plan editing with AI assistance | ✅ **Implemented** |
 | **Version Control for Plans** | Undo/redo functionality for plan revisions | ✅ **Implemented** |
+| **Topic Progress Tracking** | Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem) | ✅ **Implemented** |
+| **Brazilian Portuguese** | Complete localization with intelligent language detection | ✅ **Implemented** |
+| **Study Plan Display** | Real-time study plan updates in chat sidebar | ✅ **Implemented** |
 | **Streaming Responses** | Real-time AI response streaming via SSE | Planned |
 | **Smart Context Selection** | When documents exceed limits, use relevance scoring | Planned |
 | **Flashcard Generation** | AI-generated flashcards from materials | Planned |

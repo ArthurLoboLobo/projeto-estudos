@@ -17,7 +17,7 @@ export default function Landing() {
             to={isAuthenticated ? '/dashboard' : '/auth'}
             className="px-6 py-2 bg-caky-card text-caky-primary font-semibold rounded-full border-2 border-caky-primary hover:bg-caky-primary hover:text-white transition shadow-sm"
           >
-            {isAuthenticated ? 'Dashboard' : 'Get Started'}
+            {isAuthenticated ? 'Painel' : 'Começar'}
           </Link>
         </div>
       </nav>
@@ -32,21 +32,21 @@ export default function Landing() {
           <div className="mb-8">
             <img src="/caky_logo.png" alt="Caky Logo" className="w-24 h-24 mx-auto mb-6 drop-shadow-lg" />
             <span className="inline-block px-4 py-2 bg-caky-secondary/20 text-caky-primary rounded-full text-sm font-bold border border-caky-secondary/50 mb-6 tracking-wide">
-              ✨ AI-Powered Study Assistant
+              ✨ Assistente de Estudos com IA
             </span>
           </div>
           
           <h1 className="text-5xl md:text-7xl font-extrabold text-caky-dark mb-6 leading-tight tracking-tight">
-            Ace Your Exams with{' '}
+            Passe em Suas Provas com{' '}
             <span className="text-caky-primary underline decoration-caky-secondary/50 decoration-4 underline-offset-4">
-              Hyper-Focused
+              Estudos
             </span>{' '}
-            Study
+            Focados
           </h1>
           
           <p className="text-xl text-caky-dark/70 mb-10 max-w-2xl mx-auto leading-relaxed font-medium">
-            Upload your slides, past exams, and notes. Get a personalized AI tutor that
-            knows exactly what you need to study for your specific course.
+            Faça upload dos seus slides, provas antigas e anotações. Tenha um tutor de IA personalizado que
+            sabe exatamente o que você precisa estudar para sua disciplina específica.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -54,13 +54,13 @@ export default function Landing() {
               to="/auth"
               className="px-8 py-4 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
-              Start Studying Free →
+              Começar a Estudar Grátis →
             </Link>
             <a
               href="#how-it-works"
               className="px-8 py-4 bg-transparent text-caky-primary font-bold rounded-xl hover:bg-caky-primary/5 transition border-2 border-caky-primary/20"
             >
-              See How It Works
+              Ver Como Funciona
             </a>
           </div>
         </div>
@@ -70,25 +70,25 @@ export default function Landing() {
       <section id="how-it-works" className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-caky-dark text-center mb-16">
-            How It Works
+            Como Funciona
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
                 step: '01',
-                title: 'Upload Materials',
-                description: 'Drop your slides, past exams, lecture notes, and textbook PDFs into your study session.',
+                title: 'Envie Seus Materiais',
+                description: 'Arraste seus slides, provas antigas, anotações de aula e PDFs de livros para sua sessão de estudo.',
               },
               {
                 step: '02',
-                title: 'AI Reads Everything',
-                description: 'Our AI uses vision technology to extract text, formulas, and diagrams with perfect accuracy.',
+                title: 'IA Lê Tudo',
+                description: 'Nossa IA usa tecnologia de visão para extrair texto, fórmulas e diagramas com precisão perfeita.',
               },
               {
                 step: '03',
-                title: 'Study Smarter',
-                description: 'Ask questions, get explanations, practice problems — all based on YOUR specific materials.',
+                title: 'Estude com Inteligência',
+                description: 'Faça perguntas, obtenha explicações, pratique exercícios — tudo baseado nos SEUS materiais específicos.',
               },
             ].map((item) => (
               <div
@@ -114,31 +114,31 @@ export default function Landing() {
       <section className="py-24 px-6 bg-caky-secondary/10">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-caky-dark text-center mb-4">
-            Why Caky?
+            Por Que o Caky?
           </h2>
           <p className="text-caky-dark/60 text-center mb-16 max-w-2xl mx-auto font-medium">
-            Unlike generic AI tutors, Caky focuses on YOUR specific course materials
+            Ao contrário dos tutores de IA genéricos, o Caky foca nos SEUS materiais específicos da disciplina
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
             {[
               {
-                title: 'Formula-Aware OCR',
-                description: 'Using vision AI, we accurately extract LaTeX formulas from your PDFs — no more mangled equations.',
+                title: 'OCR com Reconhecimento de Fórmulas',
+                description: 'Usando IA de visão, extraímos fórmulas LaTeX dos seus PDFs com precisão — sem equações distorcidas.',
                 icon: '📐',
               },
               {
-                title: 'Context-Aware Responses',
-                description: 'Every answer is grounded in your uploaded materials. No hallucinations, just relevant help.',
+                title: 'Respostas Contextualizadas',
+                description: 'Cada resposta é baseada nos seus materiais enviados. Sem alucinações, apenas ajuda relevante.',
               },
               {
-                title: 'Session-Based Learning',
-                description: 'Organize by course or exam. Each session remembers your docs and conversation history.',
+                title: 'Aprendizado por Sessões',
+                description: 'Organize por disciplina ou prova. Cada sessão lembra seus documentos e histórico de conversa.',
                 icon: '📁',
               },
               {
                 title: 'Powered by Gemini 2.5',
-                description: "Using Google's latest AI model via OpenRouter for fast, accurate, and affordable responses.",
+                description: "Usando o modelo de IA mais recente do Google via OpenRouter para respostas rápidas, precisas e acessíveis.",
                 icon: '⚡',
               },
             ].map((feature) => (
@@ -163,16 +163,16 @@ export default function Landing() {
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-caky-dark mb-6">
-            Ready to Study Smarter?
+            Pronto para Estudar com Inteligência?
           </h2>
           <p className="text-xl text-caky-dark/70 mb-10">
-            Join students who are acing their exams with personalized AI tutoring.
+            Junte-se aos estudantes que estão passando em suas provas com tutoria personalizada de IA.
           </p>
           <Link
             to="/auth"
             className="inline-block px-10 py-4 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl text-lg transform hover:-translate-y-1"
           >
-            Create Free Account
+            Criar Conta Gratuita
           </Link>
         </div>
       </section>

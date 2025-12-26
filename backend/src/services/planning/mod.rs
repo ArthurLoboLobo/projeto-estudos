@@ -13,6 +13,13 @@ const GENERATE_PLAN_PROMPT: &str = r#"You are an expert academic tutor creating 
 
 Based on the study materials provided below, create a study plan as a sequence of topics the student needs to learn.
 
+LANGUAGE DETECTION:
+- Analyze the study materials and detect the primary language
+- If materials are in Portuguese, generate topic titles and descriptions in Portuguese
+- If materials are in English, generate topic titles and descriptions in English
+- If materials are in Spanish, generate in Spanish
+- Use the same language as the source materials for consistency
+
 Your response MUST be valid JSON with this exact structure:
 {
   "topics": [
@@ -33,6 +40,7 @@ REQUIREMENTS:
 - Use simple sequential IDs: "topic-1", "topic-2", etc.
 - Focus ONLY on topics to learn, not overviews or objectives
 - Order topics in the optimal learning sequence
+- Match the language of the study materials
 
 STUDY MATERIALS:
 {materials}
@@ -47,6 +55,12 @@ const REVISE_PLAN_PROMPT: &str = r#"You are an expert academic tutor helping a s
 
 The student has provided feedback. Apply their requested changes while maintaining a logical learning sequence.
 
+LANGUAGE GUIDELINES:
+- PRIORITY 1: If student's feedback/instructions are in a clear language, consider adapting
+- PRIORITY 2: Preserve the original language of the study plan
+- PRIORITY 3: Match the predominant language of the original study materials
+- Default to Brazilian Portuguese only if no other language context exists
+
 CURRENT STUDY PLAN (JSON):
 {current_plan}
 
@@ -60,10 +74,11 @@ Generate an updated JSON study plan with the requested changes.
 
 IMPORTANT:
 - Keep the same JSON structure
-- Reset ALL topics to status: "need_to_learn" 
+- Reset ALL topics to status: "need_to_learn"
 - Use sequential IDs: "topic-1", "topic-2", etc.
 - Only change what the student requested
 - Maintain logical topic progression
+- Preserve the original language of the plan
 
 Output ONLY valid JSON, no markdown formatting or code blocks."#;
 

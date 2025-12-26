@@ -11,9 +11,10 @@ interface SessionPlanningProps {
   session: Session;
   initialPlan: StudyPlan;
   onStartStudying: (session: Session) => void;
+  onRefetchPlan: () => void;
 }
 
-export default function SessionPlanning({ session, initialPlan, onStartStudying }: SessionPlanningProps) {
+export default function SessionPlanning({ session, initialPlan, onStartStudying, onRefetchPlan }: SessionPlanningProps) {
   const { user, logout } = useAuth();
   const [currentPlan, setCurrentPlan] = useState<StudyPlan>(initialPlan);
   const [instruction, setInstruction] = useState('');
@@ -45,10 +46,11 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
       }
       setInstruction('');
       refetchHistory();
-      toast.success('Study plan updated!');
+      onRefetchPlan(); // Refetch the study plan in parent component
+      toast.success('Plano de estudo atualizado!');
     } catch (err: any) {
       console.error('Revise error:', err);
-      toast.error(err.message || 'Failed to revise study plan');
+      toast.error(err.message || 'Falha ao revisar plano de estudo');
     } finally {
       setRevising(false);
     }
@@ -63,21 +65,22 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
         setCurrentPlan(result.data.undoStudyPlan);
       }
       refetchHistory();
-      toast.success('Reverted to previous version');
+      onRefetchPlan(); // Refetch the study plan in parent component
+      toast.success('Revertido para versão anterior');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to undo');
+      toast.error(err.message || 'Falha ao desfazer');
     }
   };
 
   const handleStartStudying = async () => {
     try {
       const result = await startStudying({ variables: { sessionId: session.id } });
-      toast.success("Let's start studying!");
+      toast.success("Vamos começar a estudar!");
       if (result.data?.startStudying) {
         onStartStudying(result.data.startStudying);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to start studying');
+      toast.error(err.message || 'Falha ao começar a estudar');
     }
   };
 
@@ -93,10 +96,11 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
       if (result.data?.updateTopicStatus) {
         setCurrentPlan(result.data.updateTopicStatus);
       }
-      toast.success('Topic status updated');
+      onRefetchPlan(); // Refetch the study plan in parent component
+      toast.success('Status do tópico atualizado');
     } catch (err: any) {
       console.error('Status update error:', err);
-      toast.error(err.message || 'Failed to update status');
+      toast.error(err.message || 'Falha ao atualizar status');
     }
   };
 
@@ -136,7 +140,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
-              Sign Out
+              Sair
             </button>
           </div>
         </div>
@@ -149,26 +153,26 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">1</div>
-              <span className="text-caky-dark font-semibold">Upload Materials</span>
+              <span className="text-caky-dark font-semibold">Enviar Materiais</span>
             </div>
             <div className="w-8 h-0.5 bg-caky-primary"></div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">2</div>
-              <span className="text-caky-primary font-semibold">Plan Your Study</span>
+              <span className="text-caky-primary font-semibold">Planejar Estudos</span>
             </div>
             <div className="w-8 h-0.5 bg-caky-dark/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-dark font-medium">Start Studying</span>
+              <span className="text-caky-dark font-medium">Começar a Estudar</span>
             </div>
           </div>
 
           {/* Planning Card */}
           <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-dark mb-2">Your Study Plan</h2>
+              <h2 className="text-2xl font-bold text-caky-dark mb-2">Seu Plano de Estudo</h2>
               <p className="text-caky-dark/60 max-w-md mx-auto mb-4">
-                Review and refine your personalized study plan. Tell the AI how to improve it.
+                Revise e refine seu plano de estudo personalizado. Diga à IA como melhorá-lo.
               </p>
               <div className="flex items-center justify-center gap-4 text-xs text-caky-dark/50">
                 <span>Version {currentPlan.version}</span>
@@ -216,9 +220,9 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
                       onChange={(e) => handleStatusChange(topic.id, e.target.value as TopicStatus)}
                       className={`shrink-0 px-3 py-2 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 transition ${getStatusColor(topic.status)}`}
                     >
-                      <option value="need_to_learn">Need to Learn</option>
-                      <option value="need_review">Need Review</option>
-                      <option value="know_well">Know Well</option>
+                      <option value="need_to_learn">Preciso Aprender</option>
+                      <option value="need_review">Preciso Revisar</option>
+                      <option value="know_well">Sei Bem</option>
                     </select>
                   </div>
                 ))}
@@ -227,9 +231,9 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
               {/* Refine Section */}
               <div className="border-t border-caky-dark/10 pt-8">
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-caky-dark mb-2">Refine Your Plan</h3>
+                  <h3 className="text-lg font-bold text-caky-dark mb-2">Refine Seu Plano</h3>
                   <p className="text-caky-dark/60 text-sm">
-                    Tell the AI how to improve your study plan
+                    Diga à IA como melhorar seu plano de estudo
                   </p>
                 </div>
 
@@ -239,7 +243,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
                   <textarea
                     value={instruction}
                     onChange={(e) => setInstruction(e.target.value)}
-                    placeholder="e.g., 'Add more practice problems for integrals' or 'Remove the section on limits'"
+                    placeholder="ex.: 'Adicione mais exercícios práticos de integrais' ou 'Remova a seção sobre limites'"
                     className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none text-sm"
                     rows={4}
                     disabled={revising}
@@ -253,14 +257,14 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
                       {revising ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-dark border-t-transparent"></div>
-                          Updating Plan...
+                          Atualizando Plano...
                         </>
                       ) : (
                         <>
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
-                          Update Plan
+                          Atualizar Plano
                         </>
                       )}
                     </button>
@@ -269,7 +273,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
                       disabled={revising}
                       className="flex-1 py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                     >
-                      Start Studying
+                      Começar a Estudar
                     </button>
                   </div>
                 </form>
@@ -278,7 +282,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying 
                 {planHistory.length > 1 && (
                   <div className="mt-6 pt-6 border-t border-caky-dark/10">
                     <p className="text-xs font-semibold text-caky-dark/50 uppercase tracking-wide mb-3">
-                      Version History ({planHistory.length})
+                      Histórico de Versões ({planHistory.length})
                     </p>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                       {planHistory.slice(0, 5).map((plan) => (

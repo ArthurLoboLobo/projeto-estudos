@@ -20,7 +20,7 @@ export default function Dashboard() {
       setShowNewSession(false);
       setNewTitle('');
       setNewDescription('');
-      toast.success('Session created!');
+      toast.success('Sessão criada!');
       // Navigate to the new session automatically
       if (data?.createSession?.id) {
         navigate(`/session/${data.createSession.id}`);
@@ -29,16 +29,16 @@ export default function Dashboard() {
       }
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to create session');
+      toast.error(err.message || 'Falha ao criar sessão');
     },
   });
   const [deleteSession] = useMutation(DELETE_SESSION, {
     onCompleted: () => {
-      toast.success('Session deleted');
+      toast.success('Sessão excluída');
       refetch();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to delete session');
+      toast.error(err.message || 'Falha ao excluir sessão');
     },
   });
 
@@ -54,7 +54,7 @@ export default function Dashboard() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this session?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta sessão?')) return;
     await deleteSession({ variables: { id } });
   };
 
@@ -75,7 +75,7 @@ export default function Dashboard() {
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
-              Sign Out
+              Sair
             </button>
           </div>
         </div>
@@ -86,17 +86,17 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-caky-dark mb-2">
-              Your Study Sessions
+              Suas Sessões de Estudo
             </h1>
             <p className="text-caky-dark/60">
-              Create a session for each course or exam you're preparing for
+              Crie uma sessão para cada disciplina ou prova que você está se preparando
             </p>
           </div>
           <button
             onClick={() => setShowNewSession(true)}
             className="px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            + New Session
+            + Nova Sessão
           </button>
         </div>
 
@@ -105,18 +105,18 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border border-caky-secondary/30">
               <h2 className="text-2xl font-bold text-caky-dark mb-6">
-                Create Study Session
+                Criar Sessão de Estudo
               </h2>
               <form onSubmit={handleCreateSession} className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-caky-dark mb-2">
-                    Session Title
+                    Título da Sessão
                   </label>
                   <input
                     type="text"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="e.g., Calculus II Final Exam"
+                    placeholder="ex.: Prova Final de Cálculo II"
                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary"
                     required
                     autoFocus
@@ -124,12 +124,12 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-caky-dark mb-2">
-                    Description (optional)
+                    Descrição (opcional)
                   </label>
                   <textarea
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Topics, exam date, notes..."
+                    placeholder="Tópicos, data da prova, anotações..."
                     rows={3}
                     className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
                   />
@@ -140,14 +140,14 @@ export default function Dashboard() {
                     onClick={() => setShowNewSession(false)}
                     className="flex-1 py-3 text-caky-dark bg-gray-100 hover:bg-gray-200 rounded-xl transition font-medium"
                   >
-                    Cancel
+                    Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={creating}
                     className="flex-1 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-md"
                   >
-                    {creating ? 'Creating...' : 'Create'}
+                    {creating ? 'Criando...' : 'Criar'}
                   </button>
                 </div>
               </form>
@@ -167,16 +167,16 @@ export default function Dashboard() {
         ) : sessions.length === 0 ? (
           <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-dark/10">
             <h3 className="text-2xl font-bold text-caky-dark mb-3">
-              No study sessions yet
+              Nenhuma sessão de estudo ainda
             </h3>
             <p className="text-caky-dark/60 mb-8 max-w-md mx-auto">
-              Create your first session to start studying with AI context from your documents.
+              Crie sua primeira sessão para começar a estudar com contexto de IA dos seus documentos.
             </p>
             <button
               onClick={() => setShowNewSession(true)}
               className="px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-md"
             >
-              + Create First Session
+              + Criar Primeira Sessão
             </button>
           </div>
         ) : (
@@ -225,7 +225,7 @@ export default function Dashboard() {
                   )}
                   {!session.description && (
                     <p className="text-caky-dark/40 text-sm italic min-h-[2.5em]">
-                      No description
+                      Sem descrição
                     </p>
                   )}
                 </div>
@@ -238,7 +238,7 @@ export default function Dashboard() {
                     to={`/session/${session.id}`}
                     className="px-4 py-2 bg-caky-secondary/20 text-caky-primary font-semibold rounded-lg hover:bg-caky-primary hover:text-white transition text-sm"
                   >
-                    Open Session →
+                    Abrir Sessão →
                   </Link>
                 </div>
               </div>
@@ -253,15 +253,15 @@ export default function Dashboard() {
 function StageBadge({ stage }: { stage: string }) {
   const config: Record<string, { label: string; className: string }> = {
     UPLOADING: {
-      label: 'Upload',
+      label: 'Envio',
       className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     },
     PLANNING: {
-      label: 'Planning',
+      label: 'Planejamento',
       className: 'bg-blue-100 text-blue-700 border-blue-200',
     },
     STUDYING: {
-      label: 'Studying',
+      label: 'Estudando',
       className: 'bg-green-100 text-green-700 border-green-200',
     },
   };

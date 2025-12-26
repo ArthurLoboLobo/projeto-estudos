@@ -54,14 +54,14 @@ export default function AuthForm() {
             Caky
           </h1>
           <p className="text-caky-dark/70 font-medium">
-            AI-powered exam preparation
+            Preparação para provas com IA
           </p>
         </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-8 shadow-xl border border-caky-secondary/30">
           <h2 className="text-2xl font-bold text-caky-dark mb-6 text-center">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isLogin ? 'Bem-vindo de Volta' : 'Criar Conta'}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -74,14 +74,14 @@ export default function AuthForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
-                placeholder="you@university.edu"
+                placeholder="voce@universidade.edu.br"
                 required
               />
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-caky-dark mb-2">
-                Password
+                Senha
               </label>
               <input
                 type="password"
@@ -111,10 +111,10 @@ export default function AuthForm() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Processing...
+                  Processando...
                 </span>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                isLogin ? 'Entrar' : 'Criar Conta'
               )}
             </button>
           </form>
@@ -128,15 +128,15 @@ export default function AuthForm() {
               className="text-caky-primary hover:text-caky-dark font-medium transition underline-offset-4 hover:underline"
             >
               {isLogin
-                ? "Don't have an account? Sign up"
-                : 'Already have an account? Sign in'}
+                ? "Não tem uma conta? Cadastre-se"
+                : 'Já tem uma conta? Entrar'}
             </button>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-caky-dark/50 text-sm mt-8 font-medium">
-          Upload your slides, past exams & notes — get personalized AI tutoring
+          Faça upload dos seus slides, provas antigas e anotações — obtenha tutoria personalizada de IA
         </p>
       </div>
     </div>

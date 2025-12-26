@@ -38,12 +38,12 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Only PDF files are supported');
+      toast.error('Apenas arquivos PDF são suportados');
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      toast.error('File size must be less than 50MB');
+      toast.error('O tamanho do arquivo deve ser menor que 50MB');
       return;
     }
 
@@ -81,11 +81,11 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
         throw new Error(data.error || 'Upload failed');
       }
 
-      toast.success('Document uploaded! Text extraction in progress...');
+      toast.success('Documento enviado! Extração de texto em andamento...');
       refetchDocs();
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error(err.message || 'Failed to upload document');
+      toast.error(err.message || 'Falha ao enviar documento');
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -96,33 +96,33 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
-    if (!confirm(`Remove "${fileName}"?`)) return;
+    if (!confirm(`Remover "${fileName}"?`)) return;
 
     try {
       await deleteDocument({ variables: { id: docId } });
-      toast.success('Document removed');
+      toast.success('Documento removido');
       refetchDocs();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete document');
+      toast.error(err.message || 'Falha ao excluir documento');
     }
   };
 
   const handleStartPlanning = async () => {
     if (!hasCompletedDocs) {
-      toast.error('Please wait for at least one document to finish processing');
+      toast.error('Aguarde pelo menos um documento terminar de processar');
       return;
     }
 
     setGenerating(true);
     try {
       const result = await startPlanning({ variables: { sessionId: session.id } });
-      toast.success('Study plan generated!');
+      toast.success('Plano de estudo gerado!');
       if (result.data?.startPlanning) {
         onPlanGenerated(result.data.startPlanning);
       }
     } catch (err: any) {
       console.error('Planning error:', err);
-      toast.error(err.message || 'Failed to generate study plan');
+      toast.error(err.message || 'Falha ao gerar plano de estudo');
     } finally {
       setGenerating(false);
     }
@@ -156,7 +156,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               onClick={logout}
               className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
             >
-              Sign Out
+              Sair
             </button>
           </div>
         </div>
@@ -169,26 +169,26 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">1</div>
-              <span className="text-caky-primary font-semibold">Upload Materials</span>
+              <span className="text-caky-primary font-semibold">Enviar Materiais</span>
             </div>
             <div className="w-8 h-0.5 bg-caky-dark/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">2</div>
-              <span className="text-caky-dark font-medium">Plan Your Study</span>
+              <span className="text-caky-dark font-medium">Planejar Estudos</span>
             </div>
             <div className="w-8 h-0.5 bg-caky-dark/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-8 h-8 rounded-full bg-caky-dark/20 text-caky-dark flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-dark font-medium">Start Studying</span>
+              <span className="text-caky-dark font-medium">Começar a Estudar</span>
             </div>
           </div>
 
           {/* Upload Card */}
           <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-dark mb-2">Upload Your Study Materials</h2>
+              <h2 className="text-2xl font-bold text-caky-dark mb-2">Envie Seus Materiais de Estudo</h2>
               <p className="text-caky-dark/60 max-w-md mx-auto">
-                Upload past exams, lecture slides, and notes. The AI will analyze them to create a personalized study plan.
+                Faça upload de provas antigas, slides de aula e anotações. A IA irá analisá-los para criar um plano de estudo personalizado.
               </p>
             </div>
 
@@ -209,15 +209,15 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                 {uploading ? (
                   <>
                     <div className="animate-spin rounded-full h-8 w-8 border-3 border-caky-primary border-t-transparent"></div>
-                    <span className="font-semibold">{uploadProgress || 'Uploading...'}</span>
+                    <span className="font-semibold">{uploadProgress || 'Enviando...'}</span>
                   </>
                 ) : (
                   <>
                     <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    <span className="font-bold text-lg">Click to Upload PDF</span>
-                    <span className="text-sm text-caky-dark/50">Past exams, slides, notes (max 50MB)</span>
+                    <span className="font-bold text-lg">Upload de Arquivos</span>
+                    <span className="text-sm text-caky-dark/50">Provas antigas, slides, anotações (máx. 50MB)</span>
                   </>
                 )}
               </button>
@@ -225,7 +225,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               {/* Document List */}
               {documents.length > 0 && (
                 <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-bold text-caky-dark/70 uppercase tracking-wide">Uploaded Documents</h3>
+                  <h3 className="text-sm font-bold text-caky-dark/70 uppercase tracking-wide">Documentos Enviados</h3>
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
@@ -266,22 +266,22 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                   {generating ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      Generating Study Plan...
+                      Gerando Plano de Estudo...
                     </>
                   ) : hasPendingDocs ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-transparent"></div>
-                      Waiting for documents to process...
+                      Aguardando processamento dos documentos...
                     </>
                   ) : (
                     <>
-                      Start Planning
+                      Começar Planejamento
                     </>
                   )}
                 </button>
                 {documents.length === 0 && (
                   <p className="text-center text-caky-dark/50 text-sm mt-3">
-                    Upload at least one document to continue
+                    Envie pelo menos um documento para continuar
                   </p>
                 )}
               </div>
@@ -294,17 +294,20 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
 }
 
 function StatusBadge({ status }: { status: string }) {
+  // Don't show anything for completed status
+  if (status === 'completed') {
+    return null;
+  }
+
   const styles: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     processing: 'bg-blue-100 text-blue-700 border-blue-200',
-    completed: 'bg-green-100 text-green-700 border-green-200',
     failed: 'bg-red-100 text-red-700 border-red-200',
   };
 
   const icons: Record<string, string> = {
     pending: '',
     processing: '',
-    completed: '',
     failed: '',
   };
 

@@ -132,7 +132,7 @@ pub async fn update_session_stage(
 ) -> Result<Option<SessionRow>, async_graphql::Error> {
     let session = sqlx::query_as::<_, SessionRow>(
         r#"
-        UPDATE study_sessions 
+        UPDATE study_sessions
         SET stage = $3, updated_at = NOW()
         WHERE id = $1 AND user_id = $2
         RETURNING id, user_id, title, description, stage, created_at, updated_at
