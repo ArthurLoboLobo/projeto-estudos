@@ -125,7 +125,8 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showPlan, setShowPlan] = useState(true);
+  const [materialsCollapsed, setMaterialsCollapsed] = useState(false);
+  const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -360,148 +361,124 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Sidebar - Documents + Study Plan */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 h-48 md:h-full max-h-48 md:max-h-none">
-          {/* Documents Section - Half height */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left Sidebar - Study Materials */}
+        <aside className={`border-b lg:border-b-0 lg:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+          materialsCollapsed
+            ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
+            : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+        }`}>
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
-                <span className="text-xs text-caky-dark/50">
-                  {documents.length} doc{documents.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".pdf"
-                className="hidden"
-              />
+            <div className={`border-b border-caky-dark/5 bg-caky-secondary/5 ${materialsCollapsed ? 'lg:border-b-0' : ''}`}>
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full py-2 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+                onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
+                className={`hover:bg-caky-secondary/10 transition-colors text-left ${
+                  materialsCollapsed
+                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2'
+                    : 'w-full p-4'
+                }`}
               >
-                {uploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
-                    {uploadProgress || 'Uploading...'}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                {materialsCollapsed ? (
+                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+                    <svg
+                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                    Upload de Arquivos
-                  </>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-caky-dark/50">
+                        {documents.length} doc{documents.length !== 1 ? 's' : ''}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-caky-dark/50 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </div>
+                  </div>
                 )}
               </button>
-          </div>
-
-            {/* Document List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {documents.length === 0 ? (
-              <div className="text-center py-4 text-caky-dark/40">
-                <p className="text-xs font-medium">No documents yet</p>
-              </div>
-            ) : (
-              documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
-                  onClick={() => handleViewDocument(doc)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
-                        <StatusBadge status={doc.extractionStatus} />
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDocument(doc.id, doc.fileName);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          </div>
-
-          {/* Study Plan Section */}
-          {studyPlan && (
-            <div className="flex-1 flex flex-col border-t border-caky-dark/10 min-h-0">
-              <button
-                onClick={() => setShowPlan(!showPlan)}
-                className="p-3 flex items-center justify-between bg-caky-primary/5 hover:bg-caky-primary/10 transition shrink-0"
-              >
-                <span className="font-bold text-caky-dark text-sm flex items-center gap-2">
-                  Plano de Estudos
-                </span>
-                <svg
-                  className={`w-4 h-4 text-caky-dark/50 transition-transform ${showPlan ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {showPlan && (
-                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
-                  {studyPlan.content.topics.map((topic, index) => {
-                    const getStatusColor = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'bg-red-100 text-red-700';
-                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
-                        case 'know_well': return 'bg-green-100 text-green-700';
-                        default: return 'bg-gray-100 text-gray-700';
-                      }
-                    };
-
-                    const getStatusLabel = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'Preciso Aprender';
-                        case 'need_review': return 'Preciso Revisar';
-                        case 'know_well': return 'Sei Bem';
-                        default: return 'Desconhecido';
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={topic.id}
-                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
-                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
-                          </div>
-                        </div>
-                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
-                          {getStatusLabel(topic.status)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {!materialsCollapsed && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".pdf"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="mx-auto py-5 px-15 mb-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+                  >
+                    {uploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
+                        {uploadProgress || 'Uploading...'}
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Upload de Arquivos
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
-          )}
+
+            {/* Document List */}
+            {!materialsCollapsed && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {documents.length === 0 ? (
+                  <div className="text-center py-4 text-caky-dark/40">
+                    <p className="text-xs font-medium">No documents yet</p>
+                  </div>
+                ) : (
+                  documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
+                      onClick={() => handleViewDocument(doc)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
+                            <StatusBadge status={doc.extractionStatus} />
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDocument(doc.id, doc.fileName);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </aside>
 
         {/* Chat Area */}
@@ -580,6 +557,99 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
             </form>
           </div>
         </main>
+
+        {/* Right Sidebar - Study Plan */}
+        {studyPlan && (
+          <aside className={`border-b lg:border-b-0 lg:border-l border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+            studyPlanCollapsed
+              ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
+              : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+          }`}>
+            <div className="flex-1 flex flex-col min-h-0">
+              <button
+                onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
+                className={`border-b border-caky-dark/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
+                  studyPlanCollapsed
+                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
+                    : 'w-full p-4'
+                }`}
+              >
+                {studyPlanCollapsed ? (
+                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+                    <svg
+                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-base font-bold text-caky-dark">Plano de Estudos</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-caky-dark/50">
+                        {studyPlan.content.topics.length} tópico{studyPlan.content.topics.length !== 1 ? 's' : ''}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-caky-dark/50 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </button>
+              {!studyPlanCollapsed && (
+                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
+                  {studyPlan.content.topics.map((topic, index) => {
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'bg-red-100 text-red-700';
+                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
+                        case 'know_well': return 'bg-green-100 text-green-700';
+                        default: return 'bg-gray-100 text-gray-700';
+                      }
+                    };
+
+                    const getStatusLabel = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'Preciso Aprender';
+                        case 'need_review': return 'Preciso Revisar';
+                        case 'know_well': return 'Sei Bem';
+                        default: return 'Desconhecido';
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={topic.id}
+                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
+                      >
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
+                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
+                          </div>
+                        </div>
+                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
+                          {getStatusLabel(topic.status)}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* PDF Viewer Modal */}
