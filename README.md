@@ -743,7 +743,62 @@ For a typical study session:
 This is why we use full-text context instead of RAG for V1.
 ```
 
-## 🛠️ Tech Stack
+### 4. Study Plan Generation & Refinement Flow
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     STUDY PLANNING WORKFLOW                          │
+├──────────────────────────────────────────────────────────────────────┤
+│
+│  1. User completes document upload and extraction
+│
+│  2. User clicks "Começar Planejamento"
+│
+│  3. AI analyzes all document content and generates JSON:
+│     • Sequence of topics to learn
+│     • Each topic has title, description, status
+│     • All topics start with status "need_to_learn"
+│
+│  4. User can track progress by updating topic statuses:
+│     • "Preciso Aprender" (Need to Learn) - Default
+│     • "Preciso Revisar" (Need Review) - Know but need refresh
+│     • "Sei Bem" (Know Well) - Confident in topic
+│
+│  5. User can refine the plan with AI assistance:
+│     "Adicione mais exercícios de integrais"
+│     "Foque apenas nos capítulos 5-8"
+│
+│  6. AI revises the plan and resets all statuses to default
+│
+│  7. User can undo changes to revert to previous versions
+│
+│  8. User clicks "Começar a Estudar" to finalize and begin chat
+│
+│  9. During studying, user can click "Editar plano de estudos"
+│      to modify the plan directly from the chat interface
+│
+└──────────────────────────────────────────────────────────────────────┘
+
+JSON Structure:
+───────────────
+{
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Integração por Partes",
+      "description": "Aprender a aplicar a técnica de integração por partes",
+      "status": "need_to_learn"
+    }
+  ]
+}
+
+Language Intelligence:
+──────────────────────
+- Study plans generated in the language of uploaded materials
+- AI responds in Portuguese by default, but matches user language
+- Topic titles and descriptions adapt to document language
+- Status labels always in Portuguese for UI consistency
+```
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -799,8 +854,6 @@ Language Intelligence:
 - Topic titles and descriptions adapt to document language
 - Status labels always in Portuguese for UI consistency
 ```
-
-## 🛠️ Tech Stack
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
