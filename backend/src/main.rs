@@ -44,8 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = graphql::create_schema(pool.clone(), config.clone());
 
     // Configure CORS
+    let allowed_origins: Vec<HeaderValue> = config
+        .allowed_origins
+        .iter()
+        .map(|origin| origin.parse().unwrap())
+        .collect();
+
     let cors = CorsLayer::new()
-        .allow_origin(Any) // Allow all origins for now (will be restricted in production)
+        .allow_origin(allowed_origins)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers(Any);
 
