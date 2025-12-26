@@ -133,13 +133,13 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
     variables: { sessionId: session.id },
   });
-  const { data: messagesData, refetch: refetchMessages, loading: loadingMessages } = useQuery<{ messages: Message[] }>(GET_MESSAGES, {
+  const { data: messagesData, loading: loadingMessages, refetch: refetchMessages } = useQuery<{ messages: Message[] }>(GET_MESSAGES, {
     variables: { sessionId: session.id },
   });
 
   // Mutations
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
-  const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE);
+  const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }, { sessionId: string, content: string }>(SEND_MESSAGE);
 
   // Lazy query for document URL
   const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
@@ -149,11 +149,11 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   const documents: Document[] = documentsData?.documents || [];
   const serverMessages: Message[] = messagesData?.messages || [];
   
-  // State for optimistic UI messages
+  // State for optimistic UI messages and AI typing indicator
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [aiTyping, setAiTyping] = useState(false);
   
-  // Combine server messages with optimistic messages
+  // Combine server messages with optimistic messages for immediate UI feedback
   const messages: Message[] = [...serverMessages, ...optimisticMessages];
 
   // Auto-scroll to bottom on new messages
@@ -297,18 +297,24 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
       content,
       createdAt: new Date().toISOString(),
     };
-    
+
     setOptimisticMessages([optimisticMessage]);
     setAiTyping(true);
 
     try {
       await sendMessage({
         variables: { sessionId: session.id, content },
+        onCompleted: (data) => {
+          if (data?.sendMessage) {
+            // Refetch messages to get the updated list including both user and AI messages
+            refetchMessages();
+            // Clear optimistic UI since real data will be loaded
+            setOptimisticMessages([]);
+          }
+        },
       });
-      
-      setOptimisticMessages([]);
+
       setAiTyping(false);
-      refetchMessages();
     } catch (err: any) {
       console.error('Send error:', err);
       toast.error(err.message || 'Failed to send message');
@@ -502,7 +508,7 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
         <main className="flex-1 flex flex-col min-w-0 bg-white">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg">
-            {loadingMessages ? (
+            {loadingMessages && messages.length === 0 ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
               </div>
