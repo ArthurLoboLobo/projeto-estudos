@@ -31,6 +31,9 @@ Caky provides **contextual tutoring** based on the student's actual course mater
 - 📋 **AI-Generated Study Plans** — Personalized study plans with JSON structure and topic status tracking
 - ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance and version control
 - 🎯 **Topic Progress Tracking** — Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem)
+- 🔄 **Horizontal Expand/Collapse** — Space-efficient sidebar management with horizontal collapse
+- 📝 **In-Chat Plan Editing** — Edit study plans directly from the chat interface with live updates
+- ↩️ **Version Control & Undo** — Revert study plan changes with one-click undo functionality
 - 🌍 **Brazilian Portuguese** — Fully localized interface with intelligent language detection
 - 💬 **Chat History** — Conversations are saved per study session
 - 📱 **Responsive Design** — Works on desktop and mobile
@@ -746,6 +749,61 @@ This is why we use full-text context instead of RAG for V1.
 ┌──────────────────────────────────────────────────────────────────────┐
 │                     STUDY PLANNING WORKFLOW                          │
 ├──────────────────────────────────────────────────────────────────────┤
+│
+│  1. User completes document upload and extraction
+│
+│  2. User clicks "Começar Planejamento"
+│
+│  3. AI analyzes all document content and generates JSON:
+│     • Sequence of topics to learn
+│     • Each topic has title, description, status
+│     • All topics start with status "need_to_learn"
+│
+│  4. User can track progress by updating topic statuses:
+│     • "Preciso Aprender" (Need to Learn) - Default
+│     • "Preciso Revisar" (Need Review) - Know but need refresh
+│     • "Sei Bem" (Know Well) - Confident in topic
+│
+│  5. User can refine the plan with AI assistance:
+│     "Adicione mais exercícios de integrais"
+│     "Foque apenas nos capítulos 5-8"
+│
+│  6. AI revises the plan and resets all statuses to default
+│
+│  7. User can undo changes to revert to previous versions
+│
+│  8. User clicks "Começar a Estudar" to finalize and begin chat
+│
+│  9. During studying, user can click "Editar plano de estudos"
+│      to modify the plan directly from the chat interface
+│
+└──────────────────────────────────────────────────────────────────────┘
+
+JSON Structure:
+───────────────
+{
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "Integração por Partes",
+      "description": "Aprender a aplicar a técnica de integração por partes",
+      "status": "need_to_learn"
+    }
+  ]
+}
+
+Language Intelligence:
+──────────────────────
+- Study plans generated in the language of uploaded materials
+- AI responds in Portuguese by default, but matches user language
+- Topic titles and descriptions adapt to document language
+- Status labels always in Portuguese for UI consistency
+```
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     STUDY PLANNING WORKFLOW                          │
+├──────────────────────────────────────────────────────────────────────┤
 │                                                                       │
 │  1. User completes document upload and extraction                     │
 │                                                                       │
@@ -771,6 +829,9 @@ This is why we use full-text context instead of RAG for V1.
 │                                                                       │
 │  8. User clicks "Começar a Estudar" to finalize and begin chat        │
 │                                                                       │
+│  9. During studying, user can click "Editar plano de estudos"        │
+│      to modify the plan directly from the chat interface             │
+│                                                                       │
 └──────────────────────────────────────────────────────────────────────┘
 
 JSON Structure:
@@ -793,8 +854,6 @@ Language Intelligence:
 - Topic titles and descriptions adapt to document language
 - Status labels always in Portuguese for UI consistency
 ```
-
-### 4. Study Plan Generation & Refinement Flow
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -987,7 +1046,17 @@ We use GraphQL for the API layer.
 - Single endpoint simplifies infrastructure
 - Subscriptions ready for real-time features (V2)
 
-### 6. Multi-Stage Session Workflow
+### 6. Horizontal Expand/Collapse Sidebars
+
+Sidebars collapse horizontally to minimal width rather than hiding content vertically.
+
+**Why:**
+- **Space Efficiency**: Maximizes screen real estate when sidebars are not needed
+- **Content Preservation**: Study materials and plans remain accessible in compressed form
+- **Quick Access**: Single click to expand, maintaining workflow continuity
+- **Clean Aesthetics**: Minimal visual footprint with clear expand cues
+
+### 7. Multi-Stage Session Workflow
 
 Sessions progress through three stages: uploading → planning → studying.
 
@@ -997,6 +1066,7 @@ Sessions progress through three stages: uploading → planning → studying.
 - **AI Integration**: Study plans are generated from actual user materials, not generic templates
 - **Version Control**: Plan revisions are tracked with undo functionality
 - **Progress Tracking**: Topic-level status management (Preciso Aprender, Preciso Revisar, Sei Bem)
+- **In-Chat Editing**: Study plans can be modified during studying phase without workflow disruption
 - **Scalability**: Easy to add new stages (e.g., progress tracking, spaced repetition) in the future
 
 ### 7. Brazilian Portuguese Localization
@@ -1072,6 +1142,9 @@ sudo apt install poppler-utils  # Ubuntu
 | **Topic Progress Tracking** | Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem) | ✅ **Implemented** |
 | **Brazilian Portuguese** | Complete localization with intelligent language detection | ✅ **Implemented** |
 | **Study Plan Display** | Real-time study plan updates in chat sidebar | ✅ **Implemented** |
+| **Horizontal Expand/Collapse** | Space-efficient sidebar management with horizontal collapse | ✅ **Implemented** |
+| **In-Chat Plan Editing** | Edit study plans directly from the chat interface | ✅ **Implemented** |
+| **Enhanced Error Handling** | User-friendly error messages and improved UX | ✅ **Implemented** |
 | **Streaming Responses** | Real-time AI response streaming via SSE | Planned |
 | **Smart Context Selection** | When documents exceed limits, use relevance scoring | Planned |
 | **Flashcard Generation** | AI-generated flashcards from materials | Planned |

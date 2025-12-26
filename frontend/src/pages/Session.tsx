@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, SEND_MESSAGE } from '../lib/graphql/mutations';
+import { DELETE_DOCUMENT, SEND_MESSAGE, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
@@ -116,7 +116,7 @@ interface SessionStudyingProps {
   onRefetchPlan: () => void;
 }
 
-function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
+function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingProps) {
   const { user, logout } = useAuth();
   const [messageInput, setMessageInput] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -125,7 +125,9 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showPlan, setShowPlan] = useState(true);
+  const [materialsCollapsed, setMaterialsCollapsed] = useState(false);
+  const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(false);
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -360,148 +362,124 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Sidebar - Documents + Study Plan */}
-        <aside className="w-full md:w-80 border-b md:border-b-0 md:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 h-48 md:h-full max-h-48 md:max-h-none">
-          {/* Documents Section - Half height */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left Sidebar - Study Materials */}
+        <aside className={`border-b lg:border-b-0 lg:border-r border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+          materialsCollapsed
+            ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
+            : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+        }`}>
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 border-b border-caky-dark/5 bg-caky-secondary/5">
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
-                <span className="text-xs text-caky-dark/50">
-                  {documents.length} doc{documents.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".pdf"
-                className="hidden"
-              />
+            <div className={`border-b border-caky-dark/5 bg-caky-secondary/5 ${materialsCollapsed ? 'lg:border-b-0' : ''}`}>
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full py-2 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+                onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
+                className={`hover:bg-caky-secondary/10 transition-colors text-left ${
+                  materialsCollapsed
+                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2'
+                    : 'w-full p-4'
+                }`}
               >
-                {uploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
-                    {uploadProgress || 'Uploading...'}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                {materialsCollapsed ? (
+                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+                    <svg
+                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                    Upload de Arquivos
-                  </>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-base font-bold text-caky-dark">Materiais de Estudo</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-caky-dark/50">
+                        {documents.length} doc{documents.length !== 1 ? 's' : ''}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-caky-dark/50 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </div>
+                  </div>
                 )}
               </button>
-          </div>
-
-            {/* Document List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {documents.length === 0 ? (
-              <div className="text-center py-4 text-caky-dark/40">
-                <p className="text-xs font-medium">No documents yet</p>
-              </div>
-            ) : (
-              documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
-                  onClick={() => handleViewDocument(doc)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
-                        <StatusBadge status={doc.extractionStatus} />
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDocument(doc.id, doc.fileName);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          </div>
-
-          {/* Study Plan Section */}
-          {studyPlan && (
-            <div className="flex-1 flex flex-col border-t border-caky-dark/10 min-h-0">
-              <button
-                onClick={() => setShowPlan(!showPlan)}
-                className="p-3 flex items-center justify-between bg-caky-primary/5 hover:bg-caky-primary/10 transition shrink-0"
-              >
-                <span className="font-bold text-caky-dark text-sm flex items-center gap-2">
-                  Plano de Estudos
-                </span>
-                <svg
-                  className={`w-4 h-4 text-caky-dark/50 transition-transform ${showPlan ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {showPlan && (
-                <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
-                  {studyPlan.content.topics.map((topic, index) => {
-                    const getStatusColor = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'bg-red-100 text-red-700';
-                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
-                        case 'know_well': return 'bg-green-100 text-green-700';
-                        default: return 'bg-gray-100 text-gray-700';
-                      }
-                    };
-
-                    const getStatusLabel = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'Preciso Aprender';
-                        case 'need_review': return 'Preciso Revisar';
-                        case 'know_well': return 'Sei Bem';
-                        default: return 'Desconhecido';
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={topic.id}
-                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
-                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
-                          </div>
-                        </div>
-                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
-                          {getStatusLabel(topic.status)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {!materialsCollapsed && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".pdf"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="mx-auto py-5 px-15 mb-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
+                  >
+                    {uploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
+                        {uploadProgress || 'Uploading...'}
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Upload de Arquivos
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
-          )}
+
+            {/* Document List */}
+            {!materialsCollapsed && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {documents.length === 0 ? (
+                  <div className="text-center py-4 text-caky-dark/40">
+                    <p className="text-xs font-medium">No documents yet</p>
+                  </div>
+                ) : (
+                  documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="bg-white rounded-lg p-2 border border-caky-dark/5 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
+                      onClick={() => handleViewDocument(doc)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-caky-dark font-semibold truncate">{doc.fileName}</p>
+                            <StatusBadge status={doc.extractionStatus} />
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDocument(doc.id, doc.fileName);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 hover:bg-red-50 rounded"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </aside>
 
         {/* Chat Area */}
@@ -580,7 +558,123 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
             </form>
           </div>
         </main>
+
+        {/* Right Sidebar - Study Plan */}
+        {studyPlan && (
+          <aside className={`border-b lg:border-b-0 lg:border-l border-caky-dark/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+            studyPlanCollapsed
+              ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
+              : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+          }`}>
+            <div className="flex-1 flex flex-col min-h-0">
+              <button
+                onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
+                className={`border-b border-caky-dark/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
+                  studyPlanCollapsed
+                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
+                    : 'w-full p-4'
+                }`}
+              >
+                {studyPlanCollapsed ? (
+                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
+                    <svg
+                      className="w-4 h-4 text-caky-dark/50 transition-transform hover:text-caky-dark"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-base font-bold text-caky-dark">Plano de Estudos</h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-caky-dark/50">
+                        {studyPlan.content.topics.length} tópico{studyPlan.content.topics.length !== 1 ? 's' : ''}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-caky-dark/50 transition-transform"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </button>
+              {!studyPlanCollapsed && (
+                <>
+                  <div className="px-4 pb-4">
+                    <button
+                      onClick={() => setShowEditPlanModal(true)}
+                      className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-dark hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 text-sm font-semibold"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Editar plano de estudos
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 bg-white/50 min-h-0 space-y-3">
+                  {studyPlan.content.topics.map((topic, index) => {
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'bg-red-100 text-red-700';
+                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
+                        case 'know_well': return 'bg-green-100 text-green-700';
+                        default: return 'bg-gray-100 text-gray-700';
+                      }
+                    };
+
+                    const getStatusLabel = (status: string) => {
+                      switch (status) {
+                        case 'need_to_learn': return 'Preciso Aprender';
+                        case 'need_review': return 'Preciso Revisar';
+                        case 'know_well': return 'Sei Bem';
+                        default: return 'Desconhecido';
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={topic.id}
+                        className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm"
+                      >
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-caky-dark text-xs mb-1">{topic.title}</h4>
+                            <p className="text-[10px] text-caky-dark/60 leading-relaxed">{topic.description}</p>
+                          </div>
+                        </div>
+                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
+                          {getStatusLabel(topic.status)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                </>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
+
+      {/* Edit Study Plan Modal */}
+      {showEditPlanModal && studyPlan && (
+        <EditStudyPlanModal
+          studyPlan={studyPlan}
+          onClose={() => setShowEditPlanModal(false)}
+          onRefetchPlan={onRefetchPlan}
+          sessionId={session.id}
+        />
+      )}
 
       {/* PDF Viewer Modal */}
       {selectedDocument && (
@@ -645,6 +739,276 @@ function SessionStudying({ session, studyPlan }: SessionStudyingProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Edit Study Plan Modal Component
+interface EditStudyPlanModalProps {
+  studyPlan: StudyPlan;
+  onClose: () => void;
+  onRefetchPlan: () => void;
+  sessionId: string;
+}
+
+function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: EditStudyPlanModalProps) {
+  const [revisionInstruction, setRevisionInstruction] = useState('');
+  const [isRevising, setIsRevising] = useState(false);
+  const [localStudyPlan, setLocalStudyPlan] = useState(studyPlan);
+
+  // Update local study plan when prop changes
+  useEffect(() => {
+    setLocalStudyPlan(studyPlan);
+  }, [studyPlan]);
+
+  const [reviseStudyPlan] = useMutation<{ reviseStudyPlan: StudyPlan }>(REVISE_STUDY_PLAN, {
+    onCompleted: (data) => {
+      if (data?.reviseStudyPlan) {
+        setLocalStudyPlan(data.reviseStudyPlan);
+        onRefetchPlan();
+        setRevisionInstruction('');
+        toast.success('Plano de estudos atualizado!');
+      }
+      setIsRevising(false);
+    },
+    onError: (error: any) => {
+      console.error('Revision error:', error);
+      console.error('Error details:', error.graphQLErrors, error.networkError);
+
+      // Try to get a more specific error message
+      let errorMessage = 'Erro ao atualizar plano de estudos';
+      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+        const graphQLError = error.graphQLErrors[0].message;
+        // Provide user-friendly messages for common errors
+        if (graphQLError.includes('Session must be in')) {
+          errorMessage = 'Não é possível editar o plano neste estágio.';
+        } else if (graphQLError.includes('No study plan found')) {
+          errorMessage = 'Nenhum plano de estudos encontrado para esta sessão.';
+        } else if (graphQLError.includes('JSON')) {
+          errorMessage = 'Erro ao processar a resposta da IA. Tente novamente.';
+        } else {
+          errorMessage = graphQLError;
+        }
+      } else if (error.networkError) {
+        errorMessage = 'Erro de conexão. Verifique sua internet.';
+      }
+
+      toast.error(errorMessage);
+      setIsRevising(false);
+    }
+  });
+
+  const [updateTopicStatus] = useMutation<{ updateTopicStatus: StudyPlan }>(UPDATE_TOPIC_STATUS, {
+    onCompleted: (data) => {
+      if (data?.updateTopicStatus) {
+        setLocalStudyPlan(data.updateTopicStatus);
+        onRefetchPlan();
+      }
+    },
+    onError: (error: any) => {
+      console.error('Status update error:', error);
+      console.error('Error details:', error.graphQLErrors, error.networkError);
+
+      // Try to get a more specific error message
+      let errorMessage = 'Erro ao atualizar status do tópico';
+      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+        errorMessage = error.graphQLErrors[0].message || errorMessage;
+      } else if (error.networkError) {
+        errorMessage = 'Erro de conexão. Verifique sua internet.';
+      }
+
+      toast.error(errorMessage);
+    }
+  });
+
+  const [undoStudyPlan] = useMutation<{ undoStudyPlan: StudyPlan }>(UNDO_STUDY_PLAN, {
+    onCompleted: (data) => {
+      if (data?.undoStudyPlan) {
+        setLocalStudyPlan(data.undoStudyPlan);
+        onRefetchPlan();
+        toast.success('Revertido para versão anterior');
+      }
+    },
+    onError: (error) => {
+      console.error('Undo error:', error);
+      toast.error(error.message || 'Falha ao desfazer');
+    }
+  });
+
+  const handleRevisePlan = async () => {
+    if (!revisionInstruction.trim()) return;
+
+    setIsRevising(true);
+    try {
+      await reviseStudyPlan({
+        variables: {
+          sessionId,
+          instruction: revisionInstruction.trim()
+        }
+      });
+    } catch (error) {
+      console.error('Revision error:', error);
+    }
+  };
+
+  const handleStatusChange = async (topicId: string, newStatus: string) => {
+    try {
+      await updateTopicStatus({
+        variables: {
+          sessionId,
+          topicId,
+          status: newStatus
+        }
+      });
+    } catch (error) {
+      console.error('Status update error:', error);
+    }
+  };
+
+  const handleUndo = async () => {
+    try {
+      await undoStudyPlan({
+        variables: { sessionId }
+      });
+    } catch (error) {
+      console.error('Undo error:', error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'need_to_learn': return 'bg-red-100 text-red-700';
+      case 'need_review': return 'bg-yellow-100 text-yellow-700';
+      case 'know_well': return 'bg-green-100 text-green-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'need_to_learn': return 'Preciso Aprender';
+      case 'need_review': return 'Preciso Revisar';
+      case 'know_well': return 'Sei Bem';
+      default: return 'Desconhecido';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold text-caky-dark">Editar Plano de Estudos</h2>
+              <div className="flex items-center gap-4 text-xs text-caky-dark/50 mt-1">
+                <span>Versão {localStudyPlan.version}</span>
+                <span>•</span>
+                <span>Criado {new Date(localStudyPlan.createdAt).toLocaleTimeString()}</span>
+                <span>•</span>
+                <button
+                  onClick={handleUndo}
+                  className="text-caky-primary hover:text-caky-dark font-medium flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                  Desfazer
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Study Plan Topics */}
+          <div className="p-6">
+            <h3 className="text-lg font-bold text-caky-dark mb-4">Tópicos do Plano</h3>
+            <div className="space-y-4">
+              {localStudyPlan.content.topics.map((topic, index) => (
+                <div
+                  key={topic.id}
+                  className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-caky-dark text-sm mb-2">{topic.title}</h4>
+                      <p className="text-xs text-caky-dark/70 leading-relaxed">{topic.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Status Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-caky-dark/70">Status:</span>
+                    <select
+                      value={topic.status}
+                      onChange={(e) => handleStatusChange(topic.id, e.target.value)}
+                      className="text-xs px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-caky-primary/50"
+                    >
+                      <option value="need_to_learn">Preciso Aprender</option>
+                      <option value="need_review">Preciso Revisar</option>
+                      <option value="know_well">Sei Bem</option>
+                    </select>
+                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(topic.status)}`}>
+                      {getStatusLabel(topic.status)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Revision Section */}
+          <div className="p-6 border-t border-gray-100 bg-gray-50">
+            <h3 className="text-lg font-bold text-caky-dark mb-4">Revisar Plano com IA</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-caky-dark mb-2">
+                  Descreva como deseja modificar o plano:
+                </label>
+                <textarea
+                  value={revisionInstruction}
+                  onChange={(e) => setRevisionInstruction(e.target.value)}
+                  placeholder="Ex: Adicione mais exercícios de cálculo, foque nos capítulos 5-8, etc."
+                  className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-caky-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
+                  rows={3}
+                />
+              </div>
+              <button
+                onClick={handleRevisePlan}
+                disabled={!revisionInstruction.trim() || isRevising}
+                className="px-6 py-3 bg-caky-primary text-white font-bold rounded-lg hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isRevising ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Revisar Plano
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
