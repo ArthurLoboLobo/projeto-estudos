@@ -109,10 +109,7 @@ pub async fn revise_study_plan(
     let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
     let session = session.ok_or("Session not found")?;
 
-    // Check if session is in planning stage
-    if session.stage != "planning" {
-        return Err("Session must be in 'planning' stage to revise the plan".into());
-    }
+    // Allow plan revisions in both planning and studying stages
 
     // Get current plan
     let current_plan = study_plans::get_current_plan(pool, session_uuid).await?;
@@ -154,10 +151,7 @@ pub async fn undo_study_plan(ctx: &Context<'_>, session_id: ID) -> Result<StudyP
     let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
     let session = session.ok_or("Session not found")?;
 
-    // Check if session is in planning stage
-    if session.stage != "planning" {
-        return Err("Session must be in 'planning' stage to undo".into());
-    }
+    // Allow plan undo in both planning and studying stages
 
     tracing::info!("Undoing study plan revision for session {}", session_uuid);
 
