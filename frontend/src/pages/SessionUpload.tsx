@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_DOCUMENTS } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, START_PLANNING } from '../lib/graphql/mutations';
-import ThemeToggle from '../components/ui/ThemeToggle';
+import SessionHeader from '../components/SessionHeader';
 import type { Document, Session, StudyPlan } from '../types';
 
 const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') || 'http://localhost:8080';
@@ -20,7 +20,15 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
     variables: { sessionId: session.id },
@@ -132,38 +140,14 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Link
-              to="/dashboard"
-              className="text-caky-primary hover:text-caky-text transition font-medium"
-            >
-              <span className="hidden md:inline">← Voltar</span>
-              <span className="md:hidden">←</span>
-            </Link>
-            <div className="flex items-center gap-2 md:gap-3">
-              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
-              <div className="max-w-[150px] md:max-w-none">
-                <h1 className="text-base md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
-                {session.description && (
-                  <p className="text-xs md:text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <ThemeToggle />
-            <span className="text-caky-text/70 text-sm font-medium hidden md:inline">{user?.email}</span>
-            <button
-              onClick={logout}
-              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium active:scale-95"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
+      <SessionHeader
+        session={session}
+        user={user}
+        onLogout={logout}
+        maxWidth="4xl"
+        isMobile={isMobile}
+        hideLogoOnMobile={true}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex items-start md:items-center justify-center p-4 md:p-6 overflow-auto">

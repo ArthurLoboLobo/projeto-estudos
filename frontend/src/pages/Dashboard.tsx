@@ -175,7 +175,7 @@ export default function Dashboard() {
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
-            Error loading sessions: {error.message}
+            Erro ao carregar sessões: {error.message}
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-text/10">

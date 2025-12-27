@@ -7,7 +7,7 @@ export default function ThemeToggle() {
     <button
       onClick={toggleTheme}
       className="p-2 rounded-lg hover:bg-caky-primary/10 transition-colors group"
-      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      title={`Alternar para modo ${theme === 'light' ? 'escuro' : 'claro'}`}
     >
       {theme === 'light' ? (
         // Moon icon for dark mode

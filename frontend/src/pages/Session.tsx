@@ -9,6 +9,7 @@ import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
 import ThemeToggle from '../components/ui/ThemeToggle';
+import SessionHeader from '../components/SessionHeader';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
@@ -49,7 +50,7 @@ export default function Session() {
   // Redirect if session not found
   useEffect(() => {
     if (sessionError) {
-      toast.error('Session not found');
+      toast.error('Sessão não encontrada');
       navigate('/dashboard');
     }
   }, [sessionError, navigate]);
@@ -187,17 +188,17 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Only PDF files are supported');
+      toast.error('Apenas arquivos PDF são suportados');
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      toast.error('File size must be less than 50MB');
+      toast.error('O tamanho do arquivo deve ser menor que 50MB');
       return;
     }
 
     setUploading(true);
-    setUploadProgress('Uploading...');
+    setUploadProgress('Enviando...');
 
     try {
       const token = getAuthToken();
@@ -223,19 +224,19 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
         data = await response.json();
       } else {
         const text = await response.text();
-        data = { error: text || 'Upload failed' };
+        data = { error: text || 'Falha no envio' };
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || 'Falha no envio');
       }
 
-      toast.success('Document uploaded! Text extraction in progress...');
+      toast.success('Documento enviado! Extração de texto em andamento...');
       refetchDocs();
       pollDocumentStatus();
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error(err.message || 'Failed to upload document');
+      toast.error(err.message || 'Falha ao enviar documento');
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -256,7 +257,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
           clearInterval(interval);
           const failed = docs.filter((d: Document) => d.extractionStatus === 'failed');
           if (failed.length > 0) {
-            toast.error(`${failed.length} document(s) failed to process`);
+            toast.error(`${failed.length} documento(s) falharam ao processar`);
           }
         }
       });
@@ -278,10 +279,10 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
       } else if (result.error) {
         setPdfError(result.error.message);
       } else {
-        setPdfError('No URL returned from server');
+        setPdfError('Nenhuma URL retornada pelo servidor');
       }
     } catch (err: any) {
-      setPdfError(err.message || 'Failed to fetch document');
+      setPdfError(err.message || 'Falha ao buscar documento');
     } finally {
       setPdfLoading(false);
     }
@@ -298,10 +299,10 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
 
     try {
       await deleteDocument({ variables: { id: docId } });
-      toast.success('Document removed');
+      toast.success('Documento removido');
       refetchDocs();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete document');
+      toast.error(err.message || 'Falha ao excluir documento');
     }
   };
 
@@ -338,7 +339,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
       setAiTyping(false);
     } catch (err: any) {
       console.error('Send error:', err);
-      toast.error(err.message || 'Failed to send message');
+      toast.error(err.message || 'Falha ao enviar mensagem');
       setMessageInput(content);
       setOptimisticMessages([]);
       setAiTyping(false);
@@ -350,55 +351,31 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     <div className="h-screen flex flex-col bg-caky-bg">
       {/* Header */}
       {!isFullscreenChat && (
-        <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10">
-          <div className={`${isMobile ? 'px-4 py-3' : 'px-4 md:px-6 py-4'} flex justify-between items-center`}>
-            <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-2 md:gap-4'} min-w-0`}>
-              <Link
-                to="/dashboard"
-                className="text-caky-primary hover:text-caky-text transition shrink-0 font-medium"
-              >
-                ← Voltar
-              </Link>
-              <div className="flex items-center gap-3 min-w-0">
-                <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 object-contain hidden md:block" />
-                <div className="min-w-0">
-                  <h1 className={`${isMobile ? 'text-base' : 'text-lg md:text-xl'} font-bold text-caky-text truncate`}>{session.title}</h1>
-                  {session.description && (
-                    <p className="text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2 md:gap-4'} shrink-0`}>
-              {isMobile && (
-                <button
-                  onClick={() => setIsFullscreenChat(true)}
-                  className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
-                  title="Fullscreen Chat"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              )}
-              <ThemeToggle />
-              <span className="text-caky-text/70 text-sm hidden md:block font-medium">{user?.email}</span>
-              <button
-                onClick={logout}
-                className={`${isMobile ? 'px-2' : 'px-3 md:px-4'} py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium`}
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-        </header>
+        <SessionHeader
+          session={session}
+          user={user}
+          onLogout={logout}
+          isMobile={isMobile}
+          hideLogoOnMobile={true}
+          extraActions={isMobile ? (
+            <button
+              onClick={() => setIsFullscreenChat(true)}
+              className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
+              title="Fullscreen Chat"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          ) : null}
+        />
       )}
 
       {/* Main Content */}
       <div className={`flex-1 flex ${isMobile ? 'flex-col' : 'lg:flex-row'} overflow-hidden ${isFullscreenChat ? 'fixed inset-0 z-50 bg-white flex-col' : ''}`}>
         {/* Fullscreen Chat Header */}
         {isFullscreenChat && (
-          <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10 px-4 py-3">
+          <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm shrink-0 z-10 px-4 py-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3 min-w-0">
                 <button
@@ -502,7 +479,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                     {uploading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
-                        {uploadProgress || 'Uploading...'}
+                        {uploadProgress || 'Enviando...'}
                       </>
                     ) : (
                       <>
@@ -857,7 +834,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                 <div className="min-w-0">
                   <h3 className="text-caky-text font-bold truncate">{selectedDocument.fileName}</h3>
                   <p className="text-sm text-caky-text/50 font-medium">
-                    {selectedDocument.pageCount ? `${selectedDocument.pageCount} pages` : 'Document'}
+                    {selectedDocument.pageCount ? `${selectedDocument.pageCount} páginas` : 'Documento'}
                   </p>
                 </div>
               </div>
@@ -888,7 +865,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <p className="text-red-500 mb-2 font-medium">Failed to load document</p>
+                    <p className="text-red-500 mb-2 font-medium">Falha ao carregar documento</p>
                     {pdfError && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">{pdfError}</p>
                     )}

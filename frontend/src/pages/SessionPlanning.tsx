@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -8,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import { useAuth } from '../lib/auth';
 import { GET_STUDY_PLAN_HISTORY } from '../lib/graphql/queries';
 import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING, UPDATE_TOPIC_STATUS } from '../lib/graphql/mutations';
-import ThemeToggle from '../components/ui/ThemeToggle';
+import SessionHeader from '../components/SessionHeader';
 import type { Session, StudyPlan, TopicStatus } from '../types';
 
 interface SessionPlanningProps {
@@ -23,6 +22,14 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
   const [currentPlan, setCurrentPlan] = useState<StudyPlan>(initialPlan);
   const [instruction, setInstruction] = useState('');
   const [revising, setRevising] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data: historyData, refetch: refetchHistory } = useQuery<{ studyPlanHistory: StudyPlan[] }>(GET_STUDY_PLAN_HISTORY, {
     variables: { sessionId: session.id },
@@ -119,38 +126,13 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
-        <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Link
-              to="/dashboard"
-              className="text-caky-primary hover:text-caky-text transition font-medium"
-            >
-              <span className="hidden md:inline">← Voltar</span>
-              <span className="md:hidden">←</span>
-            </Link>
-            <div className="flex items-center gap-2 md:gap-3">
-              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
-              <div className="max-w-[150px] md:max-w-none">
-                <h1 className="text-base md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
-                {session.description && (
-                  <p className="text-xs md:text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <ThemeToggle />
-            <span className="text-caky-text/70 text-sm font-medium hidden md:inline">{user?.email}</span>
-            <button
-              onClick={logout}
-              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium active:scale-95"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
+      <SessionHeader
+        session={session}
+        user={user}
+        onLogout={logout}
+        isMobile={isMobile}
+        hideLogoOnMobile={true}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex items-start md:items-center justify-center p-4 md:p-6 overflow-auto">
