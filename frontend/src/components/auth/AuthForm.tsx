@@ -42,33 +42,33 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-caky-bg relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-caky-bg relative overflow-hidden p-4">
       <div className="absolute top-4 right-4 z-50">
         <ThemeToggle />
       </div>
       {/* Decorative Background Elements */}
-      <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-caky-secondary/20 rounded-full blur-3xl opacity-60"></div>
-      <div className="absolute top-20 -left-20 w-96 h-96 bg-caky-primary/5 rounded-full blur-3xl opacity-60"></div>
+      <div className="absolute -top-40 -right-40 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-caky-secondary/20 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
+      <div className="absolute top-20 -left-20 w-64 md:w-96 h-64 md:h-96 bg-caky-primary/5 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
 
-      <div className="w-full max-w-md p-6 relative z-10">
+      <div className="w-full max-w-md relative z-10">
         {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <img src="/caky_logo.png" alt="Caky Logo" className="w-20 h-20 mx-auto mb-4 drop-shadow-md" />
-          <h1 className="text-4xl font-bold text-caky-primary mb-2">
+        <div className="text-center mb-6 md:mb-8">
+          <img src="/caky_logo.png" alt="Caky Logo" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 drop-shadow-md" />
+          <h1 className="text-3xl md:text-4xl font-bold text-caky-primary mb-2">
             Caky
           </h1>
-          <p className="text-caky-text/70 font-medium">
+          <p className="text-caky-text/70 font-medium text-sm md:text-base">
             Preparação para provas com IA
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-caky-secondary/30">
-          <h2 className="text-2xl font-bold text-caky-text mb-6 text-center">
+        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-caky-secondary/30">
+          <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-6 text-center">
             {isLogin ? 'Bem-vindo de Volta' : 'Criar Conta'}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
             <div>
               <label className="block text-sm font-semibold text-caky-text mb-2">
                 Email
@@ -129,7 +129,7 @@ export default function AuthForm() {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="text-caky-primary hover:text-caky-text font-medium transition underline-offset-4 hover:underline"
+              className="text-caky-primary hover:text-caky-text font-medium transition underline-offset-4 hover:underline text-sm md:text-base p-2 active:bg-caky-secondary/10 rounded-lg"
             >
               {isLogin
                 ? "Não tem uma conta? Cadastre-se"
@@ -139,7 +139,7 @@ export default function AuthForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-caky-text/50 text-sm mt-8 font-medium">
+        <p className="text-center text-caky-text/50 text-xs md:text-sm mt-8 font-medium px-4">
           Faça upload dos seus slides, provas antigas e anotações — obtenha tutoria personalizada de IA
         </p>
       </div>

@@ -132,31 +132,32 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <Link
               to="/dashboard"
               className="text-caky-primary hover:text-caky-text transition font-medium"
             >
-              ← Voltar
+              <span className="hidden md:inline">← Voltar</span>
+              <span className="md:hidden">←</span>
             </Link>
-            <div className="flex items-center gap-3">
-              <img src="/caky_logo.png" alt="Caky Logo" className="w-7 h-7 object-contain" />
-              <div>
-                <h1 className="text-xl font-bold text-caky-text">{session.title}</h1>
+            <div className="flex items-center gap-2 md:gap-3">
+              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
+              <div className="max-w-[150px] md:max-w-none">
+                <h1 className="text-base md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-caky-text/50">{session.description}</p>
+                  <p className="text-xs md:text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <ThemeToggle />
-            <span className="text-caky-text/70 text-sm font-medium">{user?.email}</span>
+            <span className="text-caky-text/70 text-sm font-medium hidden md:inline">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
+              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium active:scale-95"
             >
               Sair
             </button>
@@ -165,37 +166,39 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-6 overflow-auto">
-        <div className="w-full max-w-2xl">
+      <main className="flex-1 flex items-start md:items-center justify-center p-4 md:p-6 overflow-auto">
+        <div className="w-full max-w-2xl pb-20 md:pb-0">
           {/* Step Indicator */}
-          <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="flex items-center justify-center gap-2 md:gap-3 mb-6 md:mb-8">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">1</div>
-              <span className="text-caky-primary font-semibold">Enviar Materiais</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs md:text-sm">1</div>
+              <span className="text-caky-primary font-semibold text-xs md:text-base">Enviar</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-text/20"></div>
+            <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">2</div>
-              <span className="text-caky-text font-medium">Planejar Estudos</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">2</div>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Planejar</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Plan.</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-text/20"></div>
+            <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-text font-medium">Começar a Estudar</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">3</div>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Estudar</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Est.</span>
             </div>
           </div>
 
           {/* Upload Card */}
-          <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
-            <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-text mb-2">Envie Seus Materiais de Estudo</h2>
-              <p className="text-caky-text/60 max-w-md mx-auto">
+          <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
+            <div className="p-6 md:p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
+              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">Envie Seus Materiais</h2>
+              <p className="text-sm md:text-base text-caky-text/60 max-w-md mx-auto">
                 Faça upload de provas antigas, slides de aula e anotações. A IA irá analisá-los para criar um plano de estudo personalizado.
               </p>
             </div>
 
             {/* Upload Area */}
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -206,7 +209,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || generating}
-                className="w-full py-6 border-2 border-dashed border-caky-primary/40 hover:border-caky-primary bg-caky-primary/5 hover:bg-caky-primary/10 text-caky-primary hover:text-caky-text rounded-2xl transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-6 md:py-8 border-2 border-dashed border-caky-primary/40 hover:border-caky-primary bg-caky-primary/5 hover:bg-caky-primary/10 text-caky-primary hover:text-caky-text rounded-2xl transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {uploading ? (
                   <>
@@ -215,11 +218,11 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                   </>
                 ) : (
                   <>
-                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    <span className="font-bold text-lg">Upload de Arquivos</span>
-                    <span className="text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
+                    <span className="font-bold text-base md:text-lg">Upload de Arquivos</span>
+                    <span className="text-xs md:text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
                   </>
                 )}
               </button>
@@ -231,11 +234,11 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-100 dark:border-gray-700"
+                      className="flex items-center justify-between p-3 md:p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-100 dark:border-gray-700"
                     >
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="text-caky-text font-semibold text-sm">{doc.fileName}</p>
+                      <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+                        <div className="min-w-0">
+                          <p className="text-caky-text font-semibold text-sm truncate">{doc.fileName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <StatusBadge status={doc.extractionStatus} />
                             {doc.pageCount && (
@@ -247,7 +250,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                       <button
                         onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
                         disabled={generating}
-                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50"
+                        className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50 shrink-0 active:scale-90"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -263,26 +266,26 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                 <button
                   onClick={handleStartPlanning}
                   disabled={!hasCompletedDocs || generating || hasPendingDocs}
-                  className="w-full py-4 bg-caky-primary text-white font-bold text-lg rounded-xl hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+                  className="w-full py-4 bg-caky-primary text-white font-bold text-lg rounded-xl hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-3 active:scale-[0.98]"
                 >
                   {generating ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      Gerando Plano de Estudo...
+                      <span className="text-base md:text-lg">Gerando Plano...</span>
                     </>
                   ) : hasPendingDocs ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-transparent"></div>
-                      Aguardando processamento dos documentos...
+                      <span className="text-base md:text-lg">Processando...</span>
                     </>
                   ) : (
                     <>
-                      Começar Planejamento
+                      <span className="text-base md:text-lg">Começar Planejamento</span>
                     </>
                   )}
                 </button>
                 {documents.length === 0 && (
-                  <p className="text-center text-caky-text/50 text-sm mt-3">
+                  <p className="text-center text-caky-text/50 text-xs md:text-sm mt-3">
                     Envie pelo menos um documento para continuar
                   </p>
                 )}

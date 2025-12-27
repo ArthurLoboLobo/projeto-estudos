@@ -208,3 +208,69 @@ body {
   background: rgba(255, 255, 255, 0.2);
   color: white;
 }
+
+/* Mobile-specific improvements */
+@media (max-width: 767px) {
+  /* Better touch scrolling */
+  .touch-pan-y {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Safe area support for devices with notches */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Better mobile scrolling container */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+
+  /* Larger touch targets for mobile */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Improved mobile prose sizing */
+  .prose-mobile {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .prose-mobile * {
+    font-size: inherit;
+    line-height: inherit;
+  }
+}
+
+/* Better scrollbar styling for mobile chat */
+@media (max-width: 767px) {
+  .scroll-smooth {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(60, 84, 137, 0.3) transparent;
+  }
+}
+
+/* Fullscreen chat improvements */
+.fullscreen-chat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Active button states for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .active\:scale-95:active {
+    transform: scale(0.95);
+  }
+}

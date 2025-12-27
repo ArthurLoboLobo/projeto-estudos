@@ -126,11 +126,21 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [materialsCollapsed, setMaterialsCollapsed] = useState(false);
-  const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(false);
+  const [materialsCollapsed, setMaterialsCollapsed] = useState(true); // Start collapsed on mobile
+  const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(true); // Start collapsed on mobile
   const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [isFullscreenChat, setIsFullscreenChat] = useState(false); // Mobile fullscreen mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Queries
   const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
@@ -161,7 +171,15 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        // Use requestAnimationFrame for smooth scrolling on mobile
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+    }
   }, [messages]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,45 +349,100 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   return (
     <div className="h-screen flex flex-col bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10">
-        <div className="px-4 md:px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4 min-w-0">
-            <Link
-              to="/dashboard"
-              className="text-caky-primary hover:text-caky-text transition shrink-0 font-medium"
-            >
-              ← Voltar
-            </Link>
-            <div className="flex items-center gap-3 min-w-0">
-              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 object-contain hidden md:block" />
-              <div className="min-w-0">
-                <h1 className="text-lg md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
-                {session.description && (
-                  <p className="text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
-                )}
+      {!isFullscreenChat && (
+        <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10">
+          <div className={`${isMobile ? 'px-4 py-3' : 'px-4 md:px-6 py-4'} flex justify-between items-center`}>
+            <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-2 md:gap-4'} min-w-0`}>
+              <Link
+                to="/dashboard"
+                className="text-caky-primary hover:text-caky-text transition shrink-0 font-medium"
+              >
+                ← Voltar
+              </Link>
+              <div className="flex items-center gap-3 min-w-0">
+                <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 object-contain hidden md:block" />
+                <div className="min-w-0">
+                  <h1 className={`${isMobile ? 'text-base' : 'text-lg md:text-xl'} font-bold text-caky-text truncate`}>{session.title}</h1>
+                  {session.description && (
+                    <p className="text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
+                  )}
+                </div>
               </div>
             </div>
+            <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2 md:gap-4'} shrink-0`}>
+              {isMobile && (
+                <button
+                  onClick={() => setIsFullscreenChat(true)}
+                  className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
+                  title="Fullscreen Chat"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              )}
+              <ThemeToggle />
+              <span className="text-caky-text/70 text-sm hidden md:block font-medium">{user?.email}</span>
+              <button
+                onClick={logout}
+                className={`${isMobile ? 'px-2' : 'px-3 md:px-4'} py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium`}
+              >
+                Sair
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <ThemeToggle />
-            <span className="text-caky-text/70 text-sm hidden md:block font-medium">{user?.email}</span>
-            <button
-              onClick={logout}
-              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className={`flex-1 flex ${isMobile ? 'flex-col' : 'lg:flex-row'} overflow-hidden ${isFullscreenChat ? 'fixed inset-0 z-50 bg-white flex-col' : ''}`}>
+        {/* Fullscreen Chat Header */}
+        {isFullscreenChat && (
+          <header className="border-b border-caky-text/10 bg-white shadow-sm shrink-0 z-10 px-4 py-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={() => setIsFullscreenChat(false)}
+                  className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition active:scale-95"
+                  title="Voltar"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="min-w-0">
+                  <h1 className="text-lg font-bold text-caky-text truncate">{session.title}</h1>
+                  {session.description && (
+                    <p className="text-sm text-caky-text/50 truncate hidden sm:block">{session.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {studyPlan && (
+                  <button
+                    onClick={() => setShowEditPlanModal(true)}
+                    className="px-3 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition active:scale-95 font-medium"
+                  >
+                    Editar Plano
+                  </button>
+                )}
+                <span className="text-caky-text/70 text-sm hidden sm:block font-medium">{user?.email}</span>
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition active:scale-95 font-medium"
+                >
+                  Sair
+                </button>
+              </div>
+            </div>
+          </header>
+        )}
+
         {/* Left Sidebar - Study Materials */}
-        <aside className={`border-b lg:border-b-0 lg:border-r border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+        <aside className={`${isMobile && materialsCollapsed && !isFullscreenChat ? 'hidden' : ''} ${isFullscreenChat ? 'hidden' : ''} border-b lg:border-b-0 lg:border-r border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
           materialsCollapsed
-            ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
-            : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+            ? `w-full lg:w-12 ${isMobile ? 'h-0' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
+            : `w-full lg:w-80 ${isMobile ? 'h-auto max-h-[40vh]' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
         }`}>
           <div className="flex-1 flex flex-col min-h-0">
             <button
@@ -483,73 +556,166 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
         </aside>
 
         {/* Chat Area */}
-        <main className="flex-1 flex flex-col min-w-0 bg-white">
+        <main className={`flex-1 flex flex-col min-w-0 bg-white ${isMobile ? 'min-h-0' : ''}`}>
+          {/* Mobile Chat Controls */}
+          {isMobile && !isFullscreenChat && (
+            <div className="flex items-center justify-between px-4 py-3 bg-caky-card border-b border-caky-text/10">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
+                  className={`p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95 ${
+                    !materialsCollapsed ? 'bg-caky-primary text-white' : ''
+                  }`}
+                  title="Materiais de Estudo"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V9l4-4m0 0L15 9m4-4v4a2 2 0 01-2 2h-4" />
+                  </svg>
+                </button>
+                {studyPlan && (
+                  <button
+                    onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
+                    className={`p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95 ${
+                      !studyPlanCollapsed ? 'bg-caky-primary text-white' : ''
+                    }`}
+                    title="Plano de Estudos"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V9l4-4m0 0L15 9m4-4v4a2 2 0 01-2 2h-4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-caky-text/60 font-medium">
+                  {session.title.length > 15 ? `${session.title.substring(0, 15)}...` : session.title}
+                </div>
+                <button
+                  onClick={() => setIsFullscreenChat(true)}
+                  className="p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95"
+                  title="Chat Completo"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg">
-            {loadingMessages && messages.length === 0 ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-4 opacity-80">
-                <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
-                  Ready to help you study!
-                </h3>
-                <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
-                  Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
-                </p>
-              </div>
-            ) : (
-              <>
-                {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
-                ))}
-                {aiTyping && (
-                  <div className="flex justify-start mb-4">
-                    <div className="max-w-[85%] md:max-w-2xl rounded-2xl px-4 py-3 bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          <div className={`flex-1 relative ${isMobile ? 'min-h-0' : ''}`}>
+            <div
+              className={`absolute inset-0 overflow-y-auto ${isMobile ? 'overscroll-contain touch-pan-y' : ''} p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg scroll-smooth`}
+              style={isMobile ? {
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(0,0,0,0.2) transparent'
+              } : {}}
+            >
+              {loadingMessages && messages.length === 0 ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center min-h-full text-center px-4 opacity-80">
+                  <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
+                    Ready to help you study!
+                  </h3>
+                  <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
+                    Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {messages.map((msg) => (
+                    <MessageBubble key={msg.id} message={msg} isMobile={isMobile} />
+                  ))}
+                  {aiTyping && (
+                    <div className="flex justify-start mb-4">
+                      <div className={`max-w-[85%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm`}>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                          <span className="text-sm text-caky-text/50 font-medium">AI is thinking...</span>
                         </div>
-                        <span className="text-sm text-caky-text/50 font-medium">AI is thinking...</span>
                       </div>
                     </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
+                  )}
+                  <div ref={messagesEndRef} />
+                </>
+              )}
+            </div>
           </div>
 
           {/* Message Input */}
-          <div className="border-t border-caky-text/10 bg-white p-3 md:p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center gap-2 mb-2">
-            </div>
-            <form onSubmit={handleSendMessage} className="flex gap-2 md:gap-3">
-              <input
-                type="text"
+          <div className={`border-t border-caky-text/10 bg-white ${isMobile ? 'p-3 pb-safe' : 'p-3 md:p-4'} shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]`}>
+            {isFullscreenChat && (
+              <div className="flex items-center justify-between mb-3 px-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsFullscreenChat(false)}
+                    className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
+                    title="Exit Fullscreen"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <span className="text-sm font-medium text-caky-text/70">Chat Mode</span>
+                </div>
+                <div className="text-xs text-caky-text/50">
+                  {session.title}
+                </div>
+              </div>
+            )}
+            <form onSubmit={handleSendMessage} className={`flex ${isMobile ? 'gap-3' : 'gap-2 md:gap-3'}`}>
+              <textarea
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                placeholder="Pergunte qualquer coisa..."
-                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary text-sm md:text-base transition"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
+                className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[44px] max-h-32' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition`}
                 disabled={sending}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck="true"
+                rows={1}
+                style={isMobile ? {
+                  height: 'auto',
+                  minHeight: '44px'
+                } : {}}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  if (isMobile) {
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                  }
+                }}
               />
               <button
                 type="submit"
                 disabled={sending || !messageInput.trim()}
-                className="px-4 md:px-6 py-2 md:py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm md:text-base shadow-md"
+                className={`${isMobile ? 'px-5 py-3 min-h-[44px]' : 'px-4 md:px-6 py-2 md:py-3'} bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-primary transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${isMobile ? 'text-base active:scale-95' : 'text-sm md:text-base'} shadow-md`}
               >
                 {sending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span className="hidden md:inline">Thinking...</span>
+                    {!isMobile && <span className="hidden md:inline">Thinking...</span>}
                   </>
                 ) : (
                   <>
-                    <span className="hidden md:inline">Enviar</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {!isMobile && <span className="hidden md:inline">Enviar</span>}
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </>
@@ -561,10 +727,10 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
 
         {/* Right Sidebar - Study Plan */}
         {studyPlan && (
-          <aside className={`border-b lg:border-b-0 lg:border-l border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
+          <aside className={`${isMobile && studyPlanCollapsed && !isFullscreenChat ? 'hidden' : ''} ${isFullscreenChat ? 'hidden' : ''} border-b lg:border-b-0 lg:border-l border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
             studyPlanCollapsed
-              ? 'w-full lg:w-12 h-48 lg:h-full max-h-48 lg:max-h-none'
-              : 'w-full lg:w-80 h-48 lg:h-full max-h-48 lg:max-h-none'
+              ? `w-full lg:w-12 ${isMobile ? 'h-0' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
+              : `w-full lg:w-80 ${isMobile ? 'h-auto max-h-[40vh]' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
           }`}>
             <div className="flex-1 flex flex-col min-h-0">
               <button
@@ -1032,19 +1198,19 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, isMobile }: { message: Message; isMobile: boolean }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
       <div
-        className={`max-w-[85%] md:max-w-2xl rounded-2xl px-5 py-3 shadow-sm relative ${
+        className={`max-w-[90%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-4 py-3' : 'px-5 py-3'} shadow-sm relative ${
           isUser
-            ? 'bg-caky-primary text-white rounded-tr-none'
-            : 'bg-white text-caky-text rounded-tl-none border border-caky-secondary/30'
+            ? 'bg-caky-primary text-white rounded-tr-sm'
+            : 'bg-white text-caky-text rounded-tl-sm border border-caky-secondary/30'
         }`}
       >
-        <div className={`prose prose-sm md:prose-base max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? 'prose-invert' : ''}`}>
+        <div className={`prose ${isMobile ? 'prose-sm' : 'prose-sm md:prose-base'} max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? 'prose-invert' : ''} ${isMobile ? '[&_*]:text-sm' : ''}`}>
           <ReactMarkdown
             remarkPlugins={[remarkMath]}
             rehypePlugins={[rehypeKatex]}
@@ -1052,12 +1218,16 @@ function MessageBubble({ message }: { message: Message }) {
             {message.content}
           </ReactMarkdown>
         </div>
-        <div 
-          className={`text-[10px] mt-2 text-right font-medium ${
-            isUser ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'
+        <div
+          className={`text-xs mt-2 text-right font-medium ${
+            isUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
           }`}
         >
-          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.createdAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })}
         </div>
       </div>
     </div>

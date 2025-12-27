@@ -116,31 +116,32 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
-        <div className="px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
+        <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <Link
               to="/dashboard"
               className="text-caky-primary hover:text-caky-text transition font-medium"
             >
-              ← Voltar
+              <span className="hidden md:inline">← Voltar</span>
+              <span className="md:hidden">←</span>
             </Link>
-            <div className="flex items-center gap-3">
-              <img src="/caky_logo.png" alt="Caky Logo" className="w-7 h-7 object-contain" />
-              <div>
-                <h1 className="text-xl font-bold text-caky-text">{session.title}</h1>
+            <div className="flex items-center gap-2 md:gap-3">
+              <img src="/caky_logo.png" alt="Caky Logo" className="w-6 h-6 md:w-7 md:h-7 object-contain" />
+              <div className="max-w-[150px] md:max-w-none">
+                <h1 className="text-base md:text-xl font-bold text-caky-text truncate">{session.title}</h1>
                 {session.description && (
-                  <p className="text-sm text-caky-text/50">{session.description}</p>
+                  <p className="text-xs md:text-sm text-caky-text/50 truncate hidden md:block">{session.description}</p>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <ThemeToggle />
-            <span className="text-caky-text/70 text-sm font-medium">{user?.email}</span>
+            <span className="text-caky-text/70 text-sm font-medium hidden md:inline">{user?.email}</span>
             <button
               onClick={logout}
-              className="px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium"
+              className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium active:scale-95"
             >
               Sair
             </button>
@@ -149,43 +150,46 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-6 overflow-auto">
-        <div className="w-full max-w-4xl">
+      <main className="flex-1 flex items-start md:items-center justify-center p-4 md:p-6 overflow-auto">
+        <div className="w-full max-w-4xl pb-20 md:pb-0">
           {/* Step Indicator */}
-          <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="flex items-center justify-center gap-2 md:gap-3 mb-6 md:mb-8">
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-sm">1</div>
-              <span className="text-caky-text font-semibold">Enviar Materiais</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-xs md:text-sm">1</div>
+              <span className="text-caky-text font-semibold text-xs md:text-base hidden md:inline">Enviar</span>
+              <span className="text-caky-text font-semibold text-xs md:text-base md:hidden">Env.</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-primary"></div>
+            <div className="w-4 md:w-8 h-0.5 bg-caky-primary"></div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">2</div>
-              <span className="text-caky-primary font-semibold">Planejar Estudos</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs md:text-sm">2</div>
+              <span className="text-caky-primary font-semibold text-xs md:text-base hidden md:inline">Planejar</span>
+              <span className="text-caky-primary font-semibold text-xs md:text-base md:hidden">Plan.</span>
             </div>
-            <div className="w-8 h-0.5 bg-caky-text/20"></div>
+            <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
-              <div className="w-8 h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-sm">3</div>
-              <span className="text-caky-text font-medium">Começar a Estudar</span>
+              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">3</div>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Estudar</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Est.</span>
             </div>
           </div>
 
           {/* Planning Card */}
-          <div className="bg-white rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
-            <div className="p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-2xl font-bold text-caky-text mb-2">Seu Plano de Estudo</h2>
-              <p className="text-caky-text/60 max-w-md mx-auto mb-4">
+          <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
+            <div className="p-6 md:p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
+              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">Seu Plano de Estudo</h2>
+              <p className="text-sm md:text-base text-caky-text/60 max-w-md mx-auto mb-4">
                 Revise e refine seu plano de estudo personalizado. Diga à IA como melhorá-lo.
               </p>
-              <div className="flex items-center justify-center gap-4 text-xs text-caky-text/50">
+              <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs text-caky-text/50">
                 <span>Versão {currentPlan.version}</span>
-                <span>•</span>
+                <span className="hidden md:inline">•</span>
                 <span>Criado {new Date(currentPlan.createdAt).toLocaleTimeString()}</span>
                 {canUndo && (
                   <>
-                    <span>•</span>
+                    <span className="hidden md:inline">•</span>
                     <button
                       onClick={handleUndo}
-                      className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1"
+                      className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1 w-full md:w-auto justify-center mt-1 md:mt-0 active:scale-95 transition-transform"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
@@ -198,41 +202,55 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
             </div>
 
             {/* Plan Content - Topics List */}
-            <div className="p-8">
-              <div className="space-y-4 mb-8">
+            <div className="p-4 md:p-8">
+              <div className="space-y-3 md:space-y-4 mb-8">
                 {currentPlan.content.topics.map((topic, index) => (
                   <div
                     key={topic.id}
-                    className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-caky-primary/30 transition"
+                    className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4 p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-caky-primary/30 transition"
                   >
-                    {/* Topic Number */}
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
-                      {index + 1}
+                    <div className="flex items-start gap-3 md:gap-4 w-full md:w-auto">
+                      {/* Topic Number */}
+                      <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </div>
+
+                      {/* Topic Content (Mobile Header) */}
+                      <div className="md:hidden flex-1 min-w-0">
+                        <h3 className="font-bold text-caky-text text-sm mb-1">{topic.title}</h3>
+                      </div>
                     </div>
 
-                    {/* Topic Content */}
-                    <div className="flex-1 min-w-0">
+                    {/* Topic Content (Desktop) */}
+                    <div className="hidden md:block flex-1 min-w-0">
                       <h3 className="font-bold text-caky-text mb-1">{topic.title}</h3>
                       <p className="text-sm text-caky-text/60">{topic.description}</p>
                     </div>
 
+                    {/* Topic Description (Mobile) */}
+                    <div className="md:hidden pl-11 -mt-2">
+                       <p className="text-sm text-caky-text/60">{topic.description}</p>
+                    </div>
+
                     {/* Status Dropdown */}
-                    <select
-                      value={topic.status}
-                      onChange={(e) => handleStatusChange(topic.id, e.target.value as TopicStatus)}
-                      className={`shrink-0 px-3 py-2 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 transition ${getStatusColor(topic.status)}`}
-                    >
-                      <option value="need_to_learn">Preciso Aprender</option>
-                      <option value="need_review">Preciso Revisar</option>
-                      <option value="know_well">Sei Bem</option>
-                    </select>
+                    <div className="md:shrink-0 pl-11 md:pl-0 mt-1 md:mt-0">
+                      <select
+                        value={topic.status}
+                        onChange={(e) => handleStatusChange(topic.id, e.target.value as TopicStatus)}
+                        className={`w-full md:w-auto px-3 py-2 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 transition ${getStatusColor(topic.status)}`}
+                      >
+                        <option value="need_to_learn">Preciso Aprender</option>
+                        <option value="need_review">Preciso Revisar</option>
+                        <option value="know_well">Sei Bem</option>
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
 
               {/* Refine Section */}
-              <div className="border-t border-caky-text/10 pt-8">
-                <div className="mb-6">
+              <div className="border-t border-caky-text/10 pt-6 md:pt-8">
+                <div className="mb-4 md:mb-6">
                   <h3 className="text-lg font-bold text-caky-text mb-2">Refine Seu Plano</h3>
                   <p className="text-caky-text/60 text-sm">
                     Diga à IA como melhorar seu plano de estudo
@@ -250,11 +268,11 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     rows={4}
                     disabled={revising}
                   />
-                  <div className="flex gap-3">
+                  <div className="flex flex-col md:flex-row gap-3">
                     <button
                       type="submit"
                       disabled={!instruction.trim() || revising}
-                      className="flex-1 py-3 bg-caky-secondary text-caky-dark font-bold rounded-xl hover:bg-caky-secondary/80 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full md:flex-1 py-3 bg-caky-secondary text-caky-dark font-bold rounded-xl hover:bg-caky-secondary/80 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-95"
                     >
                       {revising ? (
                         <>
@@ -273,7 +291,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     <button
                       onClick={handleStartStudying}
                       disabled={revising}
-                      className="flex-1 py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                      className="w-full md:flex-1 py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 active:scale-95"
                     >
                       Começar a Estudar
                     </button>
@@ -286,7 +304,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     <p className="text-xs font-semibold text-caky-text/50 uppercase tracking-wide mb-3">
                       Histórico de Versões ({planHistory.length})
                     </p>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                    <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                       {planHistory.slice(0, 5).map((plan) => (
                         <div
                           key={plan.id}
