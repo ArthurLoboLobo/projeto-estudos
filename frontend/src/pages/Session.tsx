@@ -398,7 +398,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
       <div className={`flex-1 flex ${isMobile ? 'flex-col' : 'lg:flex-row'} overflow-hidden ${isFullscreenChat ? 'fixed inset-0 z-50 bg-white flex-col' : ''}`}>
         {/* Fullscreen Chat Header */}
         {isFullscreenChat && (
-          <header className="border-b border-caky-text/10 bg-white shadow-sm shrink-0 z-10 px-4 py-3">
+          <header className="border-b border-caky-text/10 bg-caky-card shadow-sm shrink-0 z-10 px-4 py-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3 min-w-0">
                 <button

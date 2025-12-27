@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { useAuth } from '../lib/auth';
 import { GET_STUDY_PLAN_HISTORY } from '../lib/graphql/queries';
 import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING, UPDATE_TOPIC_STATUS } from '../lib/graphql/mutations';
@@ -116,7 +119,7 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <header className="border-b border-caky-text/10 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
+      <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm shrink-0 z-10 sticky top-0">
         <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4">
             <Link
@@ -224,12 +227,26 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     {/* Topic Content (Desktop) */}
                     <div className="hidden md:block flex-1 min-w-0">
                       <h3 className="font-bold text-caky-text mb-1">{topic.title}</h3>
-                      <p className="text-sm text-caky-text/60">{topic.description}</p>
+                      <div className="text-sm text-caky-text/60 prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                        >
+                          {topic.description}
+                        </ReactMarkdown>
+                      </div>
                     </div>
 
                     {/* Topic Description (Mobile) */}
                     <div className="md:hidden pl-11 -mt-2">
-                       <p className="text-sm text-caky-text/60">{topic.description}</p>
+                       <div className="text-sm text-caky-text/60 prose prose-sm max-w-none dark:prose-invert">
+                         <ReactMarkdown
+                           remarkPlugins={[remarkMath]}
+                           rehypePlugins={[rehypeKatex]}
+                         >
+                           {topic.description}
+                         </ReactMarkdown>
+                       </div>
                     </div>
 
                     {/* Status Dropdown */}
