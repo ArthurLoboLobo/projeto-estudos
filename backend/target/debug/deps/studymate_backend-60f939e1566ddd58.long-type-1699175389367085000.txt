@@ -1,2 +1,0 @@
-fn(State<async_graphql::Schema<QueryRoot, MutationRoot, EmptySubscription>>, HeaderMap, GraphQLRequest) -> impl std::future::Future<Output = GraphQLResponse> {graphql_handler}
-fn(State<async_graphql::Schema<QueryRoot, MutationRoot, EmptySubscription>>, HeaderMap, GraphQLRequest) -> impl std::future::Future<Output = GraphQLResponse> {graphql_handler}: Handler<_, _>

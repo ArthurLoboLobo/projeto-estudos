@@ -1,9 +1,0 @@
-/Users/arthurlobolc/projeto-estudos/backend/target/debug/deps/async_graphql_axum-e0dba12c2610f132.d: /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/lib.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/extract.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/query.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/response.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/subscription.rs
-
-/Users/arthurlobolc/projeto-estudos/backend/target/debug/deps/libasync_graphql_axum-e0dba12c2610f132.rmeta: /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/lib.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/extract.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/query.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/response.rs /Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/subscription.rs
-
-/Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/lib.rs:
-/Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/extract.rs:
-/Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/query.rs:
-/Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/response.rs:
-/Users/arthurlobolc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-graphql-axum-7.0.17/src/subscription.rs:
