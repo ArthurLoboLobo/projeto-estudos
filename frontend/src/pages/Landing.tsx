@@ -41,16 +41,14 @@ export default function Landing() {
           </div>
           
           <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-caky-text mb-4 md:mb-6 leading-tight tracking-tight">
-            Passe em Suas Provas com{' '}
+            Estudar com {' '}
             <span className="text-caky-primary underline decoration-caky-secondary/50 decoration-4 underline-offset-4">
-              Estudos
-            </span>{' '}
-            Focados
+              IA
+            </span> nunca foi tão fácil
           </h1>
-          
+
           <p className="text-lg md:text-xl text-caky-text/70 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed font-medium px-2">
-            Faça upload dos seus slides, provas antigas e anotações. Tenha um tutor de IA personalizado que
-            sabe exatamente o que você precisa estudar para sua disciplina específica.
+            Diferente dos tutores genéricos, o Caky conhece exatamente seu conteúdo. Faça upload dos seus materiais e tenha um assistente personalizado que gera planos de estudos inteligentes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
@@ -71,7 +69,7 @@ export default function Landing() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-16 md:py-24 px-4 md:px-6 bg-white">
+      <section id="how-it-works" className="py-16 md:py-24 px-4 md:px-6 bg-caky-secondary/10">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-caky-text text-center mb-10 md:mb-16">
             Como Funciona
@@ -82,17 +80,17 @@ export default function Landing() {
               {
                 step: '01',
                 title: 'Envie Seus Materiais',
-                description: 'Arraste seus slides, provas antigas, anotações de aula e PDFs de livros para sua sessão de estudo.',
+                description: 'Faça upload de slides e provas antigas. Nossa IA processa tudo, incluindo fórmulas e imagens.',
               },
               {
                 step: '02',
-                title: 'IA Lê Tudo',
-                description: 'Nossa IA usa tecnologia de visão para extrair texto, fórmulas e diagramas com precisão perfeita.',
+                title: 'Receba seu Plano',
+                description: 'Obtenha um roteiro de estudos focado no que realmente cai na prova, organizado por prioridade.',
               },
               {
                 step: '03',
-                title: 'Estude com Inteligência',
-                description: 'Faça perguntas, obtenha explicações, pratique exercícios — tudo baseado nos SEUS materiais específicos.',
+                title: 'Estude e Domine',
+                description: 'Tire dúvidas e faça exercícios com um tutor que domina o conteúdo da sua disciplina.',
               },
             ].map((item) => (
               <div
@@ -100,7 +98,7 @@ export default function Landing() {
                 className="bg-caky-bg rounded-2xl p-6 md:p-8 border border-caky-secondary/30 hover:border-caky-primary/50 transition group hover:shadow-md"
               >
                 <div className="text-caky-primary font-bold font-mono text-sm mb-2 uppercase tracking-wider">
-                  Step {item.step}
+                  Passo {item.step}
                 </div>
                 <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
                   {item.title}
@@ -111,73 +109,15 @@ export default function Landing() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* Features */}
-      <section className="py-16 md:py-24 px-4 md:px-6 bg-caky-secondary/10">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-caky-text text-center mb-3 md:mb-4">
-            Por Que o Caky?
-          </h2>
-          <p className="text-caky-text/60 text-center mb-10 md:mb-16 max-w-2xl mx-auto font-medium text-sm md:text-base">
-            Ao contrário dos tutores de IA genéricos, o Caky foca nos SEUS materiais específicos da disciplina
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-            {[
-              {
-                title: 'OCR com Reconhecimento de Fórmulas',
-                description: 'Usando IA de visão, extraímos fórmulas LaTeX dos seus PDFs com precisão — sem equações distorcidas.',
-                icon: '📐',
-              },
-              {
-                title: 'Respostas Contextualizadas',
-                description: 'Cada resposta é baseada nos seus materiais enviados. Sem alucinações, apenas ajuda relevante.',
-              },
-              {
-                title: 'Aprendizado por Sessões',
-                description: 'Organize por disciplina ou prova. Cada sessão lembra seus documentos e histórico de conversa.',
-                icon: '📁',
-              },
-              {
-                title: 'Powered by Gemini 2.5',
-                description: "Usando o modelo de IA mais recente do Google via OpenRouter para respostas rápidas, precisas e acessíveis.",
-                icon: '⚡',
-              },
-            ].map((feature) => (
-              <div
-                key={feature.title}
-                className="flex gap-3 md:gap-4 p-5 md:p-6 bg-white rounded-xl border border-caky-secondary/20 shadow-sm hover:shadow-md transition"
-              >
-                <span className="text-2xl md:text-3xl text-caky-primary">{feature.icon}</span>
-                <div>
-                  <h3 className="text-lg md:text-xl font-bold text-caky-text mb-1 md:mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-caky-text/70 leading-relaxed text-sm md:text-base">{feature.description}</p>
-                </div>
-              </div>
-            ))}
+          <div className="mt-12 md:mt-16 text-center max-w-3xl mx-auto">
+            <Link
+              to="/auth"
+              className="inline-block w-full sm:w-auto px-8 md:px-10 py-3 md:py-4 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl text-base md:text-lg transform hover:-translate-y-1 active:scale-95"
+            >
+              Criar Conta Gratuita
+            </Link>
           </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-16 md:py-24 px-4 md:px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-caky-text mb-4 md:mb-6">
-            Pronto para Estudar com Inteligência?
-          </h2>
-          <p className="text-lg md:text-xl text-caky-text/70 mb-8 md:mb-10">
-            Junte-se aos estudantes que estão passando em suas provas com tutoria personalizada de IA.
-          </p>
-          <Link
-            to="/auth"
-            className="inline-block w-full sm:w-auto px-8 md:px-10 py-3 md:py-4 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl text-base md:text-lg transform hover:-translate-y-1 active:scale-95"
-          >
-            Criar Conta Gratuita
-          </Link>
         </div>
       </section>
 
@@ -185,8 +125,8 @@ export default function Landing() {
       <footer className="border-t border-caky-text/10 py-8 md:py-12 px-4 md:px-6 bg-caky-card">
         <div className="max-w-6xl mx-auto text-center">
           <img src="/caky_logo.png" alt="Caky Logo" className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-4 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition" />
-          <div className="text-caky-text/50 text-xs md:text-sm font-medium">
-            © 2024 Caky. Built with React, Rust, and ❤️
+          <div className="text-caky-text/50 text-xs md:text-sm font-medium space-y-1">
+            <div>© 2025 Caky. Built by <a href="https://twitter.com/ArthurLoboLC" target="_blank" rel="noopener noreferrer" className="hover:text-caky-primary transition-colors">@ArthurLoboLC</a></div>
           </div>
         </div>
       </footer>
