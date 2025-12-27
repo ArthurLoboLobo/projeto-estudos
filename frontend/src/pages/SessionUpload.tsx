@@ -49,7 +49,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
     }
 
     setUploading(true);
-    setUploadProgress('Uploading...');
+    setUploadProgress('Enviando...');
 
     try {
       const token = getAuthToken();
@@ -242,7 +242,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                           <div className="flex items-center gap-2 mt-1">
                             <StatusBadge status={doc.extractionStatus} />
                             {doc.pageCount && (
-                              <span className="text-xs text-caky-text/50">{doc.pageCount} pages</span>
+                              <span className="text-xs text-caky-text/50">{doc.pageCount} páginas</span>
                             )}
                           </div>
                         </div>
@@ -310,15 +310,15 @@ function StatusBadge({ status }: { status: string }) {
     failed: 'bg-red-100 text-red-700 border-red-200',
   };
 
-  const icons: Record<string, string> = {
-    pending: '',
-    processing: '',
-    failed: '',
+  const statusTranslations: Record<string, string> = {
+    pending: 'Pendente',
+    processing: 'Processando',
+    failed: 'Falhou',
   };
 
   return (
     <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>
-      {icons[status]} {status}
+      {statusTranslations[status] || status}
     </span>
   );
 }

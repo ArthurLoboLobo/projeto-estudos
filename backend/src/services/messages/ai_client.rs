@@ -150,8 +150,6 @@ For tables:
 For bullet points and numbered lists:
 - Preserve the structure
 
-IMPORTANT: Keep the text in its original language (Portuguese, English, Spanish, etc.). Do not translate.
-
 Output the extracted content in plain text with LaTeX formulas embedded where appropriate.
 Do not add any commentary or explanations - just extract the content as-is."#;
 
