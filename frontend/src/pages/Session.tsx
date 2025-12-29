@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -8,7 +8,6 @@ import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
-import ThemeToggle from '../components/ui/ThemeToggle';
 import SessionHeader from '../components/SessionHeader';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
@@ -686,22 +685,30 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                   }
                 }}
                 placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
-                className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[44px] max-h-32' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition`}
+                className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[56px]' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition resize-none`}
                 disabled={sending}
                 autoComplete="off"
                 autoCapitalize="sentences"
                 autoCorrect="on"
                 spellCheck="true"
                 rows={1}
-                style={isMobile ? {
+                style={{
                   height: 'auto',
-                  minHeight: '44px'
-                } : {}}
+                  minHeight: isMobile ? '56px' : '52px',
+                  maxHeight: isMobile ? '120px' : '200px'
+                }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
-                  if (isMobile) {
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                  target.style.height = 'auto';
+                  const maxHeight = isMobile ? 120 : 200;
+                  const newHeight = Math.min(target.scrollHeight, maxHeight);
+                  target.style.height = newHeight + 'px';
+
+                  // Show scrollbar only when content exceeds max height
+                  if (target.scrollHeight > maxHeight) {
+                    target.style.overflowY = 'auto';
+                  } else {
+                    target.style.overflowY = 'hidden';
                   }
                 }}
               />
