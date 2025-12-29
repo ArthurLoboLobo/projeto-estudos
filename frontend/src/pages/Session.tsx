@@ -684,6 +684,13 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                     handleSendMessage(e);
                   }
                 }}
+                onKeyPress={(e) => {
+                  // Allow Shift+Enter for line breaks
+                  if (e.key === 'Enter' && e.shiftKey) {
+                    // Let the default behavior happen (insert line break)
+                    return;
+                  }
+                }}
                 placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
                 className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[56px]' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition resize-none`}
                 disabled={sending}
@@ -1211,6 +1218,29 @@ function StatusBadge({ status }: { status: string }) {
 function MessageBubble({ message, isMobile }: { message: Message; isMobile: boolean }) {
   const isUser = message.role === 'user';
 
+  // For user messages, preserve line breaks exactly as typed
+  // For assistant messages, use markdown rendering
+  const renderContent = () => {
+    if (isUser) {
+      // Use white-space: pre-wrap to preserve all whitespace including line breaks
+      return (
+        <div className="whitespace-pre-wrap break-words">
+          {message.content}
+        </div>
+      );
+    } else {
+      // Use ReactMarkdown for assistant messages (they may contain LaTeX, etc.)
+      return (
+        <ReactMarkdown
+          remarkPlugins={[remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+        >
+          {message.content}
+        </ReactMarkdown>
+      );
+    }
+  };
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
       <div
@@ -1221,12 +1251,7 @@ function MessageBubble({ message, isMobile }: { message: Message; isMobile: bool
         }`}
       >
         <div className={`prose ${isMobile ? 'prose-sm' : 'prose-sm md:prose-base'} max-w-none leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${isUser ? 'prose-invert' : ''} ${isMobile ? '[&_*]:text-sm' : ''}`}>
-          <ReactMarkdown
-            remarkPlugins={[remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-          >
-            {message.content}
-          </ReactMarkdown>
+          {renderContent()}
         </div>
         <div
           className={`text-xs mt-2 text-right font-medium ${
