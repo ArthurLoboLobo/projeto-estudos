@@ -98,6 +98,12 @@ export const GENERATE_WELCOME = gql`
   }
 `;
 
+export const UNDO_MESSAGE = gql`
+  mutation UndoMessage($messageId: ID!) {
+    undoMessage(messageId: $messageId)
+  }
+`;
+
 // ============ PLANNING ============
 
 export const START_PLANNING = gql`

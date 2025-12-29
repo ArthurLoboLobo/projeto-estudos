@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
+import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN, UNDO_MESSAGE } from '../lib/graphql/mutations';
 import SessionHeader from '../components/SessionHeader';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
@@ -129,9 +129,12 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   const [materialsCollapsed, setMaterialsCollapsed] = useState(true); // Start collapsed on mobile
   const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(true); // Start collapsed on mobile
   const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [showUndoConfirm, setShowUndoConfirm] = useState(false);
+  const [messageToUndo, setMessageToUndo] = useState<string | null>(null);
   const [isFullscreenChat, setIsFullscreenChat] = useState(false); // Mobile fullscreen mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false);
@@ -154,6 +157,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
   const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }, { sessionId: string, content: string }>(SEND_MESSAGE);
   const [generateWelcome, { loading: generatingWelcome }] = useMutation<{ generateWelcome: Message }, { sessionId: string }>(GENERATE_WELCOME);
+  const [undoMessage] = useMutation<{ undoMessage: string }, { messageId: string }>(UNDO_MESSAGE);
 
   // Lazy query for document URL
   const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
@@ -338,6 +342,11 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     const content = messageInput.trim();
     setMessageInput('');
 
+    // Reset textarea height to default
+    if (messageInputRef.current) {
+      messageInputRef.current.style.height = 'auto';
+    }
+
     const optimisticMessage: Message = {
       id: `optimistic-${Date.now()}`,
       role: 'user',
@@ -369,6 +378,47 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
       setOptimisticMessages([]);
       setAiTyping(false);
     }
+  };
+
+  const handleUndoMessage = async (messageId: string) => {
+    setMessageToUndo(messageId);
+    setShowUndoConfirm(true);
+  };
+
+  const confirmUndo = async () => {
+    if (!messageToUndo) return;
+
+    setShowUndoConfirm(false);
+    const messageId = messageToUndo;
+    setMessageToUndo(null);
+
+    try {
+      const result = await undoMessage({
+        variables: { messageId },
+      });
+
+      if (result.data?.undoMessage) {
+        // Put the message content back in the input box
+        setMessageInput(result.data.undoMessage);
+        // Reset textarea height to auto-adjust to new content
+        if (messageInputRef.current) {
+          messageInputRef.current.style.height = 'auto';
+          const maxHeight = isMobile ? 120 : 200;
+          messageInputRef.current.style.height = Math.min(messageInputRef.current.scrollHeight, maxHeight) + 'px';
+        }
+        // Refetch messages to update the list
+        refetchMessages();
+        toast.success('Mensagem desfeita');
+      }
+    } catch (err: any) {
+      console.error('Undo error:', err);
+      toast.error(err.message || 'Falha ao desfazer mensagem');
+    }
+  };
+
+  const cancelUndo = () => {
+    setShowUndoConfirm(false);
+    setMessageToUndo(null);
   };
 
 
@@ -631,7 +681,12 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               ) : (
                 <>
                   {messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} isMobile={isMobile} />
+                    <MessageBubble 
+                      key={msg.id} 
+                      message={msg} 
+                      isMobile={isMobile} 
+                      onUndo={handleUndoMessage}
+                    />
                   ))}
                   {aiTyping && (
                     <div className="flex justify-start mb-4">
@@ -676,6 +731,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
             )}
             <form onSubmit={handleSendMessage} className={`flex ${isMobile ? 'gap-3' : 'gap-2 md:gap-3'}`}>
               <textarea
+                ref={messageInputRef}
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -727,7 +783,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                 {sending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    {!isMobile && <span className="hidden md:inline">Thinking...</span>}
+                    {!isMobile && <span className="hidden md:inline">Pensando...</span>}
                   </>
                 ) : (
                   <>
@@ -848,6 +904,39 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
           </aside>
         )}
       </div>
+
+      {/* Undo Message Confirmation Modal */}
+      {showUndoConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-caky-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-caky-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-caky-text mb-2">Confirmar Desfazer</h3>
+              <p className="text-caky-text/70 text-sm leading-relaxed mb-6">
+                Tem certeza que deseja desfazer esta mensagem? Isso também removerá todas as mensagens posteriores nesta conversa.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelUndo}
+                  className="flex-1 px-4 py-2 text-caky-text border border-gray-200 rounded-lg hover:bg-gray-50 transition font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmUndo}
+                  className="flex-1 px-4 py-2 bg-caky-primary text-white rounded-lg hover:bg-caky-primary/90 transition font-medium"
+                >
+                  Desfazer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Study Plan Modal */}
       {showEditPlanModal && studyPlan && (
@@ -1215,23 +1304,24 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function MessageBubble({ message, isMobile }: { message: Message; isMobile: boolean }) {
-  const isUser = message.role === 'user';
+interface MessageBubbleProps {
+  message: Message;
+  isMobile: boolean;
+  onUndo?: (messageId: string) => void;
+}
 
-  // For user messages, preserve line breaks by converting to HTML
+function MessageBubble({ message, isMobile, onUndo }: MessageBubbleProps) {
+  const isUser = message.role === 'user';
+  const isOptimistic = message.id.startsWith('optimistic-');
+
+  // For user messages, preserve line breaks exactly as typed
   // For assistant messages, use markdown rendering
   const renderContent = () => {
     if (isUser) {
-      // Convert line breaks to <br> tags for user messages
-      const lines = message.content.split('\n');
+      // Use white-space: pre-wrap to preserve all whitespace including line breaks
       return (
-        <div className="whitespace-pre-wrap">
-          {lines.map((line, index) => (
-            <span key={index}>
-              {line}
-              {index < lines.length - 1 && <br />}
-            </span>
-          ))}
+        <div className="whitespace-pre-wrap break-words">
+          {message.content}
         </div>
       );
     } else {
@@ -1248,7 +1338,19 @@ function MessageBubble({ message, isMobile }: { message: Message; isMobile: bool
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
+    <div className={`group flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
+      {/* Undo button for user messages - appears on hover */}
+      {isUser && onUndo && !isOptimistic && (
+        <button
+          onClick={() => onUndo(message.id)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-caky-primary hover:bg-gray-100 rounded-lg"
+          title="Desfazer mensagem"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        </button>
+      )}
       <div
         className={`max-w-[90%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-4 py-3' : 'px-5 py-3'} shadow-sm relative ${
           isUser

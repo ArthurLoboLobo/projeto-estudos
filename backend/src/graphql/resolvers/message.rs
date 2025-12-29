@@ -132,3 +132,21 @@ pub async fn generate_welcome(ctx: &Context<'_>, session_id: ID) -> Result<Messa
 
     Ok(welcome_message.into())
 }
+
+/// Undo a message - deletes it and all messages after it, returns the message content
+pub async fn undo_message(ctx: &Context<'_>, message_id: ID) -> Result<String> {
+    let gql_ctx = ctx.data::<GraphQLContext>()?;
+    let user_id = gql_ctx.require_auth()?;
+    let pool = ctx.data::<PgPool>()?;
+
+    let message_uuid = Uuid::parse_str(&message_id).map_err(|_| "Invalid message ID")?;
+
+    tracing::info!("Undoing message {} for user {}", message_uuid, user_id);
+
+    // Delete the message and all after it, get the content back
+    let content = messages::delete_message_and_after(pool, user_id, message_uuid).await?;
+
+    tracing::info!("Message undone successfully");
+
+    Ok(content)
+}

@@ -152,6 +152,11 @@ impl MutationRoot {
         message::generate_welcome(ctx, session_id).await
     }
 
+    /// Undo a message - deletes it and all messages after it, returns the content
+    async fn undo_message(&self, ctx: &Context<'_>, message_id: ID) -> Result<String> {
+        message::undo_message(ctx, message_id).await
+    }
+
     /// Start the planning phase - generates initial study plan from documents
     async fn start_planning(&self, ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
         planning::start_planning(ctx, session_id).await
