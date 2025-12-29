@@ -147,6 +147,11 @@ impl MutationRoot {
         message::clear_messages(ctx, session_id).await
     }
 
+    /// Generate the initial welcome message from the AI tutor (for empty chats)
+    async fn generate_welcome(&self, ctx: &Context<'_>, session_id: ID) -> Result<Message> {
+        message::generate_welcome(ctx, session_id).await
+    }
+
     /// Start the planning phase - generates initial study plan from documents
     async fn start_planning(&self, ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
         planning::start_planning(ctx, session_id).await

@@ -87,6 +87,17 @@ export const CLEAR_MESSAGES = gql`
   }
 `;
 
+export const GENERATE_WELCOME = gql`
+  mutation GenerateWelcome($sessionId: ID!) {
+    generateWelcome(sessionId: $sessionId) {
+      id
+      role
+      content
+      createdAt
+    }
+  }
+`;
+
 // ============ PLANNING ============
 
 export const START_PLANNING = gql`

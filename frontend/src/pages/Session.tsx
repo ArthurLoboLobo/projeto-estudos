@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, SEND_MESSAGE, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
+import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN } from '../lib/graphql/mutations';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import SessionHeader from '../components/SessionHeader';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
@@ -154,6 +154,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   // Mutations
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
   const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }, { sessionId: string, content: string }>(SEND_MESSAGE);
+  const [generateWelcome, { loading: generatingWelcome }] = useMutation<{ generateWelcome: Message }, { sessionId: string }>(GENERATE_WELCOME);
 
   // Lazy query for document URL
   const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
@@ -169,6 +170,31 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
   
   // Combine server messages with optimistic messages for immediate UI feedback
   const messages: Message[] = [...serverMessages, ...optimisticMessages];
+
+  // Track if we've already triggered the welcome message
+  const [welcomeTriggered, setWelcomeTriggered] = useState(false);
+
+  // Auto-trigger welcome message when chat loads with no messages
+  useEffect(() => {
+    // Only trigger once, when messages are loaded and empty
+    if (!loadingMessages && serverMessages.length === 0 && !welcomeTriggered && !generatingWelcome) {
+      setWelcomeTriggered(true);
+      setAiTyping(true);
+      
+      // Generate welcome message from AI (no user message needed)
+      generateWelcome({
+        variables: { sessionId: session.id },
+        onCompleted: () => {
+          refetchMessages();
+          setAiTyping(false);
+        },
+        onError: (err) => {
+          console.error('Welcome message error:', err);
+          setAiTyping(false);
+        }
+      });
+    }
+  }, [loadingMessages, serverMessages.length, welcomeTriggered, generatingWelcome, session.id, generateWelcome, refetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -597,7 +623,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center min-h-full text-center px-4 opacity-80">
                   <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
-                    Ready to help you study!
+                    Pronto para te ajudar a estudar!
                   </h3>
                   <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
                     Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
@@ -617,7 +643,7 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
                             <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                             <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                           </div>
-                          <span className="text-sm text-caky-text/50 font-medium">AI is thinking...</span>
+                          <span className="text-sm text-caky-text/50 font-medium">Caky está pensando...</span>
                         </div>
                       </div>
                     </div>

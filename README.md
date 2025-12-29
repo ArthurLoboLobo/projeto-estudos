@@ -26,7 +26,7 @@ A web platform that helps university students prepare for exams through hyper-fo
 Caky provides **contextual tutoring** based on the student's actual course materials. Upload your professor's slides, past exams, and notes — the AI will answer questions, explain concepts, and help you study using exactly what you need to know.
 
 **Key Features:**
-- 📄 **PDF Upload** — Upload slides, old exams, notes (with formula support)
+- 📄 **PDF Upload** — Upload slides, old exams, notes (with LaTeX formula support)
 - 🧠 **Context-Aware AI** — Gemini 2.5 Flash uses your materials to answer questions
 - 📋 **AI-Generated Study Plans** — Personalized study plans with JSON structure and topic status tracking
 - ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance and version control
@@ -34,7 +34,10 @@ Caky provides **contextual tutoring** based on the student's actual course mater
 - 🔄 **Horizontal Expand/Collapse** — Space-efficient sidebar management with horizontal collapse
 - 📝 **In-Chat Plan Editing** — Edit study plans directly from the chat interface with live updates
 - ↩️ **Version Control & Undo** — Revert study plan changes with one-click undo functionality
-- 🌍 **Brazilian Portuguese** — Fully localized interface with intelligent language detection
+- 🤖 **AI Welcome Messages** — AI automatically greets you and explains your study plan when starting
+- 🎓 **Structured Teaching Flow** — 4-phase learning methodology: Transition → Theory → Practice → Mastery
+- 📈 **Scaffolded Learning** — Progressive hints and regression handling for optimal learning
+- 🌍 **Brazilian Portuguese** — Fully localized with conversational AI that uses "a gente", "bora", "beleza"
 - 💬 **Chat History** — Conversations are saved per study session
 - 📱 **Responsive Design** — Works on desktop and mobile
 
@@ -139,7 +142,7 @@ The frontend will start at `http://localhost:5173`.
 5. Wait for AI text extraction to complete
 6. Click "Começar Planejamento" to generate a personalized study plan
 7. Review and refine the study plan with topic status tracking (Preciso Aprender, Preciso Revisar, Sei Bem)
-8. Click "Começar a Estudar" to begin chatting with your AI tutor (responds in Portuguese by default)
+8. Click "Começar a Estudar" — the AI tutor will greet you with a personalized welcome message and explain your study plan
 
 ---
 
@@ -191,20 +194,22 @@ The frontend will start at `http://localhost:5173`.
       └───────────────┘    └───────────────┘    └────────────────┘
 ```
 
-### Data Flow Example: User Sends a Chat Message
+### Data Flow Example: AI-Initiated Study Session
 
 ```
-1. User types "Explain Theorem 3.2" and clicks Send
-2. Frontend calls GraphQL: sendMessage(sessionId, "Explain Theorem 3.2")
+1. User clicks "Começar a Estudar"
+2. Frontend detects empty chat → calls GraphQL: generateWelcome(sessionId)
 3. Backend:
    a. Validates JWT token
-   b. Fetches all documents for this session (with user_id check)
-   c. Fetches last 20 chat messages
-   d. Builds prompt: [System + Document Texts + Chat History + User Message]
-   e. Calls OpenRouter API (Gemini 2.5 Flash)
-   f. Saves user message + AI response to database
-   g. Returns AI response
-4. Frontend displays the AI response in the chat
+   b. Verifies session belongs to user and has study plan
+   c. Checks that chat is empty (no previous messages)
+   d. Fetches study plan and document context
+   e. Builds welcome prompt with structured teaching instructions
+   f. Calls OpenRouter API (Gemini 2.5 Flash) to generate welcome message
+   g. Saves AI welcome message to database (role: 'assistant')
+   h. Returns welcome message
+4. Frontend displays AI welcome message and structured study plan overview
+5. User responds → continues with sendMessage flow following 4-phase teaching methodology
 ```
 
 ---
@@ -465,6 +470,7 @@ GraphQL Playground available at: `GET /graphql`
 | `updateTopicStatus(sessionId, topicId, status)` | ✅ | Update knowledge status for a topic |
 | `startStudying(sessionId)` | ✅ | Finalize plan and begin studying |
 | `sendMessage(sessionId, content)` | ✅ | Send message, get AI response |
+| `generateWelcome(sessionId)` | ✅ | Generate AI welcome message for empty chats |
 | `clearMessages(sessionId)` | ✅ | Clear chat history |
 
 ### REST Endpoint
@@ -517,6 +523,13 @@ mutation {
 # Send message (returns AI response)
 mutation {
   sendMessage(sessionId: "...", content: "Explain integration by parts") {
+    id role content createdAt
+  }
+}
+
+# Generate welcome message (for empty chats)
+mutation {
+  generateWelcome(sessionId: "...") {
     id role content createdAt
   }
 }
@@ -684,50 +697,52 @@ Gemini Vision "reads" the page like a human and outputs:
   ✓ "The integral $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$"
 ```
 
-### 3. Chat Flow
+### 3. AI-Initiated Study Session
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         CHAT WITH AI                                  │
+│                      AI-INITIATED STUDY SESSION                        │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                       │
-│  1. User types: "Explain the proof of Theorem 3.2"                    │
+│  1. User clicks "Começar a Estudar"                           │
 │                                                                       │
-│  2. Frontend calls: sendMessage(sessionId, content)                   │
+│  2. Frontend detects empty chat → calls generateWelcome(sessionId)   │
 │                                                                       │
-│  3. Backend builds context:                                           │
+│  3. Backend generates AI welcome message:                            │
 │     ┌─────────────────────────────────────────────────────────────┐  │
-│     │ SYSTEM PROMPT:                                               │  │
-│     │ You are an expert tutor. Use ONLY the following study       │  │
-│     │ materials to answer questions. If the answer is not in      │  │
-│     │ the materials, say so.                                       │  │
-│     │                                                              │  │
-│     │ === STUDY MATERIALS ===                                      │  │
-│     │                                                              │  │
-│     │ [lecture-01.pdf]                                             │  │
-│     │ --- Page 1 ---                                               │  │
-│     │ Chapter 3: Advanced Integration...                           │  │
-│     │ --- Page 2 ---                                               │  │
-│     │ Theorem 3.2: If f(x) is continuous on [a,b], then...        │  │
-│     │ ...                                                          │  │
-│     │                                                              │  │
-│     │ [exam-2023.pdf]                                              │  │
-│     │ Question 1: Prove Theorem 3.2...                             │  │
-│     │ ...                                                          │  │
-│     │                                                              │  │
-│     │ === CONVERSATION HISTORY ===                                 │  │
-│     │ User: What topics should I focus on?                         │  │
-│     │ Assistant: Based on your materials...                        │  │
-│     │ User: Explain the proof of Theorem 3.2  ← current message   │  │
+│     │ AI WELCOME MESSAGE:                                         │  │
+│     │ "Olá! Sou o Caky, seu tutor de estudos! 🎓                │  │
+│     │                                                             │  │
+│     │ Seu plano de estudos tem 5 tópicos:                         │  │
+│     │ 1. **Derivadas** - Aprender conceito fundamental...        │  │
+│     │ 2. **Integrais** - Aplicar técnicas de integração...       │  │
+│     │ ...                                                         │  │
+│     │                                                             │  │
+│     │ Bora começar pelo primeiro tópico: Derivadas?             │  │
+│     │ Quer ajustar algo no plano?"                                │  │
 │     └─────────────────────────────────────────────────────────────┘  │
 │                                                                       │
-│  4. Send to OpenRouter API (Gemini 2.5 Flash)                         │
+│  4. AI follows 4-phase teaching methodology:                        │
+│     ┌─────────────────────────────────────────────────────────────┐  │
+│     │ PHASE 1: TOPIC TRANSITION                                   │  │
+│     │ - Connects to previous topic                                │  │
+│     │ - Asks for confirmation to proceed                         │  │
+│     │                                                             │  │
+│     │ PHASE 2: TEACHING THEORY                                    │  │
+│     │ - Checks topic status (Preciso Aprender/Review/Bem)        │  │
+│     │ - Explains "why" (utility/real-world application)          │  │
+│     │ - Breaks into small chunks, asks "Faz sentido?"            │  │
+│     │                                                             │  │
+│     │ PHASE 3: SCAFFOLDED PRACTICE                                │  │
+│     │ - Mimics document question formats                          │  │
+│     │ - Guided → Independent progression                         │  │
+│     │ - Progressive hints if stuck                               │  │
+│     │                                                             │  │
+│     │ PHASE 4: MASTERY TRIGGER                                    │  │
+│     │ - Congratulates success, suggests next topic               │  │
+│     └─────────────────────────────────────────────────────────────┘  │
 │                                                                       │
-│  5. Save both messages to database:                                   │
-│     - User message (role: 'user')                                     │
-│     - AI response (role: 'assistant')                                 │
-│                                                                       │
-│  6. Return AI response to frontend                                    │
+│  5. User responds → AI continues structured teaching flow           │
 │                                                                       │
 └──────────────────────────────────────────────────────────────────────┘
 
@@ -1145,6 +1160,10 @@ sudo apt install poppler-utils  # Ubuntu
 | **Horizontal Expand/Collapse** | Space-efficient sidebar management with horizontal collapse | ✅ **Implemented** |
 | **In-Chat Plan Editing** | Edit study plans directly from the chat interface | ✅ **Implemented** |
 | **Enhanced Error Handling** | User-friendly error messages and improved UX | ✅ **Implemented** |
+| **AI Welcome Messages** | AI automatically greets users and explains study plans when starting | ✅ **Implemented** |
+| **Structured Teaching Flow** | 4-phase learning methodology: Transition → Theory → Practice → Mastery | ✅ **Implemented** |
+| **Scaffolded Learning** | Progressive hints and regression handling for optimal learning | ✅ **Implemented** |
+| **Conversational Brazilian Portuguese** | AI uses natural expressions like "a gente", "bora", "beleza" | ✅ **Implemented** |
 | **Streaming Responses** | Real-time AI response streaming via SSE | Planned |
 | **Smart Context Selection** | When documents exceed limits, use relevance scoring | Planned |
 | **Flashcard Generation** | AI-generated flashcards from materials | Planned |
