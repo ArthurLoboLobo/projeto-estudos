@@ -47,10 +47,7 @@ pub async fn send_message(
 
     tracing::info!("Processing message for session {}", session_uuid);
 
-    // Save user message
-    messages::create_message(pool, session_uuid, "user", &content).await?;
-
-    // Get AI response
+    // Get AI response FIRST (before saving user message to avoid duplication in history)
     let ai_response = chat::process_message(
         pool,
         config,
@@ -59,6 +56,9 @@ pub async fn send_message(
         &content,
     )
     .await?;
+
+    // Save user message
+    messages::create_message(pool, session_uuid, "user", &content).await?;
 
     // Save AI response
     let assistant_message = messages::create_message(

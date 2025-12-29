@@ -1218,14 +1218,20 @@ function StatusBadge({ status }: { status: string }) {
 function MessageBubble({ message, isMobile }: { message: Message; isMobile: boolean }) {
   const isUser = message.role === 'user';
 
-  // For user messages, preserve line breaks exactly as typed
+  // For user messages, preserve line breaks by converting to HTML
   // For assistant messages, use markdown rendering
   const renderContent = () => {
     if (isUser) {
-      // Use white-space: pre-wrap to preserve all whitespace including line breaks
+      // Convert line breaks to <br> tags for user messages
+      const lines = message.content.split('\n');
       return (
-        <div className="whitespace-pre-wrap break-words">
-          {message.content}
+        <div className="whitespace-pre-wrap">
+          {lines.map((line, index) => (
+            <span key={index}>
+              {line}
+              {index < lines.length - 1 && <br />}
+            </span>
+          ))}
         </div>
       );
     } else {
