@@ -2,13 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN, UNDO_MESSAGE } from '../lib/graphql/mutations';
 import SessionHeader from '../components/SessionHeader';
+import Markdown from '../components/ui/Markdown';
 import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
@@ -1325,14 +1323,11 @@ function MessageBubble({ message, isMobile, onUndo }: MessageBubbleProps) {
         </div>
       );
     } else {
-      // Use ReactMarkdown for assistant messages (they may contain LaTeX, etc.)
+      // Use Markdown component for assistant messages (supports LaTeX, tables, etc.)
       return (
-        <ReactMarkdown
-          remarkPlugins={[remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-        >
+        <Markdown isUserMessage={false} isMobile={isMobile}>
           {message.content}
-        </ReactMarkdown>
+        </Markdown>
       );
     }
   };
