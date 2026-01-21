@@ -37,17 +37,27 @@ pub async fn process_message(
             .join("\n\n")
     };
 
-    // 2. Build system prompt based on chat type
+    // 2. Fetch topics for study plan context
+    let all_topics = topics::get_session_topics(pool, profile_id, session_id).await?;
+    let study_plan_context = all_topics
+        .iter()
+        .map(|t| format!("- {}: {} ({})", t.title, t.description.as_deref().unwrap_or(""), if t.is_completed { "Completed" } else { "Not Completed" }))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // 3. Build system prompt based on chat type
     let system_prompt = if let Some(topic) = topic_name {
         TOPIC_SYSTEM_PROMPT
             .replace("{topic_name}", topic)
             .replace("{context}", &context)
+            .replace("{study_plan}", &study_plan_context)
     } else {
         REVIEW_SYSTEM_PROMPT
             .replace("{context}", &context)
+            .replace("{study_plan}", &study_plan_context)
     };
 
-    // 3. Fetch recent conversation history for this specific chat
+    // 4. Fetch recent conversation history for this specific chat
     let recent_messages = messages::get_recent_messages(
         pool, 
         profile_id, 
@@ -55,13 +65,13 @@ pub async fn process_message(
         MAX_HISTORY_MESSAGES
     ).await?;
 
-    // 4. Build conversation history for the AI
+    // 5. Build conversation history for the AI
     let history: Vec<(String, String)> = recent_messages
         .iter()
         .map(|m| (m.role.clone(), m.content.clone()))
         .collect();
 
-    // 5. Call AI
+    // 6. Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
     
     let ai_response = ai_client
