@@ -1,6 +1,6 @@
 # 📚 Caky - AI-Powered Exam Preparation Platform
 
-A web platform that helps university students prepare for exams through hyper-focused, context-aware AI tutoring. Students upload their study materials (past exams, slides, notes), and the AI becomes a personalized tutor that understands their specific course content.
+A web platform that helps university students prepare for exams through hyper-focused, context-aware AI tutoring. Students upload their study materials (past exams, slides, notes), and the AI builds a modular curriculum, acting as a personalized tutor for each specific topic.
 
 ---
 
@@ -23,23 +23,18 @@ A web platform that helps university students prepare for exams through hyper-fo
 
 ## 🎯 Core Value Proposition
 
-Caky provides **contextual tutoring** based on the student's actual course materials. Upload your professor's slides, past exams, and notes — the AI will answer questions, explain concepts, and help you study using exactly what you need to know.
+Caky transforms your chaotic study materials into a **structured, modular curriculum**. Instead of one giant chat, Caky breaks your exam down into specific topics, creating a dedicated study environment for each one.
 
 **Key Features:**
-- 📄 **PDF Upload** — Upload slides, old exams, notes (with LaTeX formula support)
-- 🧠 **Context-Aware AI** — Gemini 2.5 Flash uses your materials to answer questions
-- 📋 **AI-Generated Study Plans** — Personalized study plans with JSON structure and topic status tracking
-- ✏️ **Interactive Plan Refinement** — Edit and improve study plans with AI assistance and version control
-- 🎯 **Topic Progress Tracking** — Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem)
-- 🔄 **Horizontal Expand/Collapse** — Space-efficient sidebar management with horizontal collapse
-- 📝 **In-Chat Plan Editing** — Edit study plans directly from the chat interface with live updates
-- ↩️ **Version Control & Undo** — Revert study plan changes with one-click undo functionality
-- 🤖 **AI Welcome Messages** — AI automatically greets you and explains your study plan when starting
-- 🎓 **Structured Teaching Flow** — 4-phase learning methodology: Transition → Theory → Practice → Mastery
-- 📈 **Scaffolded Learning** — Progressive hints and regression handling for optimal learning
-- 🌍 **Brazilian Portuguese** — Fully localized with conversational AI that uses "a gente", "bora", "beleza"
-- 💬 **Chat History** — Conversations are saved per study session
-- 📱 **Responsive Design** — Works on desktop and mobile
+- 📄 **PDF Upload** — Upload slides, old exams, notes (with LaTeX formula support).
+- 🧩 **Modular Curriculum** — AI analyzes your materials to create a structured list of topics.
+- 🎯 **Topic-Specific Chats** — Each topic gets its own dedicated chat thread with focused context.
+- ✅ **Knowledge Check** — "Test out" of topics you already know during the planning phase.
+- 📊 **Progress Tracking** — Visual dashboard with topic cards, progress bars, and completion status.
+- 🔄 **General Review** — A special "Review & Practice" chat that integrates knowledge from all topics.
+- 📱 **Responsive Design** — Full mobile support with intuitive sidebar navigation.
+- 🤖 **Context-Aware AI** — Gemini 2.5 Flash uses your specific documents to answer questions.
+- 🇧🇷 **Brazilian Portuguese** — Fully localized interface and conversational AI.
 
 ---
 
@@ -63,9 +58,6 @@ brew install poppler
 
 # Ubuntu/Debian:
 sudo apt install poppler-utils
-
-# Verify Poppler:
-pdftoppm -v  # Should show version info
 ```
 
 ### 1. Clone and Setup
@@ -83,13 +75,13 @@ cd projeto-estudos
    - Project URL (e.g., `https://xxx.supabase.co`)
    - `service_role` key (secret, for backend only)
 4. Go to **Storage** and create a bucket called `documents` (set to **Private**)
-5. Go to **SQL Editor** and run the migrations:
-
-```sql
--- Copy contents of backend/migrations/001_initial_schema.sql and run it
--- Then copy contents of backend/migrations/003_json_study_plans.sql and run it
--- Finally copy contents of backend/migrations/004_json_study_plans.sql and run it
-```
+5. Go to **SQL Editor** and run the migrations found in `backend/migrations/`:
+   - `001_create_profiles_table.sql`
+   - `002_create_study_sessions_table.sql`
+   - `003_create_documents_table.sql`
+   - `004_create_topics_table.sql`
+   - `005_create_chats_table.sql`
+   - `006_create_messages_table.sql`
 
 ### 3. Backend Setup
 
@@ -135,14 +127,13 @@ The frontend will start at `http://localhost:5173`.
 
 ### 5. Verify Everything Works
 
-1. Open `http://localhost:5173` in your browser
-2. Click "Começar" to create an account (fully in Brazilian Portuguese)
-3. Create a study session (automatically navigates to upload page)
-4. Upload PDF documents (slides, exams, notes)
-5. Wait for AI text extraction to complete
-6. Click "Começar Planejamento" to generate a personalized study plan
-7. Review and refine the study plan with topic status tracking (Preciso Aprender, Preciso Revisar, Sei Bem)
-8. Click "Começar a Estudar" — the AI tutor will greet you with a personalized welcome message and explain your study plan
+1. Open `http://localhost:5173` in your browser.
+2. Click "Começar" to create an account.
+3. Create a new session (e.g., "Physics Final").
+4. Upload PDF documents.
+5. Click "Gerar Plano de Estudo" to create the curriculum.
+6. Review topics, mark any you already know, and click "Começar a Estudar".
+7. Explore the topic cards and start a chat!
 
 ---
 
@@ -152,11 +143,12 @@ The frontend will start at `http://localhost:5173`.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         FRONTEND (React + Vite)                      │
 │                                                                       │
-│  Landing Page  →  Auth Forms  →  Dashboard  →  Session (Upload → Planning → Studying) │
+│  Landing  →  Dashboard  →  Session Flow:                              │
+│  1. Upload  →  2. Planning (Draft)  →  3. Studying (Topic Cards)      │
 │                                                                       │
 │  • Apollo Client for GraphQL                                          │
 │  • JWT stored in localStorage                                         │
-│  • Zero API keys (all external calls go through backend)             │
+│  • Sidebar for Chat & Document Navigation                             │
 └───────────────────────────────────┬─────────────────────────────────┘
                                     │
                  ┌──────────────────┼──────────────────┐
@@ -169,16 +161,16 @@ The frontend will start at `http://localhost:5173`.
 │                         BACKEND (Rust + Axum)                        │
 ├─────────────────────────────────────────────────────────────────────┤
 │  PRESENTATION LAYER                                                  │
-│  └── GraphQL Resolvers (queries, mutations)                          │
-│  └── REST Endpoint: POST /api/upload (multipart file upload)         │
+│  └── GraphQL Resolvers (session, topic, chat, message)               │
+│  └── REST Endpoint: POST /api/upload                                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  SERVICE LAYER (Business Logic)                                      │
-│  ├── auth/        → Password hashing (Argon2), JWT creation          │
-│  ├── documents/   → PDF download, image conversion, vision AI        │
-│  └── messages/    → Context assembly, OpenRouter API calls           │
+│  ├── planning/    → Curriculum generation & refinement               │
+│  ├── documents/   → PDF processing & Vision AI extraction            │
+│  └── messages/    → Topic-scoped context assembly                    │
 ├─────────────────────────────────────────────────────────────────────┤
 │  STORAGE LAYER (Data Access)                                         │
-│  └── SQLx queries with explicit user_id authorization                │
+│  └── SQLx queries with explicit profile_id authorization             │
 └───────────────────────────────────┬─────────────────────────────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
@@ -187,29 +179,11 @@ The frontend will start at `http://localhost:5173`.
       │  PostgreSQL   │    │   Supabase    │    │   OpenRouter   │
       │  (Supabase)   │    │   Storage     │    │  (Gemini 2.5)  │
       │               │    │   (PDFs)      │    │                │
-      │  • users      │    │               │    │  • Vision API  │
-      │  • sessions   │    │  Bucket:      │    │  • Chat API    │
-      │  • documents  │    │  "documents"  │    │                │
-      │  • messages   │    │  (private)    │    │                │
+      │  • profiles   │    │               │    │  • Vision API  │
+      │  • topics     │    │  Bucket:      │    │  • Chat API    │
+      │  • chats      │    │  "documents"  │    │                │
+      │  • messages   │    │               │    │                │
       └───────────────┘    └───────────────┘    └────────────────┘
-```
-
-### Data Flow Example: AI-Initiated Study Session
-
-```
-1. User clicks "Começar a Estudar"
-2. Frontend detects empty chat → calls GraphQL: generateWelcome(sessionId)
-3. Backend:
-   a. Validates JWT token
-   b. Verifies session belongs to user and has study plan
-   c. Checks that chat is empty (no previous messages)
-   d. Fetches study plan and document context
-   e. Builds welcome prompt with structured teaching instructions
-   f. Calls OpenRouter API (Gemini 2.5 Flash) to generate welcome message
-   g. Saves AI welcome message to database (role: 'assistant')
-   h. Returns welcome message
-4. Frontend displays AI welcome message and structured study plan overview
-5. User responds → continues with sendMessage flow following 4-phase teaching methodology
 ```
 
 ---
@@ -222,741 +196,107 @@ projeto-estudos/
 ├── frontend/                      # React SPA
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── auth/
-│   │   │   │   └── AuthForm.tsx   # Login/Signup form
-│   │   │   └── ProtectedRoute.tsx # Route guard for auth
-│   │   │
+│   │   │   ├── SessionHeader.tsx
+│   │   │   └── ProcessingStatusBadge.tsx
 │   │   ├── pages/
-│   │   │   ├── Landing.tsx        # Homepage with hero section
-│   │   │   ├── Auth.tsx           # Auth page wrapper
-│   │   │   ├── Dashboard.tsx      # List of study sessions
-│   │   │   ├── Session.tsx        # Main study view (stage router)
-│   │   │   ├── SessionUpload.tsx  # Document upload interface
-│   │   │   └── SessionPlanning.tsx # Study plan generation/refinement
-│   │   │
-│   │   ├── lib/
-│   │   │   ├── apollo.ts          # Apollo Client configuration
-│   │   │   ├── auth.tsx           # AuthContext + useAuth hook
-│   │   │   ├── utils.ts           # cn() helper for Tailwind
-│   │   │   └── graphql/
-│   │   │       ├── queries.ts     # GraphQL query definitions
-│   │   │       └── mutations.ts   # GraphQL mutation definitions
-│   │   │
-│   │   ├── types/
-│   │   │   └── index.ts           # TypeScript interfaces
-│   │   │
-│   │   ├── App.tsx                # Router configuration
-│   │   ├── main.tsx               # Entry point (providers)
-│   │   └── index.css              # Tailwind + custom styles
-│   │
-│   ├── .env                       # VITE_GRAPHQL_ENDPOINT only
-│   ├── package.json
-│   └── vite.config.ts
+│   │   │   ├── Dashboard.tsx      # List of sessions
+│   │   │   ├── Session.tsx        # Main router & Study View (Topic Cards)
+│   │   │   ├── SessionUpload.tsx  # Step 1: Upload & Processing
+│   │   │   └── SessionPlanning.tsx # Step 2: Curriculum Review
+│   │   ├── lib/graphql/           # Queries & Mutations
+│   │   └── types/                 # TypeScript interfaces
 │
 ├── backend/                       # Rust API Server
 │   ├── src/
-│   │   ├── main.rs                # Axum server setup, routes
-│   │   ├── config.rs              # Environment variable loading
-│   │   ├── errors.rs              # Custom error types
-│   │   │
-│   │   ├── api/
-│   │   │   ├── mod.rs
-│   │   │   └── upload.rs          # POST /api/upload handler
-│   │   │
-│   │   ├── graphql/
-│   │   │   ├── mod.rs
-│   │   │   ├── schema.rs          # Schema + AppState + handlers
-│   │   │   ├── context.rs         # GraphQLContext (user_id from JWT)
+│   │   ├── api/                   # REST endpoints
+│   │   ├── graphql/               # GraphQL Schema & Resolvers
 │   │   │   ├── resolvers/
-│   │   │   │   ├── auth.rs        # register, login, me
-│   │   │   │   ├── session.rs     # CRUD for study sessions
-│   │   │   │   ├── document.rs    # addDocument, deleteDocument
-│   │   │   │   └── message.rs     # messages, sendMessage, clearMessages
-│   │   │   └── types/
-│   │   │       ├── user.rs        # User GraphQL type
-│   │   │       ├── session.rs     # Session GraphQL type
-│   │   │       ├── document.rs    # Document GraphQL type
-│   │   │       └── message.rs     # Message GraphQL type
-│   │   │
-│   │   ├── services/              # Business Logic Layer
-│   │   │   ├── auth/
-│   │   │   │   ├── password.rs    # hash_password(), verify_password()
-│   │   │   │   └── jwt.rs         # create_jwt(), verify_jwt()
-│   │   │   ├── documents/
-│   │   │   │   ├── ingestion.rs   # process_pdf(), process_document()
-│   │   │   │   └── storage_client.rs  # Supabase Storage API
-│   │   │   ├── messages/
-│   │   │   │   ├── ai_client.rs   # OpenRouterClient
-│   │   │   │   └── chat.rs        # send_message() orchestration
-│   │   │   └── planning/
-│   │   │       └── mod.rs         # generate_study_plan(), revise_study_plan()
-│   │   │
-│   │   └── storage/               # Data Access Layer
-│   │       ├── users/mod.rs       # create_user, get_user_by_email
-│   │       ├── sessions/mod.rs    # CRUD for study_sessions
-│   │       ├── documents/mod.rs   # CRUD for documents
-│   │       ├── messages/mod.rs    # CRUD for messages
-│   │       └── study_plans/mod.rs # CRUD for study_plans (versioned)
-│   │
-│   ├── migrations/
-│   │   ├── 001_initial_schema.sql # Initial database schema
-│   │   ├── 002_add_document_extraction_columns.sql # Document processing
-│   │   ├── 003_json_study_plans.sql # JSON study plans structure
-│   │   └── 004_json_study_plans.sql # Add content_json field
-│   │
-│   ├── .env                       # All secrets (gitignored)
-│   └── Cargo.toml                 # Rust dependencies
-│
-├── .gitignore                     # Ignores .env files
-└── README.md                      # This file
+│   │   │   │   ├── topic.rs       # Topic management
+│   │   │   │   ├── chat.rs        # Chat creation & retrieval
+│   │   │   │   └── planning.rs    # Plan generation logic
+│   │   ├── services/              # Business Logic
+│   │   │   ├── planning/          # AI Curriculum generation
+│   │   │   └── messages/          # Context management
+│   │   └── storage/               # DB Access (SQLx)
+│   │       ├── topics/
+│   │       ├── chats/
+│   │       └── profiles/
+│   ├── migrations/                # SQL Migration files
 ```
 
 ---
 
 ## 🗄️ Database Schema
 
-> **Portability Note:** This schema uses standard PostgreSQL only. No Supabase-specific features.
-> Authorization is enforced in the Rust service layer, not via RLS.
+The database is designed around the **Modular Curriculum** concept.
 
-```sql
--- Users (email + password authentication)
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,  -- Argon2 hash
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+### 1. Enums
+- **SessionStatus**: `PLANNING`, `ACTIVE`, `COMPLETED`
+- **ChatType**: `TOPIC_SPECIFIC`, `GENERAL_REVIEW`
+- **ProcessingStatus**: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
 
--- Study Sessions (one user has many sessions)
-CREATE TABLE study_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    stage VARCHAR(20) NOT NULL DEFAULT 'uploading'
-        CHECK (stage IN ('uploading', 'planning', 'studying')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+### 2. Tables
 
--- Documents (extracted text from uploaded PDFs)
-CREATE TABLE documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
-    file_name VARCHAR(255) NOT NULL,
-    file_path TEXT NOT NULL,               -- Path in Supabase Storage
-    content_text TEXT NOT NULL,            -- Extracted text (with LaTeX)
-    content_length INTEGER NOT NULL,       -- Character count
-    extraction_status VARCHAR(20) DEFAULT 'pending'
-        CHECK (extraction_status IN ('pending', 'processing', 'completed', 'failed')),
-    page_count INTEGER,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+**`profiles`** (formerly users)
+- `id` (UUID, PK)
+- `email`, `password_hash`
 
--- Study Plans (versioned AI-generated plans with JSON structure)
-CREATE TABLE study_plans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL DEFAULT 1,
-    content_md TEXT NOT NULL,            -- Markdown for display (legacy)
-    content_json JSONB,                  -- Structured JSON data
-    instruction TEXT,                    -- User instruction that led to this version
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+**`study_sessions`**
+- `id` (UUID, PK)
+- `profile_id` (FK)
+- `status` (Enum: `PLANNING` -> `ACTIVE`)
+- `draft_plan` (JSONB): Stores the generated curriculum *before* confirmation.
 
--- Chat Messages
-CREATE TABLE messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-    content TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+**`documents`**
+- `id` (UUID, PK)
+- `session_id` (FK)
+- `processing_status` (Enum)
+- `content_text` (Text): Extracted text from PDF.
 
--- Indexes
-CREATE INDEX idx_sessions_user ON study_sessions(user_id);
-CREATE INDEX idx_documents_session ON documents(session_id);
-CREATE INDEX idx_messages_session ON messages(session_id);
-CREATE INDEX idx_messages_created ON messages(session_id, created_at);
-CREATE INDEX idx_study_plans_session ON study_plans(session_id);
-CREATE INDEX idx_study_plans_version ON study_plans(session_id, version DESC);
-CREATE INDEX idx_study_plans_content_json ON study_plans USING GIN (content_json);
+**`topics`**
+- `id` (UUID, PK)
+- `session_id` (FK)
+- `title`, `description`
+- `order_index` (Int): Defines the curriculum sequence.
+- `is_completed` (Boolean): Tracks mastery of the topic.
 
--- Study Plan JSON Structure:
--- {
---   "topics": [
---     {
---       "id": "topic-1",
---       "title": "Integration by Parts",
---       "description": "Learn to apply integration by parts technique",
---       "status": "need_to_learn" | "need_review" | "know_well"
---     }
---   ]
--- }
-```
+**`chats`**
+- `id` (UUID, PK)
+- `session_id` (FK)
+- `type` (Enum: `TOPIC_SPECIFIC` or `GENERAL_REVIEW`)
+- `topic_id` (FK, Unique, Nullable): Links chat to a specific topic.
+- `is_started` (Boolean)
 
-### Entity Relationships
-
-```
-┌─────────┐       ┌─────────────────┐       ┌───────────┐
-│  users  │──1:N──│ study_sessions  │──1:N──│ documents │
-└─────────┘       └─────────────────┘       └───────────┘
-                          │                       │
-                          │ 1:N                  1:N
-                          ▼                       ▼
-                   ┌───────────┐           ┌─────────────┐
-                   │ messages  │           │ study_plans │
-                   └───────────┘           └─────────────┘
-```
-
-### Authorization Pattern
-
-Every database query includes `user_id` validation in the WHERE clause:
-
-```rust
-// Getting user's sessions - direct ownership
-SELECT * FROM study_sessions WHERE user_id = $1
-
-// Getting documents - ownership through session
-SELECT d.* FROM documents d
-JOIN study_sessions s ON d.session_id = s.id
-WHERE s.user_id = $1 AND d.session_id = $2
-
-// Getting messages - same pattern
-SELECT m.* FROM messages m
-JOIN study_sessions s ON m.session_id = s.id
-WHERE s.user_id = $1 AND m.session_id = $2
-```
-
----
-
-## 📡 API Reference
-
-### GraphQL Endpoint
-
-```
-POST /graphql
-Content-Type: application/json
-Authorization: Bearer <jwt>  (for authenticated operations)
-```
-
-GraphQL Playground available at: `GET /graphql`
-
-### Queries
-
-| Query | Auth Required | Description |
-|-------|---------------|-------------|
-| `me` | ✅ | Get current user info |
-| `sessions` | ✅ | List all study sessions |
-| `session(id)` | ✅ | Get single session by ID |
-| `documents(sessionId)` | ✅ | List documents in a session |
-| `messages(sessionId)` | ✅ | Get chat history for a session |
-| `studyPlan(sessionId)` | ✅ | Get current study plan (with topics and statuses) |
-| `studyPlanHistory(sessionId)` | ✅ | Get study plan version history |
-
-### Mutations
-
-| Mutation | Auth Required | Description |
-|----------|---------------|-------------|
-| `register(email, password)` | ❌ | Create new account |
-| `login(email, password)` | ❌ | Authenticate, get JWT |
-| `createSession(title, description?)` | ✅ | Create study session |
-| `updateSession(id, title?, description?)` | ✅ | Update session |
-| `deleteSession(id)` | ✅ | Delete session + all docs/messages |
-| `deleteDocument(id)` | ✅ | Delete a document |
-| `startPlanning(sessionId)` | ✅ | Generate AI study plan from documents |
-| `reviseStudyPlan(sessionId, instruction)` | ✅ | Revise study plan with AI assistance |
-| `undoStudyPlan(sessionId)` | ✅ | Revert to previous plan version |
-| `updateTopicStatus(sessionId, topicId, status)` | ✅ | Update knowledge status for a topic |
-| `startStudying(sessionId)` | ✅ | Finalize plan and begin studying |
-| `sendMessage(sessionId, content)` | ✅ | Send message, get AI response |
-| `generateWelcome(sessionId)` | ✅ | Generate AI welcome message for empty chats |
-| `clearMessages(sessionId)` | ✅ | Clear chat history |
-
-### REST Endpoint
-
-```
-POST /api/upload
-Content-Type: multipart/form-data
-Authorization: Bearer <jwt>
-
-Form fields:
-  - file: <PDF file>
-  - sessionId: <UUID>
-
-Response:
-{
-  "id": "uuid",
-  "file_name": "lecture.pdf",
-  "file_path": "session-id/timestamp-lecture.pdf",
-  "extraction_status": "processing",
-  "message": "File uploaded successfully. Text extraction in progress."
-}
-```
-
-### Example GraphQL Operations
-
-```graphql
-# Register
-mutation {
-  register(email: "student@uni.edu", password: "password123") {
-    token
-    user { id email }
-  }
-}
-
-# Login
-mutation {
-  login(email: "student@uni.edu", password: "password123") {
-    token
-    user { id email }
-  }
-}
-
-# Create session
-mutation {
-  createSession(title: "Calculus Final", description: "Chapters 5-8") {
-    id title createdAt
-  }
-}
-
-# Send message (returns AI response)
-mutation {
-  sendMessage(sessionId: "...", content: "Explain integration by parts") {
-    id role content createdAt
-  }
-}
-
-# Generate welcome message (for empty chats)
-mutation {
-  generateWelcome(sessionId: "...") {
-    id role content createdAt
-  }
-}
-
-# Get messages
-query {
-  messages(sessionId: "...") {
-    id role content createdAt
-  }
-}
-
-# Generate study plan
-mutation {
-  startPlanning(sessionId: "...") {
-    id version contentMd createdAt
-  }
-}
-
-# Revise study plan
-mutation {
-  reviseStudyPlan(sessionId: "...", instruction: "Focus more on practice problems") {
-    id version contentMd createdAt
-  }
-}
-
-# Get current study plan
-query {
-  studyPlan(sessionId: "...") {
-    id version contentMd
-    content {
-      topics {
-        id title description status
-      }
-    }
-    instruction createdAt
-  }
-}
-
-# Update topic status
-mutation {
-  updateTopicStatus(sessionId: "...", topicId: "topic-1", status: "know_well") {
-    id version contentMd
-    content {
-      topics {
-        id title description status
-      }
-    }
-    instruction createdAt
-  }
-}
-```
+**`messages`**
+- `id` (UUID, PK)
+- `chat_id` (FK)
+- `role` ('user', 'assistant')
+- `content` (Text)
 
 ---
 
 ## 🔄 Key Workflows
 
-### 1. Authentication Flow
+### 1. The Planning Phase (Curriculum Design)
+1. **Upload**: User uploads PDFs. System extracts text using Vision AI.
+2. **Generate**: User clicks "Gerar Plano". AI analyzes content and creates a `draft_plan` (JSON).
+3. **Refine**: User sees the proposed topics.
+   - Can mark topics as "Já domino" (Already know).
+   - Can ask AI to revise the plan (e.g., "Split Calculus into 2 topics").
+4. **Confirm**: User clicks "Começar a Estudar".
+   - System creates `topics` rows in the DB.
+   - System creates `chats` for each topic + one review chat.
+   - Session status moves to `ACTIVE`.
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          REGISTRATION                                 │
-├──────────────────────────────────────────────────────────────────────┤
-│  1. User enters email + password                                      │
-│  2. Frontend calls: register(email, password)                         │
-│  3. Backend:                                                          │
-│     a. Check if email already exists                                  │
-│     b. Hash password with Argon2                                      │
-│     c. Insert user into database                                      │
-│     d. Create JWT token (expires in 7 days)                           │
-│  4. Frontend stores token in localStorage                             │
-│  5. User redirected to Dashboard                                      │
-└──────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────┐
-│                            LOGIN                                      │
-├──────────────────────────────────────────────────────────────────────┤
-│  1. User enters email + password                                      │
-│  2. Frontend calls: login(email, password)                            │
-│  3. Backend:                                                          │
-│     a. Look up user by email                                          │
-│     b. Verify password with Argon2                                    │
-│     c. Create JWT token                                               │
-│  4. Frontend stores token, redirects to Dashboard                     │
-└──────────────────────────────────────────────────────────────────────┘
-
-JWT Token Structure:
-{
-  "sub": "<user-uuid>",        // Subject (user ID)
-  "email": "student@uni.edu",
-  "exp": 1234567890            // Expiration timestamp
-}
-```
-
-### 2. Document Upload Flow
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                    DOCUMENT UPLOAD + PROCESSING                       │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  FRONTEND                                                             │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  1. User selects PDF file                                        │ │
-│  │  2. Frontend sends: POST /api/upload (multipart/form-data)       │ │
-│  │     - file: <PDF>                                                 │ │
-│  │     - sessionId: <UUID>                                           │ │
-│  │     - Authorization: Bearer <JWT>                                 │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│                              │                                        │
-│                              ▼                                        │
-│  BACKEND                                                              │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  3. Validate request:                                             │ │
-│  │     ✓ JWT token valid?                                            │ │
-│  │     ✓ User owns this session?                                     │ │
-│  │     ✓ File is PDF?                                                │ │
-│  │     ✓ File size < 50MB?                                           │ │
-│  │                                                                   │ │
-│  │  4. Upload PDF to Supabase Storage (using service key)            │ │
-│  │                                                                   │ │
-│  │  5. Create document record (status: 'pending')                    │ │
-│  │                                                                   │ │
-│  │  6. Return immediately: { id, extraction_status: 'processing' }   │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│                              │                                        │
-│                              ▼                                        │
-│  BACKGROUND TASK (spawned)                                            │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  7. Download PDF from Supabase Storage                            │ │
-│  │                                                                   │ │
-│  │  8. Convert to images using pdftoppm (150 DPI)                    │ │
-│  │     lecture.pdf → page-01.png, page-02.png, ...                   │ │
-│  │                                                                   │ │
-│  │  9. For each page image:                                          │ │
-│  │     - Encode to base64                                            │ │
-│  │     - Send to Gemini 2.5 Flash Vision API                         │ │
-│  │     - Receive extracted text with LaTeX formulas                  │ │
-│  │                                                                   │ │
-│  │  10. Combine all page texts                                       │ │
-│  │                                                                   │ │
-│  │  11. Update database:                                             │ │
-│  │      - content_text = extracted text                              │ │
-│  │      - extraction_status = 'completed'                            │ │
-│  │      - page_count = number of pages                               │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│                              │                                        │
-│                              ▼                                        │
-│  FRONTEND (polling)                                                   │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │  12. Poll GET_DOCUMENTS every 3 seconds                           │ │
-│  │  13. When status = 'completed' → show success toast               │ │
-│  │      When status = 'failed' → show error toast                    │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-
-Why Vision Extraction?
-─────────────────────
-Traditional PDF text extraction (like pdftotext) fails with:
-  ✗ Mathematical formulas: ∫₀^∞ e^(-x²) dx
-  ✗ Chemical equations: H₂O + CO₂ → H₂CO₃
-  ✗ Complex diagrams with embedded text
-
-Gemini Vision "reads" the page like a human and outputs:
-  ✓ "The integral $$\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$"
-```
-
-### 3. AI-Initiated Study Session
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                      AI-INITIATED STUDY SESSION                        │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  1. User clicks "Começar a Estudar"                           │
-│                                                                       │
-│  2. Frontend detects empty chat → calls generateWelcome(sessionId)   │
-│                                                                       │
-│  3. Backend generates AI welcome message:                            │
-│     ┌─────────────────────────────────────────────────────────────┐  │
-│     │ AI WELCOME MESSAGE:                                         │  │
-│     │ "Olá! Sou o Caky, seu tutor de estudos! 🎓                │  │
-│     │                                                             │  │
-│     │ Seu plano de estudos tem 5 tópicos:                         │  │
-│     │ 1. **Derivadas** - Aprender conceito fundamental...        │  │
-│     │ 2. **Integrais** - Aplicar técnicas de integração...       │  │
-│     │ ...                                                         │  │
-│     │                                                             │  │
-│     │ Bora começar pelo primeiro tópico: Derivadas?             │  │
-│     │ Quer ajustar algo no plano?"                                │  │
-│     └─────────────────────────────────────────────────────────────┘  │
-│                                                                       │
-│  4. AI follows 4-phase teaching methodology:                        │
-│     ┌─────────────────────────────────────────────────────────────┐  │
-│     │ PHASE 1: TOPIC TRANSITION                                   │  │
-│     │ - Connects to previous topic                                │  │
-│     │ - Asks for confirmation to proceed                         │  │
-│     │                                                             │  │
-│     │ PHASE 2: TEACHING THEORY                                    │  │
-│     │ - Checks topic status (Preciso Aprender/Review/Bem)        │  │
-│     │ - Explains "why" (utility/real-world application)          │  │
-│     │ - Breaks into small chunks, asks "Faz sentido?"            │  │
-│     │                                                             │  │
-│     │ PHASE 3: SCAFFOLDED PRACTICE                                │  │
-│     │ - Mimics document question formats                          │  │
-│     │ - Guided → Independent progression                         │  │
-│     │ - Progressive hints if stuck                               │  │
-│     │                                                             │  │
-│     │ PHASE 4: MASTERY TRIGGER                                    │  │
-│     │ - Congratulates success, suggests next topic               │  │
-│     └─────────────────────────────────────────────────────────────┘  │
-│                                                                       │
-│  5. User responds → AI continues structured teaching flow           │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-
-Context Window Usage:
-────────────────────
-Gemini 2.5 Flash has a 1 million token context window.
-For a typical study session:
-  - 10 document pages × 500 tokens/page = 5,000 tokens
-  - 20 chat messages × 100 tokens/message = 2,000 tokens
-  - System prompt = 200 tokens
-  - Total: ~7,200 tokens (0.7% of capacity)
-
-This is why we use full-text context instead of RAG for V1.
-```
-
-### 4. Study Plan Generation & Refinement Flow
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     STUDY PLANNING WORKFLOW                          │
-├──────────────────────────────────────────────────────────────────────┤
-│
-│  1. User completes document upload and extraction
-│
-│  2. User clicks "Começar Planejamento"
-│
-│  3. AI analyzes all document content and generates JSON:
-│     • Sequence of topics to learn
-│     • Each topic has title, description, status
-│     • All topics start with status "need_to_learn"
-│
-│  4. User can track progress by updating topic statuses:
-│     • "Preciso Aprender" (Need to Learn) - Default
-│     • "Preciso Revisar" (Need Review) - Know but need refresh
-│     • "Sei Bem" (Know Well) - Confident in topic
-│
-│  5. User can refine the plan with AI assistance:
-│     "Adicione mais exercícios de integrais"
-│     "Foque apenas nos capítulos 5-8"
-│
-│  6. AI revises the plan and resets all statuses to default
-│
-│  7. User can undo changes to revert to previous versions
-│
-│  8. User clicks "Começar a Estudar" to finalize and begin chat
-│
-│  9. During studying, user can click "Editar plano de estudos"
-│      to modify the plan directly from the chat interface
-│
-└──────────────────────────────────────────────────────────────────────┘
-
-JSON Structure:
-───────────────
-{
-  "topics": [
-    {
-      "id": "topic-1",
-      "title": "Integração por Partes",
-      "description": "Aprender a aplicar a técnica de integração por partes",
-      "status": "need_to_learn"
-    }
-  ]
-}
-
-Language Intelligence:
-──────────────────────
-- Study plans generated in the language of uploaded materials
-- AI responds in Portuguese by default, but matches user language
-- Topic titles and descriptions adapt to document language
-- Status labels always in Portuguese for UI consistency
-```
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     STUDY PLANNING WORKFLOW                          │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  1. User completes document upload and extraction                     │
-│                                                                       │
-│  2. User clicks "Começar Planejamento"                                 │
-│                                                                       │
-│  3. AI analyzes all document content and generates JSON:              │
-│     • Sequence of topics to learn                                    │
-│     • Each topic has title, description, status                      │
-│     • All topics start with status "need_to_learn"                   │
-│                                                                       │
-│  4. User can track progress by updating topic statuses:              │
-│     • "Preciso Aprender" (Need to Learn) - Default                   │
-│     • "Preciso Revisar" (Need Review) - Know but need refresh        │
-│     • "Sei Bem" (Know Well) - Confident in topic                     │
-│                                                                       │
-│  5. User can refine the plan with AI assistance:                     │
-│     "Adicione mais exercícios de integrais"                          │
-│     "Foque apenas nos capítulos 5-8"                                 │
-│                                                                       │
-│  6. AI revises the plan and resets all statuses to default            │
-│                                                                       │
-│  7. User can undo changes to revert to previous versions             │
-│                                                                       │
-│  8. User clicks "Começar a Estudar" to finalize and begin chat        │
-│                                                                       │
-│  9. During studying, user can click "Editar plano de estudos"        │
-│      to modify the plan directly from the chat interface             │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-
-JSON Structure:
-───────────────
-{
-  "topics": [
-    {
-      "id": "topic-1",
-      "title": "Integração por Partes",
-      "description": "Aprender a aplicar a técnica de integração por partes",
-      "status": "need_to_learn"
-    }
-  ]
-}
-
-Language Intelligence:
-──────────────────────
-- Study plans generated in the language of uploaded materials
-- AI responds in Portuguese by default, but matches user language
-- Topic titles and descriptions adapt to document language
-- Status labels always in Portuguese for UI consistency
-```
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     STUDY PLANNING WORKFLOW                          │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                       │
-│  1. User completes document upload and extraction                     │
-│                                                                       │
-│  2. User clicks "Start Planning"                                       │
-│                                                                       │
-│  3. AI analyzes all document content and generates:                    │
-│     • Study overview based on materials                              │
-│     • Ordered learning modules                                       │
-│     • Key concepts and practice suggestions                          │
-│     • Estimated study time for each section                          │
-│                                                                       │
-│  4. User can refine the plan by providing instructions:               │
-│     "Add more practice problems for integrals"                       │
-│     "Focus on chapters 5-8 only"                                     │
-│     "Make this a 2-day study plan"                                   │
-│                                                                       │
-│  5. AI revises the plan and creates a new version                      │
-│                                                                       │
-│  6. User can undo changes or continue refining                         │
-│                                                                       │
-│  7. User clicks "Start Studying" to finalize plan and begin chat      │
-│                                                                       │
-└──────────────────────────────────────────────────────────────────────┘
-
-Study Plan Structure:
-─────────────────────
-• **Overview**: Summary of exam scope based on materials
-• **Learning Objectives**: What student should master
-• **Study Modules**: Ordered topics with:
-  - Key concepts to understand
-  - Practice activities
-  - Time estimates
-  - Material references
-• **Study Tips**: Advice based on document types
-
-Version History:
-───────────────
-Each revision creates a new version that can be:
-• Viewed in history
-• Reverted to with undo
-• Compared with previous versions
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 19 | UI framework |
-| Vite | 7 | Build tool, dev server |
-| TypeScript | 5.9 | Type safety |
-| Tailwind CSS | 4 | Styling (new v4 syntax) |
-| Apollo Client | 4 | GraphQL client |
-| React Router | 7 | Client-side routing |
-| React Markdown | Latest | Markdown rendering |
-| Remark Math | Latest | LaTeX math support |
-| React Intl | Latest | Internationalization |
-| Sonner | 2 | Toast notifications |
-
-### Backend
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Rust | stable | Systems language |
-| Axum | 0.8 | Web framework |
-| async-graphql | 7 | GraphQL server |
-| SQLx | 0.8 | Database queries (compile-time checked) |
-| argon2 | 0.5 | Password hashing |
-| jsonwebtoken | 9 | JWT handling |
-| reqwest | 0.12 | HTTP client (for APIs) |
-| tokio | 1 | Async runtime |
-| Poppler (pdftoppm) | system | PDF to image conversion |
-
-### Infrastructure
-
-| Service | Purpose |
-|---------|---------|
-| Supabase PostgreSQL | Database |
-| Supabase Storage | PDF file storage |
-| OpenRouter | AI API gateway |
-| Gemini 2.5 Flash | Vision + Chat AI model |
+### 2. The Study Phase (Modular Learning)
+1. **Dashboard**: User sees a grid of **Topic Cards**.
+   - Cards show status: "Não iniciado", "Em progresso", "Concluído".
+2. **Topic Chat**: User clicks a card to enter a focused chat.
+   - **Context**: AI knows it's teaching *that specific topic*.
+   - **Resources**: AI searches documents for relevant sections/questions.
+   - **Sidebar**: User can navigate to other topics or the "General Review" chat instantly.
+3. **Completion**: User (or AI) marks the topic as "Concluído" via a checkbox.
+4. **General Review**: After finishing topics, user enters the "Revisão Geral" chat to practice everything combined.
 
 ---
 
@@ -965,221 +305,47 @@ Each revision creates a new version that can be:
 ### Backend (`backend/.env`)
 
 ```env
-# Database (Supabase PostgreSQL)
 DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres
-
-# Supabase Storage
 SUPABASE_URL=https://[PROJECT].supabase.co
-SUPABASE_SERVICE_KEY=eyJ...  # Service role key (has full access)
-
-# Authentication
-JWT_SECRET=your-random-secret-at-least-32-characters-long
-
-# AI API
+SUPABASE_SERVICE_KEY=eyJ...
+JWT_SECRET=your-random-secret
 OPENROUTER_API_KEY=sk-or-v1-...
-
-# Logging
-RUST_LOG=info  # Options: trace, debug, info, warn, error
+RUST_LOG=info
 ```
 
 ### Frontend (`frontend/.env`)
 
 ```env
-# Backend API
 VITE_GRAPHQL_ENDPOINT=http://localhost:8080/graphql
-```
-
-> **Security Note:** The frontend has ZERO API keys. All external API calls
-> (Supabase Storage, OpenRouter) go through the backend.
-
-### Generating a JWT Secret
-
-```bash
-# Option 1: OpenSSL
-openssl rand -base64 32
-
-# Option 2: Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
 ---
 
 ## 📌 Design Decisions
 
-### 1. Full-Text Context over RAG
-
-For V1, we pass complete document text to the LLM instead of using embeddings/vector search.
-
+### 1. Modular Curriculum over "One Giant Chat"
+We moved away from a single long chat history.
 **Why:**
-- Gemini 2.5 Flash has a 1M token context window
-- Typical study session: ~10 documents × ~500 tokens = 5,000 tokens (0.5% of capacity)
-- Avoids complexity of embeddings, vector DB, and relevance tuning
-- Perfect recall (the AI sees everything, not a selection)
+- **Focus**: Prevents context pollution. When studying "Derivatives", the AI shouldn't get confused by previous "Limits" questions unless relevant.
+- **Progress**: Gives users a clear sense of accomplishment (ticking off boxes).
+- **Navigation**: Easier to jump back to a specific subject to review.
 
-**When to switch to RAG:**
-- Documents exceed ~500K tokens total
-- Need faster response times (smaller context = faster)
-- Need to cite specific sources in responses
-
-### 2. Raw SQL over ORM
-
-We use SQLx with explicit SQL queries instead of an ORM like Diesel or SeaORM.
-
+### 2. Vision Extraction
+We use Gemini 2.5 Flash Vision to "read" PDFs instead of standard text extractors.
 **Why:**
-- Queries are simple (no complex joins or aggregations)
-- Full control over query optimization
-- Compile-time query checking with `sqlx::query!`
-- Easier to debug (can copy queries directly to SQL console)
+- Captures **LaTeX formulas** perfectly ($\int e^x dx$).
+- Understands diagrams and slide layouts.
 
-### 3. Custom Auth over Supabase Auth
-
-We implement our own email/password auth instead of using Supabase Auth.
-
+### 3. Draft Plan (JSONB)
+We store the plan as a JSON blob (`draft_plan`) in the session table during the planning phase, rather than creating rows immediately.
 **Why:**
-- Full control over user management
-- Works with any PostgreSQL (AWS RDS, Railway, Neon, self-hosted)
-- Easier to add features (email verification, OAuth) later
-- No dependency on Supabase-specific `auth.uid()` function
-
-### 4. Backend-Proxied Uploads over Direct Upload
-
-Files go Frontend → Backend → Supabase Storage, not Frontend → Supabase directly.
-
-**Why:**
-- Zero API keys in frontend (more secure)
-- Server-side validation (file type, size, ownership)
-- Can modify files before storage (e.g., virus scan, resize)
-- Single source of truth for authorization
-
-### 5. GraphQL over REST
-
-We use GraphQL for the API layer.
-
-**Why:**
-- Flexible queries (frontend gets exactly what it needs)
-- Strong typing with code generation
-- Single endpoint simplifies infrastructure
-- Subscriptions ready for real-time features (V2)
-
-### 6. Horizontal Expand/Collapse Sidebars
-
-Sidebars collapse horizontally to minimal width rather than hiding content vertically.
-
-**Why:**
-- **Space Efficiency**: Maximizes screen real estate when sidebars are not needed
-- **Content Preservation**: Study materials and plans remain accessible in compressed form
-- **Quick Access**: Single click to expand, maintaining workflow continuity
-- **Clean Aesthetics**: Minimal visual footprint with clear expand cues
-
-### 7. Multi-Stage Session Workflow
-
-Sessions progress through three stages: uploading → planning → studying.
-
-**Why:**
-- **Guided Experience**: Users follow a logical progression from material collection to plan creation to studying
-- **Incremental Value**: Each stage provides immediate value and builds toward comprehensive preparation
-- **AI Integration**: Study plans are generated from actual user materials, not generic templates
-- **Version Control**: Plan revisions are tracked with undo functionality
-- **Progress Tracking**: Topic-level status management (Preciso Aprender, Preciso Revisar, Sei Bem)
-- **In-Chat Editing**: Study plans can be modified during studying phase without workflow disruption
-- **Scalability**: Easy to add new stages (e.g., progress tracking, spaced repetition) in the future
-
-### 7. Brazilian Portuguese Localization
-
-Complete localization to Brazilian Portuguese with intelligent language detection.
-
-**Why:**
-- **Target Market**: Brazil has a large student population and growing education technology market
-- **User Experience**: Native language interface reduces cognitive load for Portuguese speakers
-- **AI Intelligence**: Smart language detection prioritizes user language over default Portuguese
-- **Accessibility**: Makes advanced AI tutoring accessible to non-English speakers
-- **Cultural Adaptation**: Status labels and interface elements adapted for Brazilian context
-
----
-
-## 🔧 Troubleshooting
-
-### Backend won't start
-
-**"Failed to connect to database"**
-```bash
-# Check DATABASE_URL format:
-postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres
-
-# Make sure you're using the "Session pooler" connection string
-# (not "Transaction pooler" or "Direct connection")
-```
-
-**"pdftoppm not found"**
-```bash
-# Install Poppler:
-brew install poppler    # macOS
-sudo apt install poppler-utils  # Ubuntu
-```
-
-### Frontend issues
-
-**"Cannot read properties of null (reading 'useContext')"**
-- Make sure `AuthProvider` wraps your app in `main.tsx`
-- Check that you're using `@apollo/client/react` for hooks
-
-**"CORS error"**
-- Backend CORS is configured for `http://localhost:5173`
-- If using a different port, update `src/main.rs`
-
-### Upload issues
-
-**"Failed to upload file to storage"**
-- Check that the `documents` bucket exists in Supabase Storage
-- Verify `SUPABASE_SERVICE_KEY` is the service role key (not anon key)
-
-**"extraction_status stuck on 'processing'"**
-- Check backend logs for vision API errors
-- Verify `OPENROUTER_API_KEY` is valid
-- Make sure `pdftoppm` is installed
-
-### AI chat issues
-
-**"AI response is empty or generic"**
-- Check that documents have `extraction_status: 'completed'`
-- Verify document `content_text` is not empty
-- Check OpenRouter API key and credits
-
----
-
-## 🔮 Future Roadmap (V2+)
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **AI-Generated Study Plans** | Personalized study plans from user materials with JSON structure | ✅ **Implemented** |
-| **Plan Refinement with AI** | Interactive plan editing with AI assistance | ✅ **Implemented** |
-| **Version Control for Plans** | Undo/redo functionality for plan revisions | ✅ **Implemented** |
-| **Topic Progress Tracking** | Track knowledge level for each topic (Preciso Aprender, Preciso Revisar, Sei Bem) | ✅ **Implemented** |
-| **Brazilian Portuguese** | Complete localization with intelligent language detection | ✅ **Implemented** |
-| **Study Plan Display** | Real-time study plan updates in chat sidebar | ✅ **Implemented** |
-| **Horizontal Expand/Collapse** | Space-efficient sidebar management with horizontal collapse | ✅ **Implemented** |
-| **In-Chat Plan Editing** | Edit study plans directly from the chat interface | ✅ **Implemented** |
-| **Enhanced Error Handling** | User-friendly error messages and improved UX | ✅ **Implemented** |
-| **AI Welcome Messages** | AI automatically greets users and explains study plans when starting | ✅ **Implemented** |
-| **Structured Teaching Flow** | 4-phase learning methodology: Transition → Theory → Practice → Mastery | ✅ **Implemented** |
-| **Scaffolded Learning** | Progressive hints and regression handling for optimal learning | ✅ **Implemented** |
-| **Conversational Brazilian Portuguese** | AI uses natural expressions like "a gente", "bora", "beleza" | ✅ **Implemented** |
-| **Streaming Responses** | Real-time AI response streaming via SSE | Planned |
-| **Smart Context Selection** | When documents exceed limits, use relevance scoring | Planned |
-| **Flashcard Generation** | AI-generated flashcards from materials | Planned |
-| **Quiz Mode** | Practice questions based on content | Planned |
-| **Collaboration** | Share sessions with study groups | Planned |
-| **Mobile App** | React Native companion app | Planned |
-| **Email Verification** | Verify email on signup | Planned |
-| **OAuth** | Login with Google, GitHub | Planned |
-| **Export** | Export chat history as PDF | Planned |
+- Allows cheap, fast iterations/revisions with the AI.
+- We only "crystallize" the plan into real `topics` and `chats` rows when the user commits to it.
 
 ---
 
 ## 📄 License
 
 MIT License - feel free to use this for your own projects!
-
----
 
 *Built with ❤️ for students who want to study smarter, not harder.*

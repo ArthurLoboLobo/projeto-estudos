@@ -34,7 +34,15 @@ export const CREATE_SESSION = gql`
       id
       title
       description
-      stage
+      status
+      draftPlan {
+        topics {
+          id
+          title
+          description
+          isCompleted
+        }
+      }
       createdAt
       updatedAt
     }
@@ -42,12 +50,12 @@ export const CREATE_SESSION = gql`
 `;
 
 export const UPDATE_SESSION = gql`
-  mutation UpdateSession($id: ID!, $title: String, $description: String) {
-    updateSession(id: $id, title: $title, description: $description) {
+  mutation UpdateSession($id: ID!, $input: UpdateSessionInput!) {
+    updateSession(id: $id, input: $input) {
       id
       title
       description
-      stage
+      status
       updatedAt
     }
   }
@@ -60,7 +68,6 @@ export const DELETE_SESSION = gql`
 `;
 
 // ============ DOCUMENTS ============
-// Note: Document upload now uses /api/upload endpoint (not GraphQL)
 
 export const DELETE_DOCUMENT = gql`
   mutation DeleteDocument($id: ID!) {
@@ -68,124 +75,67 @@ export const DELETE_DOCUMENT = gql`
   }
 `;
 
-// ============ MESSAGES ============
+// ============ PLANNING PHASE ============
 
-export const SEND_MESSAGE = gql`
-  mutation SendMessage($sessionId: ID!, $content: String!) {
-    sendMessage(sessionId: $sessionId, content: $content) {
+export const GENERATE_PLAN = gql`
+  mutation GeneratePlan($sessionId: ID!) {
+    generatePlan(sessionId: $sessionId) {
       id
-      role
-      content
-      createdAt
-    }
-  }
-`;
-
-export const CLEAR_MESSAGES = gql`
-  mutation ClearMessages($sessionId: ID!) {
-    clearMessages(sessionId: $sessionId)
-  }
-`;
-
-export const GENERATE_WELCOME = gql`
-  mutation GenerateWelcome($sessionId: ID!) {
-    generateWelcome(sessionId: $sessionId) {
-      id
-      role
-      content
-      createdAt
-    }
-  }
-`;
-
-export const UNDO_MESSAGE = gql`
-  mutation UndoMessage($messageId: ID!) {
-    undoMessage(messageId: $messageId)
-  }
-`;
-
-// ============ PLANNING ============
-
-export const START_PLANNING = gql`
-  mutation StartPlanning($sessionId: ID!) {
-    startPlanning(sessionId: $sessionId) {
-      id
-      sessionId
-      version
-      contentMd
-      content {
+      title
+      description
+      status
+      draftPlan {
         topics {
           id
           title
           description
-          status
+          isCompleted
         }
       }
-      instruction
       createdAt
+      updatedAt
     }
   }
 `;
 
-export const REVISE_STUDY_PLAN = gql`
-  mutation ReviseStudyPlan($sessionId: ID!, $instruction: String!) {
-    reviseStudyPlan(sessionId: $sessionId, instruction: $instruction) {
+export const REVISE_PLAN = gql`
+  mutation RevisePlan($sessionId: ID!, $instruction: String!) {
+    revisePlan(sessionId: $sessionId, instruction: $instruction) {
       id
-      sessionId
-      version
-      contentMd
-      content {
+      title
+      description
+      status
+      draftPlan {
         topics {
           id
           title
           description
-          status
+          isCompleted
         }
       }
-      instruction
       createdAt
+      updatedAt
     }
   }
 `;
 
-export const UNDO_STUDY_PLAN = gql`
-  mutation UndoStudyPlan($sessionId: ID!) {
-    undoStudyPlan(sessionId: $sessionId) {
+export const UPDATE_DRAFT_TOPIC_COMPLETION = gql`
+  mutation UpdateDraftTopicCompletion($sessionId: ID!, $topicId: String!, $isCompleted: Boolean!) {
+    updateDraftTopicCompletion(sessionId: $sessionId, topicId: $topicId, isCompleted: $isCompleted) {
       id
-      sessionId
-      version
-      contentMd
-      content {
+      title
+      description
+      status
+      draftPlan {
         topics {
           id
           title
           description
-          status
+          isCompleted
         }
       }
-      instruction
       createdAt
-    }
-  }
-`;
-
-export const UPDATE_TOPIC_STATUS = gql`
-  mutation UpdateTopicStatus($sessionId: ID!, $topicId: String!, $status: String!) {
-    updateTopicStatus(sessionId: $sessionId, topicId: $topicId, status: $status) {
-      id
-      sessionId
-      version
-      contentMd
-      content {
-        topics {
-          id
-          title
-          description
-          status
-        }
-      }
-      instruction
-      createdAt
+      updatedAt
     }
   }
 `;
@@ -196,9 +146,66 @@ export const START_STUDYING = gql`
       id
       title
       description
-      stage
+      status
+      draftPlan {
+        topics {
+          id
+          title
+          description
+          isCompleted
+        }
+      }
       createdAt
       updatedAt
+    }
+  }
+`;
+
+// ============ TOPICS ============
+
+export const UPDATE_TOPIC_COMPLETION = gql`
+  mutation UpdateTopicCompletion($id: ID!, $isCompleted: Boolean!) {
+    updateTopicCompletion(id: $id, isCompleted: $isCompleted) {
+      id
+      sessionId
+      title
+      description
+      orderIndex
+      isCompleted
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// ============ MESSAGES ============
+
+export const SEND_MESSAGE = gql`
+  mutation SendMessage($chatId: ID!, $content: String!) {
+    sendMessage(chatId: $chatId, content: $content) {
+      id
+      chatId
+      role
+      content
+      createdAt
+    }
+  }
+`;
+
+export const CLEAR_MESSAGES = gql`
+  mutation ClearMessages($chatId: ID!) {
+    clearMessages(chatId: $chatId)
+  }
+`;
+
+export const GENERATE_WELCOME = gql`
+  mutation GenerateWelcome($chatId: ID!) {
+    generateWelcome(chatId: $chatId) {
+      id
+      chatId
+      role
+      content
+      createdAt
     }
   }
 `;

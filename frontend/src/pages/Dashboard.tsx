@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { GET_SESSIONS } from '../lib/graphql/queries';
 import { CREATE_SESSION, DELETE_SESSION } from '../lib/graphql/mutations';
 import ThemeToggle from '../components/ui/ThemeToggle';
-import type { Session } from '../types';
+import type { Session, SessionStatus } from '../types';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -231,7 +231,7 @@ export default function Dashboard() {
                     </h3>
                   </div>
                   <div className="mb-3">
-                    <StageBadge stage={session.stage} />
+                    <StatusBadge status={session.status} />
                   </div>
                   {session.description && (
                     <p className="text-caky-text/60 text-sm line-clamp-2 min-h-[2.5em]">
@@ -265,27 +265,27 @@ export default function Dashboard() {
   );
 }
 
-function StageBadge({ stage }: { stage: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    UPLOADING: {
-      label: 'Envio',
-      className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    },
+function StatusBadge({ status }: { status: SessionStatus }) {
+  const config: Record<SessionStatus, { label: string; className: string }> = {
     PLANNING: {
       label: 'Planejamento',
-      className: 'bg-blue-100 text-blue-700 border-blue-200',
+      className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     },
-    STUDYING: {
+    ACTIVE: {
       label: 'Estudando',
       className: 'bg-green-100 text-green-700 border-green-200',
     },
+    COMPLETED: {
+      label: 'Concluído',
+      className: 'bg-blue-100 text-blue-700 border-blue-200',
+    },
   };
 
-  const stageConfig = config[stage] || config.UPLOADING;
+  const statusConfig = config[status] || config.PLANNING;
 
   return (
-    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full border whitespace-nowrap ${stageConfig.className}`}>
-{stageConfig.label}
+    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full border whitespace-nowrap ${statusConfig.className}`}>
+      {statusConfig.label}
     </span>
   );
 }

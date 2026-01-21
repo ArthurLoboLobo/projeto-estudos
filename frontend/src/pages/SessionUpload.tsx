@@ -3,15 +3,16 @@ import { useQuery, useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 import { useAuth, getAuthToken } from '../lib/auth';
 import { GET_DOCUMENTS } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, START_PLANNING } from '../lib/graphql/mutations';
+import { DELETE_DOCUMENT, GENERATE_PLAN } from '../lib/graphql/mutations';
 import SessionHeader from '../components/SessionHeader';
-import type { Document, Session, StudyPlan } from '../types';
+import ProcessingStatusBadge from '../components/ProcessingStatusBadge';
+import type { Document, Session, ProcessingStatus } from '../types';
 
 const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') || 'http://localhost:8080';
 
 interface SessionUploadProps {
   session: Session;
-  onPlanGenerated: (plan: StudyPlan) => void;
+  onPlanGenerated: (session: Session) => void;
 }
 
 export default function SessionUpload({ session, onPlanGenerated }: SessionUploadProps) {
@@ -35,11 +36,11 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   });
 
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
-  const [startPlanning] = useMutation<{ startPlanning: StudyPlan }>(START_PLANNING);
+  const [generatePlan] = useMutation<{ generatePlan: Session }>(GENERATE_PLAN);
 
   const documents: Document[] = documentsData?.documents || [];
-  const hasCompletedDocs = documents.some(d => d.extractionStatus === 'completed');
-  const hasPendingDocs = documents.some(d => d.extractionStatus === 'pending' || d.extractionStatus === 'processing');
+  const hasCompletedDocs = documents.some(d => d.processingStatus === 'COMPLETED');
+  const hasPendingDocs = documents.some(d => d.processingStatus === 'PENDING' || d.processingStatus === 'PROCESSING');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,7 +116,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
     }
   };
 
-  const handleStartPlanning = async () => {
+  const handleGeneratePlan = async () => {
     if (!hasCompletedDocs) {
       toast.error('Aguarde pelo menos um documento terminar de processar');
       return;
@@ -123,10 +124,10 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
 
     setGenerating(true);
     try {
-      const result = await startPlanning({ variables: { sessionId: session.id } });
+      const result = await generatePlan({ variables: { sessionId: session.id } });
       toast.success('Plano de estudo gerado!');
-      if (result.data?.startPlanning) {
-        onPlanGenerated(result.data.startPlanning);
+      if (result.data?.generatePlan) {
+        onPlanGenerated(result.data.generatePlan);
       }
     } catch (err: any) {
       console.error('Planning error:', err);
@@ -223,10 +224,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                         <div className="min-w-0">
                           <p className="text-caky-text font-semibold text-sm truncate">{doc.fileName}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <StatusBadge status={doc.extractionStatus} />
-                            {doc.pageCount && (
-                              <span className="text-xs text-caky-text/50">{doc.pageCount} páginas</span>
-                            )}
+                            <ProcessingStatusBadge status={doc.processingStatus} />
                           </div>
                         </div>
                       </div>
@@ -247,7 +245,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               {/* Start Planning Button */}
               <div className="mt-8">
                 <button
-                  onClick={handleStartPlanning}
+                  onClick={handleGeneratePlan}
                   disabled={!hasCompletedDocs || generating || hasPendingDocs}
                   className="w-full py-4 bg-caky-primary text-white font-bold text-lg rounded-xl hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-3 active:scale-[0.98]"
                 >
@@ -263,7 +261,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                     </>
                   ) : (
                     <>
-                      <span className="text-base md:text-lg">Começar Planejamento</span>
+                      <span className="text-base md:text-lg">Gerar Plano de Estudo</span>
                     </>
                   )}
                 </button>
@@ -281,27 +279,3 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  // Don't show anything for completed status
-  if (status === 'completed') {
-    return null;
-  }
-
-  const styles: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    processing: 'bg-blue-100 text-blue-700 border-blue-200',
-    failed: 'bg-red-100 text-red-700 border-red-200',
-  };
-
-  const statusTranslations: Record<string, string> = {
-    pending: 'Pendente',
-    processing: 'Processando',
-    failed: 'Falhou',
-  };
-
-  return (
-    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>
-      {statusTranslations[status] || status}
-    </span>
-  );
-}
