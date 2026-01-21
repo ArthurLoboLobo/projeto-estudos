@@ -3,53 +3,74 @@ export interface User {
   email: string;
 }
 
-export type SessionStage = 'UPLOADING' | 'PLANNING' | 'STUDYING';
+// Session status enum (matches backend)
+export type SessionStatus = 'PLANNING' | 'ACTIVE' | 'COMPLETED';
+
+// Draft plan topic (before confirmation)
+export interface DraftPlanTopic {
+  id: string;
+  title: string;
+  description: string | null;
+  isCompleted: boolean;
+}
+
+// Draft plan (stored in session.draftPlan)
+export interface DraftPlan {
+  topics: DraftPlanTopic[];
+}
 
 export interface Session {
   id: string;
   title: string;
   description: string | null;
-  stage: SessionStage;
+  status: SessionStatus;
+  draftPlan: DraftPlan | null;
   createdAt: string;
   updatedAt: string;
 }
 
+// Processing status for documents
+export type ProcessingStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
 export interface Document {
   id: string;
+  sessionId: string;
   fileName: string;
   filePath: string;
-  contentLength: number;
-  extractionStatus: 'pending' | 'processing' | 'completed' | 'failed';
-  pageCount: number | null;
+  contentLength: number | null;
+  processingStatus: ProcessingStatus;
   createdAt: string;
+}
+
+// Topic (materialized after startStudying)
+export interface Topic {
+  id: string;
+  sessionId: string;
+  title: string;
+  description: string | null;
+  orderIndex: number;
+  isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Chat types
+export type ChatType = 'TOPIC_SPECIFIC' | 'GENERAL_REVIEW';
+
+export interface Chat {
+  id: string;
+  sessionId: string;
+  chatType: ChatType;
+  topicId: string | null;
+  isStarted: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Message {
   id: string;
+  chatId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  createdAt: string;
-}
-
-export type TopicStatus = 'need_to_learn' | 'need_review' | 'know_well';
-
-export interface StudyPlanTopic {
-  id: string;
-  title: string;
-  description: string;
-  status: TopicStatus;
-}
-
-export interface StudyPlanContent {
-  topics: StudyPlanTopic[];
-}
-
-export interface StudyPlan {
-  id: string;
-  sessionId: string;
-  version: number;
-  contentMd: string;
-  content: StudyPlanContent;
-  instruction: string | null;
   createdAt: string;
 }

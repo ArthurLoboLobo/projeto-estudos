@@ -3,9 +3,10 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::config::Config;
+use crate::prompts::{GENERATE_PLAN_PROMPT, REVISE_PLAN_PROMPT};
+use crate::services::messages::ai_client::OpenRouterClient;
 use crate::storage::documents;
 use crate::storage::sessions::DraftPlan;
-use crate::services::messages::ai_client::OpenRouterClient;
 
 const PLANNING_MODEL: &str = "google/gemini-2.5-flash";
 
@@ -22,80 +23,6 @@ pub struct StudyPlanTopic {
 pub struct StudyPlanContent {
     pub topics: Vec<StudyPlanTopic>,
 }
-
-/// System prompt for generating the initial study plan
-const GENERATE_PLAN_PROMPT: &str = r#"You are an expert academic tutor creating a personalized study plan for a university student.
-
-Based on the study materials provided below, create a study plan as a sequence of topics the student needs to learn.
-
-LANGUAGE DETECTION:
-- Analyze the study materials and detect the primary language
-- If materials are in Portuguese, generate topic titles and descriptions in Portuguese
-- If materials are in English, generate topic titles and descriptions in English
-- If materials are in Spanish, generate in Spanish
-- Use the same language as the source materials for consistency
-
-Your response MUST be valid JSON with this exact structure:
-{
-  "topics": [
-    {
-      "id": "topic-1",
-      "title": "Topic Name",
-      "description": "Brief explanation of what the student will learn in this topic",
-      "status": "need_to_learn"
-    }
-  ]
-}
-
-REQUIREMENTS:
-- Create a logical sequence of topics from foundational to advanced
-- Each topic should be specific and actionable
-- Descriptions should be 1-2 sentences explaining what will be learned
-- ALL topics must have status: "need_to_learn" (this is the default)
-- Use simple sequential IDs: "topic-1", "topic-2", etc.
-- Focus ONLY on topics to learn, not overviews or objectives
-- Order topics in the optimal learning sequence
-- Match the language of the study materials
-
-STUDY MATERIALS:
-{materials}
-
-SESSION TITLE: {title}
-SESSION DESCRIPTION: {description}
-
-Generate the JSON study plan now. Output ONLY valid JSON, no markdown formatting or code blocks."#;
-
-/// System prompt for revising the study plan
-const REVISE_PLAN_PROMPT: &str = r#"You are an expert academic tutor helping a student refine their study plan.
-
-The student has provided feedback. Apply their requested changes while maintaining a logical learning sequence.
-
-LANGUAGE GUIDELINES:
-- PRIORITY 1: If student's feedback/instructions are in a clear language, consider adapting
-- PRIORITY 2: Preserve the original language of the study plan
-- PRIORITY 3: Match the predominant language of the original study materials
-- Default to Brazilian Portuguese only if no other language context exists
-
-CURRENT STUDY PLAN (JSON):
-{current_plan}
-
-STUDENT'S FEEDBACK/INSTRUCTIONS:
-{instruction}
-
-ORIGINAL STUDY MATERIALS (for reference):
-{materials}
-
-Generate an updated JSON study plan with the requested changes.
-
-IMPORTANT:
-- Keep the same JSON structure
-- Reset ALL topics to status: "need_to_learn"
-- Use sequential IDs: "topic-1", "topic-2", etc.
-- Only change what the student requested
-- Maintain logical topic progression
-- Preserve the original language of the plan
-
-Output ONLY valid JSON, no markdown formatting or code blocks."#;
 
 /// Generate an initial study plan from documents
 pub async fn generate_study_plan(

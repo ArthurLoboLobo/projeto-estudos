@@ -5,9 +5,11 @@ use uuid::Uuid;
 
 /// Chat type enum matching the database
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
-#[sqlx(type_name = "chat_type", rename_all = "UPPERCASE")]
+#[sqlx(type_name = "chat_type")]
 pub enum ChatType {
+    #[sqlx(rename = "TOPIC_SPECIFIC")]
     TopicSpecific,
+    #[sqlx(rename = "GENERAL_REVIEW")]
     GeneralReview,
 }
 

@@ -2,6 +2,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 
+use crate::prompts::VISION_EXTRACTION_PROMPT;
+
 const OPENROUTER_API_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
 #[derive(Debug, Clone)]
@@ -161,22 +163,7 @@ impl OpenRouterClient {
         image_base64: &str,
         mime_type: &str,
     ) -> Result<String, async_graphql::Error> {
-        let prompt = r#"You are extracting content from an academic document page.
-
-Extract ALL text from this page exactly as shown, preserving the original language.
-
-For any mathematical formulas, equations, chemical formulas, or scientific notation:
-- Represent them in LaTeX format using $...$ for inline math and $$...$$ for block equations
-- Preserve the exact meaning and structure of the formulas
-
-For tables:
-- Format them clearly with proper alignment
-
-For bullet points and numbered lists:
-- Preserve the structure
-
-Output the extracted content in plain text with LaTeX formulas embedded where appropriate.
-Do not add any commentary or explanations - just extract the content as-is."#;
+        let prompt = VISION_EXTRACTION_PROMPT;
 
         let data_url = format!("data:{};base64,{}", mime_type, image_base64);
 

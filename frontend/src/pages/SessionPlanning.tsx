@@ -1,25 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { useAuth } from '../lib/auth';
-import { GET_STUDY_PLAN_HISTORY } from '../lib/graphql/queries';
-import { REVISE_STUDY_PLAN, UNDO_STUDY_PLAN, START_STUDYING, UPDATE_TOPIC_STATUS } from '../lib/graphql/mutations';
+import { REVISE_PLAN, START_STUDYING, UPDATE_DRAFT_TOPIC_COMPLETION } from '../lib/graphql/mutations';
 import SessionHeader from '../components/SessionHeader';
-import type { Session, StudyPlan, TopicStatus } from '../types';
+import type { Session, DraftPlanTopic } from '../types';
 
 interface SessionPlanningProps {
   session: Session;
-  initialPlan: StudyPlan;
-  onStartStudying: (session: Session) => void;
-  onRefetchPlan: () => void;
+  onSessionUpdate: (session: Session) => void;
 }
 
-export default function SessionPlanning({ session, initialPlan, onStartStudying, onRefetchPlan }: SessionPlanningProps) {
+export default function SessionPlanning({ session, onSessionUpdate }: SessionPlanningProps) {
   const { user, logout } = useAuth();
-  const [currentPlan, setCurrentPlan] = useState<StudyPlan>(initialPlan);
   const [instruction, setInstruction] = useState('');
   const [revising, setRevising] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -31,17 +27,11 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const { data: historyData, refetch: refetchHistory } = useQuery<{ studyPlanHistory: StudyPlan[] }>(GET_STUDY_PLAN_HISTORY, {
-    variables: { sessionId: session.id },
-  });
-
-  const [revisePlan] = useMutation<{ reviseStudyPlan: StudyPlan }>(REVISE_STUDY_PLAN);
-  const [undoPlan] = useMutation<{ undoStudyPlan: StudyPlan }>(UNDO_STUDY_PLAN);
+  const [revisePlan] = useMutation<{ revisePlan: Session }>(REVISE_PLAN);
   const [startStudying] = useMutation<{ startStudying: Session }>(START_STUDYING);
-  const [updateTopicStatus] = useMutation<{ updateTopicStatus: StudyPlan }>(UPDATE_TOPIC_STATUS);
+  const [updateDraftTopicCompletion] = useMutation<{ updateDraftTopicCompletion: Session }>(UPDATE_DRAFT_TOPIC_COMPLETION);
 
-  const planHistory: StudyPlan[] = historyData?.studyPlanHistory || [];
-  const canUndo = currentPlan.version > 1;
+  const topics: DraftPlanTopic[] = session.draftPlan?.topics || [];
 
   const handleRevise = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +42,10 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
       const result = await revisePlan({
         variables: { sessionId: session.id, instruction: instruction.trim() },
       });
-      if (result.data?.reviseStudyPlan) {
-        setCurrentPlan(result.data.reviseStudyPlan);
+      if (result.data?.revisePlan) {
+        onSessionUpdate(result.data.revisePlan);
       }
       setInstruction('');
-      refetchHistory();
-      onRefetchPlan(); // Refetch the study plan in parent component
       toast.success('Plano de estudo atualizado!');
     } catch (err: any) {
       console.error('Revise error:', err);
@@ -67,61 +55,37 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
     }
   };
 
-  const handleUndo = async () => {
-    if (!canUndo) return;
-
-    try {
-      const result = await undoPlan({ variables: { sessionId: session.id } });
-      if (result.data?.undoStudyPlan) {
-        setCurrentPlan(result.data.undoStudyPlan);
-      }
-      refetchHistory();
-      onRefetchPlan(); // Refetch the study plan in parent component
-      toast.success('Revertido para versão anterior');
-    } catch (err: any) {
-      toast.error(err.message || 'Falha ao desfazer');
-    }
-  };
-
   const handleStartStudying = async () => {
     try {
       const result = await startStudying({ variables: { sessionId: session.id } });
       toast.success("Vamos começar a estudar!");
       if (result.data?.startStudying) {
-        onStartStudying(result.data.startStudying);
+        onSessionUpdate(result.data.startStudying);
       }
     } catch (err: any) {
       toast.error(err.message || 'Falha ao começar a estudar');
     }
   };
 
-  const handleStatusChange = async (topicId: string, newStatus: TopicStatus) => {
+  const handleToggleCompletion = async (topicId: string, currentlyCompleted: boolean) => {
     try {
-      const result = await updateTopicStatus({
+      const result = await updateDraftTopicCompletion({
         variables: {
           sessionId: session.id,
           topicId,
-          status: newStatus,
+          isCompleted: !currentlyCompleted,
         },
       });
-      if (result.data?.updateTopicStatus) {
-        setCurrentPlan(result.data.updateTopicStatus);
+      if (result.data?.updateDraftTopicCompletion) {
+        onSessionUpdate(result.data.updateDraftTopicCompletion);
       }
-      onRefetchPlan(); // Refetch the study plan in parent component
-      toast.success('Status do tópico atualizado');
     } catch (err: any) {
-      console.error('Status update error:', err);
-      toast.error(err.message || 'Falha ao atualizar status');
+      console.error('Toggle completion error:', err);
+      toast.error(err.message || 'Falha ao atualizar tópico');
     }
   };
 
-  const getStatusColor = (status: TopicStatus): string => {
-    switch (status) {
-      case 'need_to_learn': return 'bg-red-100 text-red-700 border-red-200';
-      case 'need_review': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'know_well': return 'bg-green-100 text-green-700 border-green-200';
-    }
-  };
+  const activeTopicsCount = topics.filter(t => !t.isCompleted).length;
 
   return (
     <div className="min-h-screen bg-caky-bg">
@@ -163,85 +127,77 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
             <div className="p-6 md:p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
               <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">Seu Plano de Estudo</h2>
               <p className="text-sm md:text-base text-caky-text/60 max-w-md mx-auto mb-4">
-                Revise e refine seu plano de estudo personalizado. Diga à IA como melhorá-lo.
+                Revise e refine seu plano de estudo personalizado. Marque os tópicos que você já sabe bem para pular.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs text-caky-text/50">
-                <span>Versão {currentPlan.version}</span>
-                <span className="hidden md:inline">•</span>
-                <span>Criado {new Date(currentPlan.createdAt).toLocaleTimeString()}</span>
-                {canUndo && (
-                  <>
-                    <span className="hidden md:inline">•</span>
-                    <button
-                      onClick={handleUndo}
-                      className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1 w-full md:w-auto justify-center mt-1 md:mt-0 active:scale-95 transition-transform"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                      </svg>
-                      Voltar para versão anterior
-                    </button>
-                  </>
-                )}
+                <span>{topics.length} tópicos • {activeTopicsCount} para estudar</span>
               </div>
             </div>
 
             {/* Plan Content - Topics List */}
             <div className="p-4 md:p-8">
               <div className="space-y-3 md:space-y-4 mb-8">
-                {currentPlan.content.topics.map((topic, index) => (
+                {topics.map((topic, index) => (
                   <div
                     key={topic.id}
-                    className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4 p-4 bg-gray-50 dark:bg-caky-card/30 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-caky-primary/30 transition"
+                    className={`flex flex-col md:flex-row md:items-start gap-3 md:gap-4 p-4 rounded-xl border transition ${
+                      topic.isCompleted
+                        ? 'bg-gray-50 dark:bg-caky-card/20 border-gray-200 dark:border-gray-700 opacity-60'
+                        : 'bg-gray-50 dark:bg-caky-card/30 border-gray-200 dark:border-gray-700 hover:border-caky-primary/30'
+                    }`}
                   >
                     <div className="flex items-start gap-3 md:gap-4 w-full md:w-auto">
                       {/* Topic Number */}
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
-                        {index + 1}
+                      <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        topic.isCompleted
+                          ? 'bg-gray-300 text-gray-500'
+                          : 'bg-caky-primary text-white'
+                      }`}>
+                        {topic.isCompleted ? '✓' : index + 1}
                       </div>
 
-                      {/* Topic Content (Mobile Header) */}
-                      <div className="md:hidden flex-1 min-w-0">
-                        <h3 className="font-bold text-caky-text text-sm mb-1">{topic.title}</h3>
+                      {/* Topic Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-bold text-sm mb-1 ${topic.isCompleted ? 'text-caky-text/50 line-through' : 'text-caky-text'}`}>
+                          {topic.title}
+                        </h3>
+                        {topic.description && (
+                          <div className={`text-sm prose prose-sm max-w-none dark:prose-invert ${topic.isCompleted ? 'text-caky-text/40' : 'text-caky-text/60'}`}>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {topic.description}
+                            </ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Topic Content (Desktop) */}
-                    <div className="hidden md:block flex-1 min-w-0">
-                      <h3 className="font-bold text-caky-text mb-1">{topic.title}</h3>
-                      <div className="text-sm text-caky-text/60 prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
-                        >
-                          {topic.description}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-
-                    {/* Topic Description (Mobile) */}
-                    <div className="md:hidden pl-11 -mt-2">
-                       <div className="text-sm text-caky-text/60 prose prose-sm max-w-none dark:prose-invert">
-                         <ReactMarkdown
-                           remarkPlugins={[remarkMath]}
-                           rehypePlugins={[rehypeKatex]}
-                         >
-                           {topic.description}
-                         </ReactMarkdown>
-                       </div>
-                    </div>
-
-                    {/* Status Dropdown */}
-                    <div className="md:shrink-0 pl-11 md:pl-0 mt-1 md:mt-0">
-                      <select
-                        value={topic.status}
-                        onChange={(e) => handleStatusChange(topic.id, e.target.value as TopicStatus)}
-                        className={`w-full md:w-auto px-3 py-2 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 transition ${getStatusColor(topic.status)}`}
-                      >
-                        <option value="need_to_learn">Preciso Aprender</option>
-                        <option value="need_review">Preciso Revisar</option>
-                        <option value="know_well">Sei Bem</option>
-                      </select>
+                    {/* Checkbox for "Already know" */}
+                    <div className="md:shrink-0 pl-11 md:pl-0 mt-2 md:mt-0 flex items-center">
+                      <label className="flex items-center gap-2 cursor-pointer group select-none">
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          topic.isCompleted
+                            ? 'bg-caky-primary border-caky-primary'
+                            : 'bg-white border-gray-300 group-hover:border-caky-primary'
+                        }`}>
+                          {topic.isCompleted && (
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={topic.isCompleted}
+                          onChange={() => handleToggleCompletion(topic.id, topic.isCompleted)}
+                        />
+                        <span className={`text-sm font-medium ${topic.isCompleted ? 'text-caky-text/60' : 'text-caky-text/80'}`}>
+                          Já domino este tópico
+                        </span>
+                      </label>
                     </div>
                   </div>
                 ))}
@@ -255,7 +211,6 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                     Diga à IA como melhorar seu plano de estudo
                   </p>
                 </div>
-
 
                 {/* Instruction Input */}
                 <form onSubmit={handleRevise} className="space-y-4">
@@ -288,37 +243,15 @@ export default function SessionPlanning({ session, initialPlan, onStartStudying,
                       )}
                     </button>
                     <button
+                      type="button"
                       onClick={handleStartStudying}
-                      disabled={revising}
+                      disabled={revising || activeTopicsCount === 0}
                       className="w-full md:flex-1 py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 active:scale-95"
                     >
-                      Começar a Estudar
+                      Começar a Estudar ({activeTopicsCount} tópicos)
                     </button>
                   </div>
                 </form>
-
-                {/* Histórico de Versões */}
-                {planHistory.length > 1 && (
-                  <div className="mt-6 pt-6 border-t border-caky-text/10">
-                    <p className="text-xs font-semibold text-caky-text/50 uppercase tracking-wide mb-3">
-                      Histórico de Versões ({planHistory.length})
-                    </p>
-                    <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                      {planHistory.slice(0, 5).map((plan) => (
-                        <div
-                          key={plan.id}
-                          className={`text-xs p-2 rounded-lg ${
-                            plan.version === currentPlan.version
-                              ? 'bg-caky-primary/10 text-caky-primary font-semibold'
-                              : 'text-caky-text/60 bg-gray-50 dark:bg-caky-card/30'
-                          }`}
-                        >
-                          v{plan.version}: {plan.instruction || 'Initial plan'}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>

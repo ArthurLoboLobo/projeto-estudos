@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 import { useAuth, getAuthToken } from '../lib/auth';
-import { GET_SESSION, GET_DOCUMENTS, GET_MESSAGES, GET_DOCUMENT_URL, GET_STUDY_PLAN } from '../lib/graphql/queries';
-import { DELETE_DOCUMENT, SEND_MESSAGE, GENERATE_WELCOME, REVISE_STUDY_PLAN, UPDATE_TOPIC_STATUS, UNDO_STUDY_PLAN, UNDO_MESSAGE } from '../lib/graphql/mutations';
+import { GET_SESSION, GET_TOPICS, GET_CHATS, GET_MESSAGES, GET_REVIEW_CHAT, GET_DOCUMENTS, GET_DOCUMENT_URL } from '../lib/graphql/queries';
+import { SEND_MESSAGE, GENERATE_WELCOME, UPDATE_TOPIC_COMPLETION, DELETE_DOCUMENT } from '../lib/graphql/mutations';
 import SessionHeader from '../components/SessionHeader';
 import Markdown from '../components/ui/Markdown';
-import type { Document, Message, Session as SessionType, StudyPlan } from '../types';
+import type { Session as SessionType, Topic, Chat, Message, Document } from '../types';
+import ProcessingStatusBadge from '../components/ProcessingStatusBadge';
 import SessionUpload from './SessionUpload';
 import SessionPlanning from './SessionPlanning';
 
@@ -17,17 +18,10 @@ export default function Session() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [session, setSession] = useState<SessionType | null>(null);
-  const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
 
   // Fetch session data
   const { data: sessionData, error: sessionError, refetch: refetchSession } = useQuery<{ session: SessionType }>(GET_SESSION, {
     variables: { id },
-    skip: !id,
-  });
-
-  // Fetch study plan
-  const { data: planData, refetch: refetchPlan } = useQuery<{ studyPlan: StudyPlan | null }>(GET_STUDY_PLAN, {
-    variables: { sessionId: id },
     skip: !id,
   });
 
@@ -37,12 +31,6 @@ export default function Session() {
       setSession(sessionData.session);
     }
   }, [sessionData]);
-
-  useEffect(() => {
-    if (planData?.studyPlan !== undefined) {
-      setStudyPlan(planData.studyPlan);
-    }
-  }, [planData]);
 
   // Redirect if session not found
   useEffect(() => {
@@ -61,81 +49,64 @@ export default function Session() {
     );
   }
 
-  // Route based on stage
-  if (session.stage === 'UPLOADING') {
-    return (
-      <SessionUpload
-        session={session}
-        onPlanGenerated={(plan) => {
-          setStudyPlan(plan);
-          setSession({ ...session, stage: 'PLANNING' });
-          refetchSession();
-          refetchPlan();
-        }}
-      />
-    );
-  }
-
-  if (session.stage === 'PLANNING') {
-    if (!studyPlan) {
-      // Still loading plan
+  // Route based on status
+  if (session.status === 'PLANNING') {
+    // If no draftPlan, show upload page
+    if (!session.draftPlan || session.draftPlan.topics.length === 0) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-caky-bg">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent"></div>
-        </div>
+        <SessionUpload
+          session={session}
+          onPlanGenerated={(updatedSession) => {
+            setSession(updatedSession);
+            refetchSession();
+          }}
+        />
       );
     }
+    // If draftPlan exists, show planning page
     return (
       <SessionPlanning
         session={session}
-        initialPlan={studyPlan}
-        onStartStudying={(updatedSession) => {
+        onSessionUpdate={(updatedSession) => {
           setSession(updatedSession);
           refetchSession();
         }}
-        onRefetchPlan={refetchPlan}
       />
     );
   }
 
-  // STUDYING stage - render the main study view
+  // ACTIVE or COMPLETED status - render the main study view
   return (
     <SessionStudying
       session={session}
-      studyPlan={studyPlan}
-      onRefetchPlan={refetchPlan}
+      onSessionUpdate={(updatedSession) => {
+        setSession(updatedSession);
+        refetchSession();
+      }}
     />
   );
 }
 
-// The main studying interface
+// The main studying interface with topic cards
 interface SessionStudyingProps {
   session: SessionType;
-  studyPlan: StudyPlan | null;
-  onRefetchPlan: () => void;
+  onSessionUpdate: (session: SessionType) => void;
 }
 
-function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingProps) {
+function SessionStudying({ session }: SessionStudyingProps) {
   const { user, logout } = useAuth();
-  const [messageInput, setMessageInput] = useState('');
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [showReviewChat, setShowReviewChat] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Document Modal State
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [materialsCollapsed, setMaterialsCollapsed] = useState(true); // Start collapsed on mobile
-  const [studyPlanCollapsed, setStudyPlanCollapsed] = useState(true); // Start collapsed on mobile
-  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
-  const [showUndoConfirm, setShowUndoConfirm] = useState(false);
-  const [messageToUndo, setMessageToUndo] = useState<string | null>(null);
-  const [isFullscreenChat, setIsFullscreenChat] = useState(false); // Mobile fullscreen mode
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mobile detection
-  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -143,72 +114,70 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Queries
+  // Fetch topics
+  const { data: topicsData, refetch: refetchTopics } = useQuery<{ topics: Topic[] }>(GET_TOPICS, {
+    variables: { sessionId: session.id },
+  });
+
+  // Fetch chats
+  const { data: chatsData } = useQuery<{ chats: Chat[] }>(GET_CHATS, {
+    variables: { sessionId: session.id },
+  });
+
+  // Fetch review chat
+  const { data: reviewChatData } = useQuery<{ reviewChat: Chat | null }>(GET_REVIEW_CHAT, {
+    variables: { sessionId: session.id },
+  });
+
+  // Fetch documents
   const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
     variables: { sessionId: session.id },
+    pollInterval: 5000, // Poll for processing status
   });
-  const { data: messagesData, loading: loadingMessages, refetch: refetchMessages } = useQuery<{ messages: Message[] }>(GET_MESSAGES, {
-    variables: { sessionId: session.id },
-  });
+
+  const [getDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL);
 
   // Mutations
+  const [updateTopicCompletion] = useMutation(UPDATE_TOPIC_COMPLETION);
   const [deleteDocument] = useMutation(DELETE_DOCUMENT);
-  const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }, { sessionId: string, content: string }>(SEND_MESSAGE);
-  const [generateWelcome, { loading: generatingWelcome }] = useMutation<{ generateWelcome: Message }, { sessionId: string }>(GENERATE_WELCOME);
-  const [undoMessage] = useMutation<{ undoMessage: string }, { messageId: string }>(UNDO_MESSAGE);
 
-  // Lazy query for document URL
-  const [fetchDocumentUrl] = useLazyQuery<{ documentUrl: string }>(GET_DOCUMENT_URL, {
-    fetchPolicy: 'network-only',
-  });
-
+  const topics: Topic[] = topicsData?.topics || [];
+  const chats: Chat[] = chatsData?.chats || [];
+  const reviewChat: Chat | null = reviewChatData?.reviewChat || null;
   const documents: Document[] = documentsData?.documents || [];
-  const serverMessages: Message[] = messagesData?.messages || [];
-  
-  // State for optimistic UI messages and AI typing indicator
-  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
-  const [aiTyping, setAiTyping] = useState(false);
-  
-  // Combine server messages with optimistic messages for immediate UI feedback
-  const messages: Message[] = [...serverMessages, ...optimisticMessages];
 
-  // Track if we've already triggered the welcome message
-  const [welcomeTriggered, setWelcomeTriggered] = useState(false);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
 
-  // Auto-trigger welcome message when chat loads with no messages
-  useEffect(() => {
-    // Only trigger once, when messages are loaded and empty
-    if (!loadingMessages && serverMessages.length === 0 && !welcomeTriggered && !generatingWelcome) {
-      setWelcomeTriggered(true);
-      setAiTyping(true);
-      
-      // Generate welcome message from AI (no user message needed)
-      generateWelcome({
-        variables: { sessionId: session.id },
-        onCompleted: () => {
-          refetchMessages();
-          setAiTyping(false);
-        },
-        onError: (err) => {
-          console.error('Welcome message error:', err);
-          setAiTyping(false);
-        }
-      });
+  // Get chat for a topic
+  const getChatForTopic = (topicId: string): Chat | undefined => {
+    return chats.find(c => c.topicId === topicId);
+  };
+
+  const handleTopicClick = (topic: Topic) => {
+    const chat = getChatForTopic(topic.id);
+    if (chat) {
+      setSelectedTopicId(topic.id);
+      setSelectedChatId(chat.id);
+      setShowReviewChat(false);
+      // Reset expansion state when opening new chat
+      setIsChatExpanded(false);
     }
-  }, [loadingMessages, serverMessages.length, welcomeTriggered, generatingWelcome, session.id, generateWelcome, refetchMessages]);
+  };
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      const container = messagesEndRef.current.parentElement;
-      if (container) {
-        // Use requestAnimationFrame for smooth scrolling on mobile
-        requestAnimationFrame(() => {
-          container.scrollTop = container.scrollHeight;
-        });
-      }
+  const handleReviewClick = () => {
+    if (reviewChat) {
+      setSelectedTopicId(null);
+      setSelectedChatId(reviewChat.id);
+      setShowReviewChat(true);
+      setIsChatExpanded(false);
     }
-  }, [messages]);
+  };
+
+  const handleCloseChat = () => {
+    setSelectedTopicId(null);
+    setSelectedChatId(null);
+    setShowReviewChat(false);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -251,16 +220,15 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
         data = await response.json();
       } else {
         const text = await response.text();
-        data = { error: text || 'Falha no envio' };
+        data = { error: text || 'Upload failed' };
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Falha no envio');
+        throw new Error(data.error || 'Upload failed');
       }
 
-      toast.success('Documento enviado! Extração de texto em andamento...');
+      toast.success('Documento enviado! Processamento iniciado.');
       refetchDocs();
-      pollDocumentStatus();
     } catch (err: any) {
       console.error('Upload error:', err);
       toast.error(err.message || 'Falha ao enviar documento');
@@ -271,54 +239,6 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
         fileInputRef.current.value = '';
       }
     }
-  };
-
-  const pollDocumentStatus = () => {
-    const interval = setInterval(() => {
-      refetchDocs().then(({ data }) => {
-        const docs = data?.documents || [];
-        const allComplete = docs.every(
-          (d: Document) => d.extractionStatus === 'completed' || d.extractionStatus === 'failed'
-        );
-        if (allComplete) {
-          clearInterval(interval);
-          const failed = docs.filter((d: Document) => d.extractionStatus === 'failed');
-          if (failed.length > 0) {
-            toast.error(`${failed.length} documento(s) falharam ao processar`);
-          }
-        }
-      });
-    }, 3000);
-
-    setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
-  };
-
-  const handleViewDocument = async (doc: Document) => {
-    setSelectedDocument(doc);
-    setPdfUrl(null);
-    setPdfError(null);
-    setPdfLoading(true);
-    
-    try {
-      const result = await fetchDocumentUrl({ variables: { id: doc.id } });
-      if (result.data?.documentUrl) {
-        setPdfUrl(result.data.documentUrl);
-      } else if (result.error) {
-        setPdfError(result.error.message);
-      } else {
-        setPdfError('Nenhuma URL retornada pelo servidor');
-      }
-    } catch (err: any) {
-      setPdfError(err.message || 'Falha ao buscar documento');
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  const closePdfViewer = () => {
-    setSelectedDocument(null);
-    setPdfUrl(null);
-    setPdfError(null);
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
@@ -333,6 +253,412 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     }
   };
 
+  const handleViewDocument = async (doc: Document) => {
+    if (doc.processingStatus !== 'COMPLETED') {
+      toast.info('O documento ainda está sendo processado.');
+      return;
+    }
+
+    try {
+      const { data } = await getDocumentUrl({ variables: { id: doc.id } });
+      if (data?.documentUrl) {
+        window.open(data.documentUrl, '_blank');
+      } else {
+        toast.error('Não foi possível obter o link do documento.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching document URL:', err);
+      toast.error('Erro ao abrir documento.');
+    }
+  };
+
+  const handleToggleTopicCompletion = async (topic: Topic) => {
+    try {
+      await updateTopicCompletion({
+        variables: { id: topic.id, isCompleted: !topic.isCompleted },
+      });
+      refetchTopics();
+      toast.success(topic.isCompleted ? 'Tópico reaberto' : 'Tópico concluído!');
+    } catch (err: any) {
+      toast.error(err.message || 'Falha ao atualizar tópico');
+    }
+  };
+
+  const completedCount = topics.filter(t => t.isCompleted).length;
+  const progress = topics.length > 0 ? (completedCount / topics.length) * 100 : 0;
+
+  const selectedTopic = selectedTopicId ? topics.find(t => t.id === selectedTopicId) || null : null;
+
+  // Show topic cards
+  return (
+    <div className="min-h-screen bg-caky-bg relative">
+      {/* Chat Overlay */}
+      {selectedChatId && (
+        <TopicChat
+          chatId={selectedChatId}
+          topic={selectedTopic}
+          isReviewChat={showReviewChat}
+          onClose={handleCloseChat}
+          onTopicComplete={() => {
+            if (selectedTopic) {
+              handleToggleTopicCompletion(selectedTopic);
+            }
+          }}
+          isMobile={isMobile}
+          isExpanded={isChatExpanded}
+          onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+        />
+      )}
+
+      {/* Document Modal Overlay */}
+      {isDocModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsDocModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-caky-secondary/20 flex justify-between items-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
+              <div>
+                <h2 className="text-xl font-bold text-caky-text">Seus Documentos</h2>
+                <p className="text-sm text-caky-text/60">Gerencie os materiais de estudo desta sessão</p>
+              </div>
+              <button 
+                onClick={() => setIsDocModalOpen(false)}
+                className="p-2 hover:bg-black/5 rounded-lg text-caky-text/50 hover:text-caky-text transition"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              {/* Upload Area */}
+              <div className="mb-6">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".pdf"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full py-8 border-2 border-dashed border-caky-primary/40 hover:border-caky-primary bg-caky-primary/5 hover:bg-caky-primary/10 text-caky-primary hover:text-caky-text rounded-2xl transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-8 w-8 border-3 border-caky-primary border-t-transparent"></div>
+                      <span className="font-semibold">{uploadProgress || 'Enviando...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      <span className="font-bold text-lg">Upload de Arquivos</span>
+                      <span className="text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Document List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">Documentos Enviados</h3>
+                {documents.length === 0 ? (
+                  <div className="text-center py-8 text-caky-text/50 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    Nenhum documento enviado ainda.
+                  </div>
+                ) : (
+                  documents.map((doc) => (
+                    <div 
+                      key={doc.id} 
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-caky-primary/30 transition group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                        <div 
+                          onClick={() => handleViewDocument(doc)}
+                          className="p-2 bg-white rounded-lg border border-gray-200 text-red-500 cursor-pointer hover:scale-105 transition shadow-sm"
+                        >
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div 
+                            onClick={() => handleViewDocument(doc)}
+                            className="font-semibold text-caky-text truncate cursor-pointer hover:text-caky-primary transition"
+                            title={doc.fileName}
+                          >
+                            {doc.fileName}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <ProcessingStatusBadge status={doc.processingStatus} />
+                            <span className="text-xs text-gray-400">
+                              {new Date(doc.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                        className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
+                        title="Excluir"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SessionHeader
+        session={session}
+        user={user}
+        onLogout={logout}
+        isMobile={isMobile}
+      />
+
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold text-caky-text">Progresso</h2>
+            <span className="text-sm text-caky-text/60">{completedCount} de {topics.length} tópicos</span>
+          </div>
+          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-caky-primary to-caky-secondary transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Topic Cards List */}
+          <div className="lg:col-span-2 flex flex-col gap-4 md:gap-6">
+            {topics.map((topic, index) => {
+              const chat = getChatForTopic(topic.id);
+              const isStarted = chat?.isStarted || false;
+
+              return (
+                <div
+                  key={topic.id}
+                  onClick={() => handleTopicClick(topic)}
+                  className={`relative bg-white rounded-2xl p-5 border-2 cursor-pointer transition-all hover:shadow-lg group ${
+                    topic.isCompleted
+                      ? 'border-green-300 bg-green-50/50'
+                      : isStarted
+                      ? 'border-caky-primary/50 hover:border-caky-primary'
+                      : 'border-gray-200 hover:border-caky-primary/50'
+                  }`}
+                >
+                  {/* Topic Number Badge */}
+                  <div className={`absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md ${
+                    topic.isCompleted
+                      ? 'bg-green-500 text-white'
+                      : 'bg-caky-primary text-white'
+                  }`}>
+                    {topic.isCompleted ? '✓' : index + 1}
+                  </div>
+
+                  {/* Complete Toggle */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleTopicCompletion(topic);
+                    }}
+                    className={`absolute top-3 right-3 p-2 rounded-lg transition-colors ${
+                      topic.isCompleted
+                        ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                        : 'bg-gray-100 text-gray-400 hover:bg-caky-primary/10 hover:text-caky-primary'
+                    }`}
+                    title={topic.isCompleted ? 'Reabrir tópico' : 'Marcar como concluído'}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+
+                  <div className="mt-2">
+                    <h3 className={`font-bold text-lg mb-2 pr-10 ${topic.isCompleted ? 'text-green-700' : 'text-caky-text'}`}>
+                      {topic.title}
+                    </h3>
+                    {topic.description && (
+                      <p className={`text-sm line-clamp-2 ${topic.isCompleted ? 'text-green-600/70' : 'text-caky-text/60'}`}>
+                        {topic.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Status Indicator */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                      topic.isCompleted
+                        ? 'bg-green-100 text-green-700'
+                        : isStarted
+                        ? 'bg-caky-primary/10 text-caky-primary'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {topic.isCompleted ? 'Concluído' : isStarted ? 'Em progresso' : 'Não iniciado'}
+                    </span>
+                    <svg className="w-5 h-5 text-caky-text/30 group-hover:text-caky-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right Column: Actions */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Documentos Card */}
+            <div
+              onClick={() => setIsDocModalOpen(true)}
+              className="bg-[#3B4C84] rounded-2xl p-6 cursor-pointer hover:shadow-xl transition-all text-white group"
+            >
+              <div className="mb-4">
+                <svg className="w-8 h-8 text-white/80 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-xl mb-2">Documentos</h3>
+              <p className="text-white/70 text-sm">
+                Veja os documentos eviados e envie novos.
+              </p>
+            </div>
+
+            {/* Review Chat Card */}
+            {reviewChat && (
+              <div
+                onClick={handleReviewClick}
+                className="bg-[#3B4C84] rounded-2xl p-6 cursor-pointer hover:shadow-xl transition-all text-white group"
+              >
+                <div className="mb-4">
+                  <svg className="w-8 h-8 text-white/80 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <h3 className="font-bold text-xl mb-2">Revisão Geral</h3>
+                <p className="text-white/70 text-sm">
+                  Revise os conteúdos de cada tópico e pratique com exercícios.
+                </p>
+              </div>
+            )}
+
+            {/* Simulados Card */}
+            <div
+              className="bg-[#3B4C84] rounded-2xl p-6 cursor-not-allowed text-white opacity-80"
+            >
+              <div className="mb-4">
+                <svg className="w-8 h-8 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-bold text-xl mb-2">Simulados</h3>
+                  <p className="text-white/70 text-sm">
+                    Monte simulados personalizados para praticar.
+                  </p>
+                </div>
+                <span className="bg-white/20 text-white text-[10px] px-5 py-1 rounded-full font-bold uppercase tracking-wide whitespace-nowrap">
+                  Em breve
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Topic-specific chat interface
+interface TopicChatProps {
+  chatId: string;
+  topic: Topic | null;
+  isReviewChat: boolean;
+  onClose: () => void;
+  onTopicComplete: () => void;
+  isMobile: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+}
+
+function TopicChat({ 
+  chatId, 
+  topic, 
+  isReviewChat, 
+  onClose, 
+  onTopicComplete, 
+  isMobile, 
+  isExpanded,
+  onToggleExpand
+}: TopicChatProps) {
+  const [messageInput, setMessageInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch messages
+  const { data: messagesData, loading: loadingMessages, refetch: refetchMessages } = useQuery<{ messages: Message[] }>(GET_MESSAGES, {
+    variables: { chatId },
+  });
+
+  // Mutations
+  const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }>(SEND_MESSAGE);
+  const [generateWelcome, { loading: generatingWelcome }] = useMutation<{ generateWelcome: Message }>(GENERATE_WELCOME);
+
+  const serverMessages: Message[] = messagesData?.messages || [];
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [aiTyping, setAiTyping] = useState(false);
+  const messages: Message[] = [...serverMessages, ...optimisticMessages];
+  const [welcomeTriggered, setWelcomeTriggered] = useState(false);
+
+  // Auto-trigger welcome message
+  useEffect(() => {
+    if (!loadingMessages && serverMessages.length === 0 && !welcomeTriggered && !generatingWelcome) {
+      setWelcomeTriggered(true);
+      setAiTyping(true);
+
+      generateWelcome({
+        variables: { chatId },
+        onCompleted: () => {
+          refetchMessages();
+          setAiTyping(false);
+        },
+        onError: (err) => {
+          console.error('Welcome message error:', err);
+          setAiTyping(false);
+        }
+      });
+    }
+  }, [loadingMessages, serverMessages.length, welcomeTriggered, generatingWelcome, chatId, generateWelcome, refetchMessages]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      }
+    }
+  }, [messages]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || sending) return;
@@ -340,13 +666,13 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     const content = messageInput.trim();
     setMessageInput('');
 
-    // Reset textarea height to default
     if (messageInputRef.current) {
       messageInputRef.current.style.height = 'auto';
     }
 
     const optimisticMessage: Message = {
       id: `optimistic-${Date.now()}`,
+      chatId,
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
@@ -357,17 +683,12 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
 
     try {
       await sendMessage({
-        variables: { sessionId: session.id, content },
-        onCompleted: (data) => {
-          if (data?.sendMessage) {
-            // Refetch messages to get the updated list including both user and AI messages
-            refetchMessages();
-            // Clear optimistic UI since real data will be loaded
-            setOptimisticMessages([]);
-          }
+        variables: { chatId, content },
+        onCompleted: () => {
+          refetchMessages();
+          setOptimisticMessages([]);
         },
       });
-
       setAiTyping(false);
     } catch (err: any) {
       console.error('Send error:', err);
@@ -378,952 +699,198 @@ function SessionStudying({ session, studyPlan, onRefetchPlan }: SessionStudyingP
     }
   };
 
-  const handleUndoMessage = async (messageId: string) => {
-    setMessageToUndo(messageId);
-    setShowUndoConfirm(true);
-  };
+  const chatTitle = isReviewChat ? 'Revisão Geral' : topic?.title || 'Chat';
 
-  const confirmUndo = async () => {
-    if (!messageToUndo) return;
-
-    setShowUndoConfirm(false);
-    const messageId = messageToUndo;
-    setMessageToUndo(null);
-
-    try {
-      const result = await undoMessage({
-        variables: { messageId },
-      });
-
-      if (result.data?.undoMessage) {
-        // Put the message content back in the input box
-        setMessageInput(result.data.undoMessage);
-        // Reset textarea height to auto-adjust to new content
-        if (messageInputRef.current) {
-          messageInputRef.current.style.height = 'auto';
-          const maxHeight = isMobile ? 120 : 200;
-          messageInputRef.current.style.height = Math.min(messageInputRef.current.scrollHeight, maxHeight) + 'px';
-        }
-        // Refetch messages to update the list
-        refetchMessages();
-        toast.success('Mensagem desfeita');
-      }
-    } catch (err: any) {
-      console.error('Undo error:', err);
-      toast.error(err.message || 'Falha ao desfazer mensagem');
-    }
-  };
-
-  const cancelUndo = () => {
-    setShowUndoConfirm(false);
-    setMessageToUndo(null);
-  };
-
+  // Determine popup styles based on expansion state
+  const popupStyles = isExpanded 
+    ? "fixed top-[74px] left-0 right-0 bottom-0 z-40 bg-white shadow-2xl flex flex-col transition-all duration-300"
+    : "fixed top-[10%] bottom-[5%] left-[5%] right-[5%] md:left-[15%] md:right-[15%] lg:left-[20%] lg:right-[20%] z-40 bg-white shadow-2xl rounded-2xl border border-gray-200 flex flex-col transition-all duration-300";
 
   return (
-    <div className="h-screen flex flex-col bg-caky-bg">
-      {/* Header */}
-      {!isFullscreenChat && (
-        <SessionHeader
-          session={session}
-          user={user}
-          onLogout={logout}
-          isMobile={isMobile}
-          hideLogoOnMobile={true}
-          extraActions={isMobile ? (
-            <button
-              onClick={() => setIsFullscreenChat(true)}
-              className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
-              title="Fullscreen Chat"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
-          ) : null}
-        />
+    <>
+      {/* Backdrop for non-expanded mode */}
+      {!isExpanded && (
+        <div className="fixed inset-0 bg-black/20 z-30 backdrop-blur-sm" onClick={onClose} />
       )}
+      
+      <div className={popupStyles}>
+        {/* Chat Header */}
+        <header className={`border-b border-caky-text/10 bg-white shrink-0 z-10 px-4 py-3 flex items-center justify-between ${!isExpanded ? 'rounded-t-2xl' : ''}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-lg font-bold text-caky-text truncate">{chatTitle}</h1>
+          </div>
 
-      {/* Main Content */}
-      <div className={`flex-1 flex ${isMobile ? 'flex-col' : 'lg:flex-row'} overflow-hidden ${isFullscreenChat ? 'fixed inset-0 z-50 bg-white flex-col' : ''}`}>
-        {/* Fullscreen Chat Header */}
-        {isFullscreenChat && (
-          <header className="border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm shrink-0 z-10 px-4 py-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3 min-w-0">
-                <button
-                  onClick={() => setIsFullscreenChat(false)}
-                  className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition active:scale-95"
-                  title="Voltar"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div className="min-w-0">
-                  <h1 className="text-lg font-bold text-caky-text truncate">{session.title}</h1>
-                  {session.description && (
-                    <p className="text-sm text-caky-text/50 truncate hidden sm:block">{session.description}</p>
+          <div className="flex items-center gap-2">
+            {topic && (
+              <label className="flex items-center gap-2 cursor-pointer group select-none mr-2 hidden md:flex">
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                  topic.isCompleted
+                    ? 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-300 group-hover:border-green-500'
+                }`}>
+                  {topic.isCompleted && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {studyPlan && (
-                  <button
-                    onClick={() => setShowEditPlanModal(true)}
-                    className="px-3 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition active:scale-95 font-medium"
-                  >
-                    Editar Plano
-                  </button>
-                )}
-                <span className="text-caky-text/70 text-sm hidden sm:block font-medium">{user?.email}</span>
-                <button
-                  onClick={logout}
-                  className="px-3 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition active:scale-95 font-medium"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
-          </header>
-        )}
-
-        {/* Left Sidebar - Study Materials */}
-        <aside className={`${isMobile && materialsCollapsed && !isFullscreenChat ? 'hidden' : ''} ${isFullscreenChat ? 'hidden' : ''} border-b lg:border-b-0 lg:border-r border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
-          materialsCollapsed
-            ? `w-full lg:w-12 ${isMobile ? 'h-0' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
-            : `w-full lg:w-80 ${isMobile ? 'h-auto max-h-[40vh]' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
-        }`}>
-          <div className="flex-1 flex flex-col min-h-0">
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={topic.isCompleted}
+                  onChange={onTopicComplete}
+                />
+                <span className={`text-sm font-medium ${topic.isCompleted ? 'text-green-700' : 'text-caky-text/70'}`}>
+                  {topic.isCompleted ? 'Concluído' : 'Marcar Concluído'}
+                </span>
+              </label>
+            )}
+            
+            {/* Expand/Collapse Button */}
             <button
-              onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
-              className={`border-b border-caky-text/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
-                materialsCollapsed
-                  ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
-                  : 'w-full p-4'
-              }`}
+              onClick={onToggleExpand}
+              className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition active:scale-95"
+              title={isExpanded ? "Reduzir" : "Expandir"}
             >
-              {materialsCollapsed ? (
-                <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
-                  <svg
-                    className="w-4 h-4 text-caky-text/50 transition-transform hover:text-caky-text"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
+              {isExpanded ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" />
+                </svg>
               ) : (
-                <div className="flex justify-between items-center">
-                  <h2 className="text-base font-bold text-caky-text">Materiais de Estudo</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-caky-text/50">
-                      {documents.length} doc{documents.length !== 1 ? 's' : ''}
-                    </span>
-                    <svg
-                      className="w-4 h-4 text-caky-text/50 transition-transform"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </div>
-                </div>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
               )}
             </button>
 
-            {!materialsCollapsed && (
-              <>
-                <div className="px-4 pt-4 pb-4">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    accept=".pdf"
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-text hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50 text-sm font-semibold"
-                  >
-                    {uploading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-primary border-t-transparent"></div>
-                        {uploadProgress || 'Enviando...'}
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        Upload de Arquivos
-                      </>
-                    )}
-                  </button>
-                </div>
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="p-2 text-caky-text/70 hover:text-red-500 hover:bg-red-50 rounded-lg transition active:scale-95"
+              title="Fechar Chat"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </header>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                  {documents.length === 0 ? (
-                    <div className="text-center py-4 text-caky-text/40">
-                      <p className="text-xs font-medium">Nenhum documento ainda</p>
-                    </div>
-                  ) : (
-                    documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="bg-white dark:bg-caky-card rounded-lg p-2 shadow-sm hover:shadow hover:border-caky-primary/30 transition cursor-pointer group text-xs"
-                        onClick={() => handleViewDocument(doc)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-caky-text font-semibold truncate">{doc.fileName}</p>
-                              <StatusBadge status={doc.extractionStatus} />
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDocument(doc.id, doc.fileName);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+        {/* Messages */}
+        <div className="flex-1 relative min-h-0">
+          <div
+            className="absolute inset-0 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg scroll-smooth"
+            style={isMobile ? { WebkitOverflowScrolling: 'touch' } : {}}
+          >
+          <div className="max-w-3xl mx-auto w-full">
+            {loadingMessages && messages.length === 0 ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-full text-center px-4 opacity-80 py-12">
+                <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
+                  {isReviewChat ? 'Pronto para revisar!' : `Vamos aprender ${topic?.title}`}
+                </h3>
+                <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
+                  {isReviewChat
+                    ? 'Pratique com questões que integram todos os tópicos do seu plano de estudos.'
+                    : 'Pergunte-me qualquer coisa sobre este tópico. Vou te ajudar a entender os conceitos e resolver exercícios.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                {messages.map((msg) => (
+                  <MessageBubble key={msg.id} message={msg} isMobile={isMobile} />
+                ))}
+                {aiTyping && (
+                  <div className="flex justify-start mb-4">
+                    <div className={`max-w-[85%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm`}>
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                          <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
+                        <span className="text-sm text-caky-text/50 font-medium">Caky está pensando...</span>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </>
             )}
           </div>
-        </aside>
-
-        {/* Chat Area */}
-        <main className={`flex-1 flex flex-col min-w-0 bg-white ${isMobile ? 'min-h-0' : ''}`}>
-          {/* Mobile Chat Controls */}
-          {isMobile && !isFullscreenChat && (
-            <div className="flex items-center justify-between px-4 py-3 bg-caky-card border-b border-caky-text/10">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setMaterialsCollapsed(!materialsCollapsed)}
-                  className={`p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95 ${
-                    !materialsCollapsed ? 'bg-caky-primary text-white' : ''
-                  }`}
-                  title="Materiais de Estudo"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V9l4-4m0 0L15 9m4-4v4a2 2 0 01-2 2h-4" />
-                  </svg>
-                </button>
-                {studyPlan && (
-                  <button
-                    onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
-                    className={`p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95 ${
-                      !studyPlanCollapsed ? 'bg-caky-primary text-white' : ''
-                    }`}
-                    title="Plano de Estudos"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V9l4-4m0 0L15 9m4-4v4a2 2 0 01-2 2h-4" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-xs text-caky-text/60 font-medium">
-                  {session.title.length > 15 ? `${session.title.substring(0, 15)}...` : session.title}
-                </div>
-                <button
-                  onClick={() => setIsFullscreenChat(true)}
-                  className="p-3 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-xl transition active:scale-95"
-                  title="Chat Completo"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Messages */}
-          <div className={`flex-1 relative ${isMobile ? 'min-h-0' : ''}`}>
-            <div
-              className={`absolute inset-0 overflow-y-auto ${isMobile ? 'overscroll-contain touch-pan-y' : ''} p-4 md:p-6 space-y-4 md:space-y-6 bg-caky-bg scroll-smooth`}
-              style={isMobile ? {
-                WebkitOverflowScrolling: 'touch',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(0,0,0,0.2) transparent'
-              } : {}}
-            >
-              {loadingMessages && messages.length === 0 ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-full text-center px-4 opacity-80">
-                  <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
-                    Pronto para te ajudar a estudar!
-                  </h3>
-                  <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
-                    Pergunte-me qualquer coisa sobre seus materiais de estudo. Vou ajudá-lo a entender conceitos, resolver problemas e se preparar para sua prova.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {messages.map((msg) => (
-                    <MessageBubble 
-                      key={msg.id} 
-                      message={msg} 
-                      isMobile={isMobile} 
-                      onUndo={handleUndoMessage}
-                    />
-                  ))}
-                  {aiTyping && (
-                    <div className="flex justify-start mb-4">
-                      <div className={`max-w-[85%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm`}>
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                          </div>
-                          <span className="text-sm text-caky-text/50 font-medium">Caky está pensando...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Message Input */}
-          <div className={`border-t border-caky-text/10 bg-white ${isMobile ? 'p-3 pb-safe' : 'p-3 md:p-4'} shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]`}>
-            {isFullscreenChat && (
-              <div className="flex items-center justify-between mb-3 px-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsFullscreenChat(false)}
-                    className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition"
-                    title="Exit Fullscreen"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                  <span className="text-sm font-medium text-caky-text/70">Chat Mode</span>
-                </div>
-                <div className="text-xs text-caky-text/50">
-                  {session.title}
-                </div>
-              </div>
-            )}
-            <form onSubmit={handleSendMessage} className={`flex ${isMobile ? 'gap-3' : 'gap-2 md:gap-3'}`}>
-              <textarea
-                ref={messageInputRef}
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-                onKeyPress={(e) => {
-                  // Allow Shift+Enter for line breaks
-                  if (e.key === 'Enter' && e.shiftKey) {
-                    // Let the default behavior happen (insert line break)
-                    return;
-                  }
-                }}
-                placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
-                className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[56px]' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition resize-none`}
-                disabled={sending}
-                autoComplete="off"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                spellCheck="true"
-                rows={1}
-                style={{
-                  height: 'auto',
-                  minHeight: isMobile ? '56px' : '52px',
-                  maxHeight: isMobile ? '120px' : '200px'
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  const maxHeight = isMobile ? 120 : 200;
-                  const newHeight = Math.min(target.scrollHeight, maxHeight);
-                  target.style.height = newHeight + 'px';
-
-                  // Show scrollbar only when content exceeds max height
-                  if (target.scrollHeight > maxHeight) {
-                    target.style.overflowY = 'auto';
-                  } else {
-                    target.style.overflowY = 'hidden';
-                  }
-                }}
-              />
-              <button
-                type="submit"
-                disabled={sending || !messageInput.trim()}
-                className={`${isMobile ? 'px-5 py-3 min-h-[44px]' : 'px-4 md:px-6 py-2 md:py-3'} bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-primary transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${isMobile ? 'text-base active:scale-95' : 'text-sm md:text-base'} shadow-md`}
-              >
-                {sending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    {!isMobile && <span className="hidden md:inline">Pensando...</span>}
-                  </>
-                ) : (
-                  <>
-                    {!isMobile && <span className="hidden md:inline">Enviar</span>}
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </main>
-
-        {/* Right Sidebar - Study Plan */}
-        {studyPlan && (
-          <aside className={`${isMobile && studyPlanCollapsed && !isFullscreenChat ? 'hidden' : ''} ${isFullscreenChat ? 'hidden' : ''} border-b lg:border-b-0 lg:border-l border-caky-text/10 bg-caky-secondary/10 flex flex-col shrink-0 transition-all duration-300 overflow-hidden ${
-            studyPlanCollapsed
-              ? `w-full lg:w-12 ${isMobile ? 'h-0' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
-              : `w-full lg:w-80 ${isMobile ? 'h-auto max-h-[40vh]' : 'h-48 lg:h-full max-h-48 lg:max-h-none'}`
-          }`}>
-            <div className="flex-1 flex flex-col min-h-0">
-              <button
-                onClick={() => setStudyPlanCollapsed(!studyPlanCollapsed)}
-                className={`border-b border-caky-text/5 bg-caky-secondary/5 hover:bg-caky-secondary/10 transition-colors text-left ${
-                  studyPlanCollapsed
-                    ? 'lg:w-12 lg:h-full lg:flex lg:flex-col lg:items-center lg:justify-start lg:p-2 lg:border-b-0'
-                    : 'w-full p-4'
-                }`}
-              >
-                {studyPlanCollapsed ? (
-                  <div className="lg:flex lg:flex-col lg:items-center lg:justify-start lg:pt-4">
-                    <svg
-                      className="w-4 h-4 text-caky-text/50 transition-transform hover:text-caky-text"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-base font-bold text-caky-text">Plano de Estudos</h2>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-caky-text/50">
-                        {studyPlan.content.topics.length} tópico{studyPlan.content.topics.length !== 1 ? 's' : ''}
-                      </span>
-                      <svg
-                        className="w-4 h-4 text-caky-text/50 transition-transform"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
-              </button>
-              {!studyPlanCollapsed && (
-                <>
-                  <div className="px-4 pt-4 pb-4">
-                    <button
-                      onClick={() => setShowEditPlanModal(true)}
-                      className="w-full py-3 px-4 border-2 border-dashed border-caky-primary/30 hover:border-caky-primary text-caky-primary hover:text-caky-text hover:bg-caky-primary/5 rounded-xl transition flex items-center justify-center gap-2 text-sm font-semibold"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Editar plano de estudos
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-4 min-h-0 space-y-3">
-                  {studyPlan.content.topics.map((topic, index) => {
-                    const getStatusColor = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'bg-red-100 text-red-700';
-                        case 'need_review': return 'bg-yellow-100 text-yellow-700';
-                        case 'know_well': return 'bg-green-100 text-green-700';
-                        default: return 'bg-gray-100 dark:bg-caky-card text-gray-700 dark:text-gray-300';
-                      }
-                    };
-
-                    const getStatusLabel = (status: string) => {
-                      switch (status) {
-                        case 'need_to_learn': return 'Preciso Aprender';
-                        case 'need_review': return 'Preciso Revisar';
-                        case 'know_well': return 'Sei Bem';
-                        default: return 'Desconhecido';
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={topic.id}
-                        className="p-3 bg-white dark:bg-caky-card rounded-lg shadow-sm"
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          <div className="shrink-0 w-6 h-6 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-caky-text text-xs mb-1">{topic.title}</h4>
-                            <p className="text-[10px] text-caky-text/60 leading-relaxed">{topic.description}</p>
-                          </div>
-                        </div>
-                        <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${getStatusColor(topic.status)}`}>
-                          {getStatusLabel(topic.status)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                </>
-              )}
-            </div>
-          </aside>
-        )}
+        </div>
       </div>
 
-      {/* Undo Message Confirmation Modal */}
-      {showUndoConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-caky-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-caky-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-caky-text mb-2">Confirmar Desfazer</h3>
-              <p className="text-caky-text/70 text-sm leading-relaxed mb-6">
-                Tem certeza que deseja desfazer esta mensagem? Isso também removerá todas as mensagens posteriores nesta conversa.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={cancelUndo}
-                  className="flex-1 px-4 py-2 text-caky-text border border-gray-200 rounded-lg hover:bg-gray-50 transition font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmUndo}
-                  className="flex-1 px-4 py-2 bg-caky-primary text-white rounded-lg hover:bg-caky-primary/90 transition font-medium"
-                >
-                  Desfazer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Study Plan Modal */}
-      {showEditPlanModal && studyPlan && (
-        <EditStudyPlanModal
-          studyPlan={studyPlan}
-          onClose={() => setShowEditPlanModal(false)}
-          onRefetchPlan={onRefetchPlan}
-          sessionId={session.id}
-        />
-      )}
-
-      {/* PDF Viewer Modal */}
-      {selectedDocument && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={closePdfViewer}
-        >
-          <div 
-            className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="min-w-0">
-                  <h3 className="text-caky-text font-bold truncate">{selectedDocument.fileName}</h3>
-                  <p className="text-sm text-caky-text/50 font-medium">
-                    {selectedDocument.pageCount ? `${selectedDocument.pageCount} páginas` : 'Documento'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={closePdfViewer}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition p-2 hover:bg-gray-100 dark:hover:bg-caky-card/50 rounded-lg"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-caky-card/20">
-              {pdfLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-caky-primary border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-caky-text/60 font-medium">Carregando documento...</p>
-                  </div>
-                </div>
-              ) : pdfUrl ? (
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-full border-0"
-                  title={selectedDocument.fileName}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <p className="text-red-500 mb-2 font-medium">Falha ao carregar documento</p>
-                    {pdfError && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">{pdfError}</p>
-                    )}
-                    <button
-                      onClick={() => handleViewDocument(selectedDocument)}
-                      className="mt-4 px-4 py-2 bg-caky-primary hover:bg-caky-dark text-white rounded-lg transition font-medium"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Edit Study Plan Modal Component
-interface EditStudyPlanModalProps {
-  studyPlan: StudyPlan;
-  onClose: () => void;
-  onRefetchPlan: () => void;
-  sessionId: string;
-}
-
-function EditStudyPlanModal({ studyPlan, onClose, onRefetchPlan, sessionId }: EditStudyPlanModalProps) {
-  const [revisionInstruction, setRevisionInstruction] = useState('');
-  const [isRevising, setIsRevising] = useState(false);
-  const [localStudyPlan, setLocalStudyPlan] = useState(studyPlan);
-
-  // Update local study plan when prop changes
-  useEffect(() => {
-    setLocalStudyPlan(studyPlan);
-  }, [studyPlan]);
-
-  const [reviseStudyPlan] = useMutation<{ reviseStudyPlan: StudyPlan }>(REVISE_STUDY_PLAN, {
-    onCompleted: (data) => {
-      if (data?.reviseStudyPlan) {
-        setLocalStudyPlan(data.reviseStudyPlan);
-        onRefetchPlan();
-        setRevisionInstruction('');
-        toast.success('Plano de estudos atualizado!');
-      }
-      setIsRevising(false);
-    },
-    onError: (error: any) => {
-      console.error('Revision error:', error);
-      console.error('Error details:', error.graphQLErrors, error.networkError);
-
-      // Try to get a more specific error message
-      let errorMessage = 'Erro ao atualizar plano de estudos';
-      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
-        const graphQLError = error.graphQLErrors[0].message;
-        // Provide user-friendly messages for common errors
-        if (graphQLError.includes('Session must be in')) {
-          errorMessage = 'Não é possível editar o plano neste estágio.';
-        } else if (graphQLError.includes('No study plan found')) {
-          errorMessage = 'Nenhum plano de estudos encontrado para esta sessão.';
-        } else if (graphQLError.includes('JSON')) {
-          errorMessage = 'Erro ao processar a resposta da IA. Tente novamente.';
-        } else {
-          errorMessage = graphQLError;
-        }
-      } else if (error.networkError) {
-        errorMessage = 'Erro de conexão. Verifique sua internet.';
-      }
-
-      toast.error(errorMessage);
-      setIsRevising(false);
-    }
-  });
-
-  const [updateTopicStatus] = useMutation<{ updateTopicStatus: StudyPlan }>(UPDATE_TOPIC_STATUS, {
-    onCompleted: (data) => {
-      if (data?.updateTopicStatus) {
-        setLocalStudyPlan(data.updateTopicStatus);
-        onRefetchPlan();
-      }
-    },
-    onError: (error: any) => {
-      console.error('Status update error:', error);
-      console.error('Error details:', error.graphQLErrors, error.networkError);
-
-      // Try to get a more specific error message
-      let errorMessage = 'Erro ao atualizar status do tópico';
-      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
-        errorMessage = error.graphQLErrors[0].message || errorMessage;
-      } else if (error.networkError) {
-        errorMessage = 'Erro de conexão. Verifique sua internet.';
-      }
-
-      toast.error(errorMessage);
-    }
-  });
-
-  const [undoStudyPlan] = useMutation<{ undoStudyPlan: StudyPlan }>(UNDO_STUDY_PLAN, {
-    onCompleted: (data) => {
-      if (data?.undoStudyPlan) {
-        setLocalStudyPlan(data.undoStudyPlan);
-        onRefetchPlan();
-        toast.success('Revertido para versão anterior');
-      }
-    },
-    onError: (error) => {
-      console.error('Undo error:', error);
-      toast.error(error.message || 'Falha ao desfazer');
-    }
-  });
-
-  const handleRevisePlan = async () => {
-    if (!revisionInstruction.trim()) return;
-
-    setIsRevising(true);
-    try {
-      await reviseStudyPlan({
-        variables: {
-          sessionId,
-          instruction: revisionInstruction.trim()
-        }
-      });
-    } catch (error) {
-      console.error('Revision error:', error);
-    }
-  };
-
-  const handleStatusChange = async (topicId: string, newStatus: string) => {
-    try {
-      await updateTopicStatus({
-        variables: {
-          sessionId,
-          topicId,
-          status: newStatus
-        }
-      });
-    } catch (error) {
-      console.error('Status update error:', error);
-    }
-  };
-
-  const handleUndo = async () => {
-    try {
-      await undoStudyPlan({
-        variables: { sessionId }
-      });
-    } catch (error) {
-      console.error('Undo error:', error);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'need_to_learn': return 'bg-red-100 text-red-700';
-      case 'need_review': return 'bg-yellow-100 text-yellow-700';
-      case 'know_well': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 dark:bg-caky-card text-gray-700 dark:text-gray-300';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'need_to_learn': return 'Preciso Aprender';
-      case 'need_review': return 'Preciso Revisar';
-      case 'know_well': return 'Sei Bem';
-      default: return 'Desconhecido';
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold text-caky-text">Editar Plano de Estudos</h2>
-              <div className="flex items-center gap-4 text-xs text-caky-text/50 mt-1">
-                <span>Versão {localStudyPlan.version}</span>
-                <span>•</span>
-                <span>Criado {new Date(localStudyPlan.createdAt).toLocaleTimeString()}</span>
-                <span>•</span>
-                <button
-                  onClick={handleUndo}
-                  className="text-caky-primary hover:text-caky-text font-medium flex items-center gap-1"
-                >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                  </svg>
-                  Voltar para versão anterior
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Message Input */}
+      <div className={`border-t border-caky-text/10 bg-white ${isMobile ? 'p-3 pb-safe' : 'p-3 md:p-4'} shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] ${!isExpanded ? 'rounded-b-2xl' : ''}`}>
+        <form onSubmit={handleSendMessage} className={`flex ${isMobile ? 'gap-3' : 'gap-2 md:gap-3'} max-w-5xl mx-auto`}>
+          <textarea
+            ref={messageInputRef}
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage(e);
+              }
+            }}
+            placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
+            className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[56px]' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition resize-none`}
+            disabled={sending}
+            autoComplete="off"
+            rows={1}
+            style={{
+              height: 'auto',
+              minHeight: isMobile ? '56px' : '52px',
+              maxHeight: isMobile ? '120px' : '200px'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              const maxHeight = isMobile ? 120 : 200;
+              const newHeight = Math.min(target.scrollHeight, maxHeight);
+              target.style.height = newHeight + 'px';
+            }}
+          />
           <button
-            onClick={onClose}
-            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 transition p-2 hover:bg-gray-100 dark:hover:bg-caky-card/50 rounded-lg"
+            type="submit"
+            disabled={sending || !messageInput.trim()}
+            className={`${isMobile ? 'px-5 py-3 min-h-[44px]' : 'px-4 md:px-6 py-2 md:py-3'} bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-primary transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${isMobile ? 'text-base active:scale-95' : 'text-sm md:text-base'} shadow-md`}
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            {sending ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            ) : (
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            )}
           </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Study Plan Topics */}
-          <div className="p-6">
-            <h3 className="text-lg font-bold text-caky-text mb-4">Tópicos do Plano</h3>
-            <div className="space-y-4">
-              {localStudyPlan.content.topics.map((topic, index) => (
-                <div
-                  key={topic.id}
-                  className="p-4 bg-white dark:bg-caky-card rounded-lg shadow-sm"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-caky-text text-sm mb-2">{topic.title}</h4>
-                      <p className="text-xs text-caky-text/70 leading-relaxed">{topic.description}</p>
-                    </div>
-                  </div>
-
-                  {/* Status Selector */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-caky-text/70">Status:</span>
-                    <select
-                      value={topic.status}
-                      onChange={(e) => handleStatusChange(topic.id, e.target.value)}
-                      className="text-xs px-2 py-1 border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-caky-primary/50"
-                    >
-                      <option value="need_to_learn">Preciso Aprender</option>
-                      <option value="need_review">Preciso Revisar</option>
-                      <option value="know_well">Sei Bem</option>
-                    </select>
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(topic.status)}`}>
-                      {getStatusLabel(topic.status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Revision Section */}
-          <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-caky-card/30">
-            <h3 className="text-lg font-bold text-caky-text mb-4">Revisar Plano com IA</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-caky-text mb-2">
-                  Descreva como deseja modificar o plano:
-                </label>
-                <textarea
-                  value={revisionInstruction}
-                  onChange={(e) => setRevisionInstruction(e.target.value)}
-                  placeholder="Ex: Adicione mais exercícios de cálculo, foque nos capítulos 5-8, etc."
-                  className="w-full px-3 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-lg text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
-                  rows={3}
-                />
-              </div>
-              <button
-                onClick={handleRevisePlan}
-                disabled={!revisionInstruction.trim() || isRevising}
-                className="px-6 py-3 bg-caky-primary text-white font-bold rounded-lg hover:bg-caky-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isRevising ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Revisar Plano
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  // Don't show anything for completed status
-  if (status === 'completed') {
-    return null;
-  }
-
-  const styles: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    processing: 'bg-blue-100 text-blue-700 border-blue-200',
-    failed: 'bg-red-100 text-red-700 border-red-200',
-  };
-
-  return (
-    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${styles[status] || ''}`}>
-      {status}
-    </span>
+      </div>
+    </>
   );
 }
 
 interface MessageBubbleProps {
   message: Message;
   isMobile: boolean;
-  onUndo?: (messageId: string) => void;
 }
 
-function MessageBubble({ message, isMobile, onUndo }: MessageBubbleProps) {
+function MessageBubble({ message, isMobile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
-  const isOptimistic = message.id.startsWith('optimistic-');
 
-  // For user messages, preserve line breaks exactly as typed
-  // For assistant messages, use markdown rendering
   const renderContent = () => {
     if (isUser) {
-      // Use white-space: pre-wrap to preserve all whitespace including line breaks
       return (
         <div className="whitespace-pre-wrap break-words">
           {message.content}
         </div>
       );
     } else {
-      // Use Markdown component for assistant messages (supports LaTeX, tables, etc.)
       return (
         <Markdown isUserMessage={false} isMobile={isMobile}>
           {message.content}
@@ -1333,19 +900,7 @@ function MessageBubble({ message, isMobile, onUndo }: MessageBubbleProps) {
   };
 
   return (
-    <div className={`group flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
-      {/* Undo button for user messages - appears on hover */}
-      {isUser && onUndo && !isOptimistic && (
-        <button
-          onClick={() => onUndo(message.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-caky-primary hover:bg-gray-100 rounded-lg"
-          title="Desfazer mensagem"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
-        </button>
-      )}
+    <div className={`flex items-center gap-2 ${isUser ? 'justify-end' : 'justify-start'} ${isMobile ? 'mb-4 px-1' : 'mb-4'}`}>
       <div
         className={`max-w-[90%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-4 py-3' : 'px-5 py-3'} shadow-sm relative ${
           isUser
