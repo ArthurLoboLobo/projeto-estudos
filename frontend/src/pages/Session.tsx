@@ -479,16 +479,20 @@ function SessionStudying({ session }: SessionStudyingProps) {
                       e.stopPropagation();
                       handleToggleTopicCompletion(topic);
                     }}
-                    className={`absolute top-3 right-3 p-2 rounded-lg transition-colors ${
-                      topic.isCompleted
-                        ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                        : 'bg-gray-100 text-gray-400 hover:bg-caky-primary/10 hover:text-caky-primary'
-                    }`}
+                    className="absolute top-4 right-4 group/checkbox select-none"
                     title={topic.isCompleted ? 'Reabrir tópico' : 'Marcar como concluído'}
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                      topic.isCompleted
+                        ? 'bg-green-500 border-green-500 shadow-sm shadow-green-200'
+                        : 'bg-white border-gray-300 group-hover/checkbox:border-green-400'
+                    }`}>
+                      {topic.isCompleted && (
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
                   </button>
 
                   <div className="mt-2">
@@ -722,14 +726,14 @@ function TopicChat({
 
           <div className="flex items-center gap-2">
             {topic && (
-              <label className="flex items-center gap-2 cursor-pointer group select-none mr-2 hidden md:flex">
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+              <label className="flex items-center gap-2 cursor-pointer group/chat-checkbox select-none mr-2 hidden md:flex">
+                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
                   topic.isCompleted
-                    ? 'bg-green-500 border-green-500'
-                    : 'bg-white border-gray-300 group-hover:border-green-500'
+                    ? 'bg-green-500 border-green-500 shadow-sm shadow-green-200'
+                    : 'bg-white border-gray-300 group-hover/chat-checkbox:border-green-400'
                 }`}>
                   {topic.isCompleted && (
-                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   )}
