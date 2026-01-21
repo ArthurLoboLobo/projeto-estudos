@@ -3,22 +3,22 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub struct UserRow {
+pub struct ProfileRow {
     pub id: Uuid,
     pub email: String,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
 }
 
-/// Create a new user
-pub async fn create_user(
+/// Create a new profile
+pub async fn create_profile(
     pool: &PgPool,
     email: &str,
     password_hash: &str,
-) -> Result<UserRow, async_graphql::Error> {
-    let user = sqlx::query_as::<_, UserRow>(
+) -> Result<ProfileRow, async_graphql::Error> {
+    let profile = sqlx::query_as::<_, ProfileRow>(
         r#"
-        INSERT INTO users (email, password_hash)
+        INSERT INTO profiles (email, password_hash)
         VALUES ($1, $2)
         RETURNING id, email, password_hash, created_at
         "#,
@@ -29,18 +29,18 @@ pub async fn create_user(
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    Ok(user)
+    Ok(profile)
 }
 
-/// Get user by email
-pub async fn get_user_by_email(
+/// Get profile by email
+pub async fn get_profile_by_email(
     pool: &PgPool,
     email: &str,
-) -> Result<Option<UserRow>, async_graphql::Error> {
-    let user = sqlx::query_as::<_, UserRow>(
+) -> Result<Option<ProfileRow>, async_graphql::Error> {
+    let profile = sqlx::query_as::<_, ProfileRow>(
         r#"
         SELECT id, email, password_hash, created_at
-        FROM users
+        FROM profiles
         WHERE email = $1
         "#,
     )
@@ -49,18 +49,18 @@ pub async fn get_user_by_email(
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    Ok(user)
+    Ok(profile)
 }
 
-/// Get user by ID
-pub async fn get_user_by_id(
+/// Get profile by ID
+pub async fn get_profile_by_id(
     pool: &PgPool,
     id: Uuid,
-) -> Result<Option<UserRow>, async_graphql::Error> {
-    let user = sqlx::query_as::<_, UserRow>(
+) -> Result<Option<ProfileRow>, async_graphql::Error> {
+    let profile = sqlx::query_as::<_, ProfileRow>(
         r#"
         SELECT id, email, password_hash, created_at
-        FROM users
+        FROM profiles
         WHERE id = $1
         "#,
     )
@@ -69,6 +69,5 @@ pub async fn get_user_by_id(
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    Ok(user)
+    Ok(profile)
 }
-

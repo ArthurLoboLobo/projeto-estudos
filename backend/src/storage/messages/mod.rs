@@ -5,7 +5,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct MessageRow {
     pub id: Uuid,
-    pub session_id: Uuid,
+    pub chat_id: Uuid,
     pub role: String,
     pub content: String,
     pub created_at: DateTime<Utc>,
@@ -14,18 +14,18 @@ pub struct MessageRow {
 /// Create a new message
 pub async fn create_message(
     pool: &PgPool,
-    session_id: Uuid,
+    chat_id: Uuid,
     role: &str,
     content: &str,
 ) -> Result<MessageRow, async_graphql::Error> {
     let message = sqlx::query_as::<_, MessageRow>(
         r#"
-        INSERT INTO messages (session_id, role, content)
+        INSERT INTO messages (chat_id, role, content)
         VALUES ($1, $2, $3)
-        RETURNING id, session_id, role, content, created_at
+        RETURNING id, chat_id, role, content, created_at
         "#,
     )
-    .bind(session_id)
+    .bind(chat_id)
     .bind(role)
     .bind(content)
     .fetch_one(pool)
@@ -35,23 +35,24 @@ pub async fn create_message(
     Ok(message)
 }
 
-/// Get messages for a session (with authorization check)
-pub async fn get_session_messages(
+/// Get messages for a chat (with authorization check)
+pub async fn get_chat_messages(
     pool: &PgPool,
-    user_id: Uuid,
-    session_id: Uuid,
+    profile_id: Uuid,
+    chat_id: Uuid,
 ) -> Result<Vec<MessageRow>, async_graphql::Error> {
     let messages = sqlx::query_as::<_, MessageRow>(
         r#"
-        SELECT m.id, m.session_id, m.role, m.content, m.created_at
+        SELECT m.id, m.chat_id, m.role, m.content, m.created_at
         FROM messages m
-        JOIN study_sessions s ON m.session_id = s.id
-        WHERE m.session_id = $1 AND s.user_id = $2
+        JOIN chats c ON m.chat_id = c.id
+        JOIN study_sessions s ON c.session_id = s.id
+        WHERE m.chat_id = $1 AND s.profile_id = $2
         ORDER BY m.created_at ASC
         "#,
     )
-    .bind(session_id)
-    .bind(user_id)
+    .bind(chat_id)
+    .bind(profile_id)
     .fetch_all(pool)
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
@@ -62,22 +63,23 @@ pub async fn get_session_messages(
 /// Get recent messages for context (last N messages)
 pub async fn get_recent_messages(
     pool: &PgPool,
-    user_id: Uuid,
-    session_id: Uuid,
+    profile_id: Uuid,
+    chat_id: Uuid,
     limit: i32,
 ) -> Result<Vec<MessageRow>, async_graphql::Error> {
     let messages = sqlx::query_as::<_, MessageRow>(
         r#"
-        SELECT m.id, m.session_id, m.role, m.content, m.created_at
+        SELECT m.id, m.chat_id, m.role, m.content, m.created_at
         FROM messages m
-        JOIN study_sessions s ON m.session_id = s.id
-        WHERE m.session_id = $1 AND s.user_id = $2
+        JOIN chats c ON m.chat_id = c.id
+        JOIN study_sessions s ON c.session_id = s.id
+        WHERE m.chat_id = $1 AND s.profile_id = $2
         ORDER BY m.created_at DESC
         LIMIT $3
         "#,
     )
-    .bind(session_id)
-    .bind(user_id)
+    .bind(chat_id)
+    .bind(profile_id)
     .bind(limit)
     .fetch_all(pool)
     .await
@@ -89,21 +91,21 @@ pub async fn get_recent_messages(
     Ok(messages)
 }
 
-/// Clear all messages in a session (for starting fresh)
-pub async fn clear_session_messages(
+/// Clear all messages in a chat (for starting fresh)
+pub async fn clear_chat_messages(
     pool: &PgPool,
-    user_id: Uuid,
-    session_id: Uuid,
+    profile_id: Uuid,
+    chat_id: Uuid,
 ) -> Result<u64, async_graphql::Error> {
     let result = sqlx::query(
         r#"
         DELETE FROM messages m
-        USING study_sessions s
-        WHERE m.session_id = s.id AND m.session_id = $1 AND s.user_id = $2
+        USING chats c, study_sessions s
+        WHERE m.chat_id = c.id AND c.session_id = s.id AND m.chat_id = $1 AND s.profile_id = $2
         "#,
     )
-    .bind(session_id)
-    .bind(user_id)
+    .bind(chat_id)
+    .bind(profile_id)
     .execute(pool)
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
@@ -111,56 +113,26 @@ pub async fn clear_session_messages(
     Ok(result.rows_affected())
 }
 
-/// Delete a message and all messages after it (for undo functionality)
-/// Returns the content of the deleted message so it can be restored to input
-pub async fn delete_message_and_after(
+/// Check if a chat has any messages (with authorization check)
+pub async fn chat_has_messages(
     pool: &PgPool,
-    user_id: Uuid,
-    message_id: Uuid,
-) -> Result<String, async_graphql::Error> {
-    // First, get the message to verify ownership and get its timestamp and content
-    let message = sqlx::query_as::<_, MessageRow>(
+    profile_id: Uuid,
+    chat_id: Uuid,
+) -> Result<bool, async_graphql::Error> {
+    let count: Option<i64> = sqlx::query_scalar(
         r#"
-        SELECT m.id, m.session_id, m.role, m.content, m.created_at
+        SELECT COUNT(m.id)
         FROM messages m
-        JOIN study_sessions s ON m.session_id = s.id
-        WHERE m.id = $1 AND s.user_id = $2
+        JOIN chats c ON m.chat_id = c.id
+        JOIN study_sessions s ON c.session_id = s.id
+        WHERE m.chat_id = $1 AND s.profile_id = $2
         "#,
     )
-    .bind(message_id)
-    .bind(user_id)
-    .fetch_optional(pool)
+    .bind(chat_id)
+    .bind(profile_id)
+    .fetch_one(pool)
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    let message = message.ok_or_else(|| async_graphql::Error::new("Message not found"))?;
-    
-    // Verify it's a user message (only user messages can be undone)
-    if message.role != "user" {
-        return Err(async_graphql::Error::new("Only user messages can be undone"));
-    }
-
-    let content = message.content.clone();
-    let session_id = message.session_id;
-    let created_at = message.created_at;
-
-    // Delete this message and all messages after it in the same session
-    sqlx::query(
-        r#"
-        DELETE FROM messages m
-        USING study_sessions s
-        WHERE m.session_id = s.id 
-          AND m.session_id = $1 
-          AND s.user_id = $2
-          AND m.created_at >= $3
-        "#,
-    )
-    .bind(session_id)
-    .bind(user_id)
-    .bind(created_at)
-    .execute(pool)
-    .await
-    .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
-
-    Ok(content)
+    Ok(count.unwrap_or(0) > 0)
 }

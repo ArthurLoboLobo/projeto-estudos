@@ -1,6 +1,6 @@
-pub mod users;
+pub mod profiles;
 pub mod sessions;
 pub mod documents;
+pub mod topics;
+pub mod chats;
 pub mod messages;
-pub mod study_plans;
-

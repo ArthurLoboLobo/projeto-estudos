@@ -15,21 +15,21 @@ pub struct UpdateSessionInput {
 /// Get all sessions for the authenticated user
 pub async fn get_sessions(ctx: &Context<'_>) -> Result<Vec<Session>> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
-    let sessions = sessions::get_user_sessions(pool, user_id).await?;
+    let sessions = sessions::get_profile_sessions(pool, profile_id).await?;
     Ok(sessions.into_iter().map(Into::into).collect())
 }
 
 /// Get a single session by ID
 pub async fn get_session(ctx: &Context<'_>, id: ID) -> Result<Option<Session>> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_id = Uuid::parse_str(&id).map_err(|_| "Invalid session ID")?;
-    let session = sessions::get_session_by_id(pool, user_id, session_id).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_id).await?;
     Ok(session.map(Into::into))
 }
 
@@ -40,12 +40,12 @@ pub async fn create_session(
     description: Option<String>,
 ) -> Result<Session> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session = sessions::create_session(
         pool,
-        user_id,
+        profile_id,
         &title,
         description.as_deref(),
     )
@@ -61,13 +61,13 @@ pub async fn update_session(
     input: UpdateSessionInput,
 ) -> Result<Option<Session>> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_id = Uuid::parse_str(&id).map_err(|_| "Invalid session ID")?;
     let session = sessions::update_session(
         pool,
-        user_id,
+        profile_id,
         session_id,
         input.title.as_deref(),
         input.description.as_deref(),
@@ -80,11 +80,11 @@ pub async fn update_session(
 /// Delete a session
 pub async fn delete_session(ctx: &Context<'_>, id: ID) -> Result<bool> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_id = Uuid::parse_str(&id).map_err(|_| "Invalid session ID")?;
-    let deleted = sessions::delete_session(pool, user_id, session_id).await?;
+    let deleted = sessions::delete_session(pool, profile_id, session_id).await?;
 
     Ok(deleted)
 }

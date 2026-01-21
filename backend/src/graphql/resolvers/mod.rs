@@ -3,11 +3,13 @@ pub mod document;
 pub mod message;
 pub mod session;
 pub mod planning;
+pub mod topic;
+pub mod chat;
 
 use async_graphql::{Context, Object, Result, ID};
 
 use super::context::GraphQLContext;
-use super::types::{Document, Message, Session, StudyPlan, User};
+use super::types::{Chat, Document, Message, Session, Topic, User};
 
 pub struct QueryRoot;
 
@@ -22,10 +24,10 @@ impl QueryRoot {
     async fn me(&self, ctx: &Context<'_>) -> Result<Option<User>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
 
-        if let Some(user_id) = gql_ctx.user_id {
+        if let Some(profile_id) = gql_ctx.user_id {
             let pool = ctx.data::<sqlx::PgPool>()?;
-            let user = crate::storage::users::get_user_by_id(pool, user_id).await?;
-            Ok(user.map(Into::into))
+            let profile = crate::storage::profiles::get_profile_by_id(pool, profile_id).await?;
+            Ok(profile.map(Into::into))
         } else {
             Ok(None)
         }
@@ -51,19 +53,39 @@ impl QueryRoot {
         document::get_document_url(ctx, id).await
     }
 
-    /// Get all messages for a session
-    async fn messages(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Message>> {
-        message::get_messages(ctx, session_id).await
+    /// Get all topics for a session (only available after starting studying)
+    async fn topics(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Topic>> {
+        topic::get_topics(ctx, session_id).await
     }
 
-    /// Get the current study plan for a session
-    async fn study_plan(&self, ctx: &Context<'_>, session_id: ID) -> Result<Option<StudyPlan>> {
-        planning::get_study_plan(ctx, session_id).await
+    /// Get a specific topic by ID
+    async fn topic(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Topic>> {
+        topic::get_topic(ctx, id).await
     }
 
-    /// Get the study plan version history for undo functionality
-    async fn study_plan_history(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<StudyPlan>> {
-        planning::get_study_plan_history(ctx, session_id).await
+    /// Get all chats for a session (only available after starting studying)
+    async fn chats(&self, ctx: &Context<'_>, session_id: ID) -> Result<Vec<Chat>> {
+        chat::get_chats(ctx, session_id).await
+    }
+
+    /// Get a specific chat by ID
+    async fn chat(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Chat>> {
+        chat::get_chat(ctx, id).await
+    }
+
+    /// Get the chat for a specific topic
+    async fn chat_by_topic(&self, ctx: &Context<'_>, topic_id: ID) -> Result<Option<Chat>> {
+        chat::get_chat_by_topic(ctx, topic_id).await
+    }
+
+    /// Get the review chat for a session
+    async fn review_chat(&self, ctx: &Context<'_>, session_id: ID) -> Result<Option<Chat>> {
+        chat::get_review_chat(ctx, session_id).await
+    }
+
+    /// Get all messages for a chat
+    async fn messages(&self, ctx: &Context<'_>, chat_id: ID) -> Result<Vec<Message>> {
+        message::get_messages(ctx, chat_id).await
     }
 }
 
@@ -91,6 +113,8 @@ impl MutationRoot {
         auth::login(ctx, email, password).await
     }
 
+    // ===== Session Management =====
+
     /// Create a new study session
     async fn create_session(
         &self,
@@ -116,6 +140,8 @@ impl MutationRoot {
         session::delete_session(ctx, id).await
     }
 
+    // ===== Document Management =====
+
     /// Add a document to a session (triggers PDF processing with vision AI)
     async fn add_document(
         &self,
@@ -132,64 +158,70 @@ impl MutationRoot {
         document::delete_document(ctx, id).await
     }
 
-    /// Send a message and get AI response
-    async fn send_message(
-        &self,
-        ctx: &Context<'_>,
-        session_id: ID,
-        content: String,
-    ) -> Result<Message> {
-        message::send_message(ctx, session_id, content).await
+    // ===== Planning Phase =====
+
+    /// Generate the initial study plan from documents (stores as draft_plan)
+    async fn generate_plan(&self, ctx: &Context<'_>, session_id: ID) -> Result<Session> {
+        planning::generate_plan(ctx, session_id).await
     }
 
-    /// Clear all messages in a session
-    async fn clear_messages(&self, ctx: &Context<'_>, session_id: ID) -> Result<bool> {
-        message::clear_messages(ctx, session_id).await
-    }
-
-    /// Generate the initial welcome message from the AI tutor (for empty chats)
-    async fn generate_welcome(&self, ctx: &Context<'_>, session_id: ID) -> Result<Message> {
-        message::generate_welcome(ctx, session_id).await
-    }
-
-    /// Undo a message - deletes it and all messages after it, returns the content
-    async fn undo_message(&self, ctx: &Context<'_>, message_id: ID) -> Result<String> {
-        message::undo_message(ctx, message_id).await
-    }
-
-    /// Start the planning phase - generates initial study plan from documents
-    async fn start_planning(&self, ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
-        planning::start_planning(ctx, session_id).await
-    }
-
-    /// Revise the study plan based on user instruction
-    async fn revise_study_plan(
+    /// Revise the draft study plan based on user instruction
+    async fn revise_plan(
         &self,
         ctx: &Context<'_>,
         session_id: ID,
         instruction: String,
-    ) -> Result<StudyPlan> {
-        planning::revise_study_plan(ctx, session_id, instruction).await
+    ) -> Result<Session> {
+        planning::revise_plan(ctx, session_id, instruction).await
     }
 
-    /// Undo the last study plan revision
-    async fn undo_study_plan(&self, ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
-        planning::undo_study_plan(ctx, session_id).await
-    }
-
-    /// Update a topic's knowledge status
-    async fn update_topic_status(
+    /// Update a topic's completion status in the draft plan (pre-filtering)
+    async fn update_draft_topic_completion(
         &self,
         ctx: &Context<'_>,
         session_id: ID,
         topic_id: String,
-        status: String,
-    ) -> Result<StudyPlan> {
-        planning::update_topic_status(ctx, session_id, topic_id, status).await
+        is_completed: bool,
+    ) -> Result<Session> {
+        planning::update_draft_topic_completion(ctx, session_id, topic_id, is_completed).await
     }
 
-    /// Finalize the plan and start studying
+    /// Finalize the plan and start studying (materializes topics and creates chats)
     async fn start_studying(&self, ctx: &Context<'_>, session_id: ID) -> Result<Session> {
         planning::start_studying(ctx, session_id).await
+    }
+
+    // ===== Topic Management =====
+
+    /// Mark a topic as completed or not completed
+    async fn update_topic_completion(
+        &self,
+        ctx: &Context<'_>,
+        id: ID,
+        is_completed: bool,
+    ) -> Result<Topic> {
+        topic::update_topic_completion(ctx, id, is_completed).await
+    }
+
+    // ===== Chat & Messages =====
+
+    /// Send a message to a chat and get AI response
+    async fn send_message(
+        &self,
+        ctx: &Context<'_>,
+        chat_id: ID,
+        content: String,
+    ) -> Result<Message> {
+        message::send_message(ctx, chat_id, content).await
+    }
+
+    /// Clear all messages in a chat
+    async fn clear_messages(&self, ctx: &Context<'_>, chat_id: ID) -> Result<bool> {
+        message::clear_messages(ctx, chat_id).await
+    }
+
+    /// Generate the initial welcome message from the AI tutor (for empty chats)
+    async fn generate_welcome(&self, ctx: &Context<'_>, chat_id: ID) -> Result<Message> {
+        message::generate_welcome(ctx, chat_id).await
     }
 }

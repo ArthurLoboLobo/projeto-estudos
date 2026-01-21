@@ -2,7 +2,7 @@ use async_graphql::SimpleObject;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::storage::users::UserRow;
+use crate::storage::profiles::ProfileRow;
 
 #[derive(SimpleObject, Clone)]
 pub struct User {
@@ -11,8 +11,8 @@ pub struct User {
     pub created_at: DateTime<Utc>,
 }
 
-impl From<UserRow> for User {
-    fn from(row: UserRow) -> Self {
+impl From<ProfileRow> for User {
+    fn from(row: ProfileRow) -> Self {
         Self {
             id: row.id,
             email: row.email,
@@ -20,4 +20,3 @@ impl From<UserRow> for User {
         }
     }
 }
-

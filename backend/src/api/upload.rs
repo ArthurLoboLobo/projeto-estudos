@@ -19,11 +19,12 @@ use crate::{
 const MAX_FILE_SIZE: usize = 50 * 1024 * 1024; // 50MB
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UploadResponse {
     pub id: String,
     pub file_name: String,
     pub file_path: String,
-    pub extraction_status: String,
+    pub processing_status: String,
     pub message: String,
 }
 
@@ -45,7 +46,7 @@ pub async fn upload_file(
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, (StatusCode, Json<ErrorResponse>)> {
     // 1. Extract and validate JWT token
-    let user_id = extract_user_id(&headers, &state.config).map_err(|e| {
+    let profile_id = extract_profile_id(&headers, &state.config).map_err(|e| {
         (
             StatusCode::UNAUTHORIZED,
             Json(ErrorResponse { error: e }),
@@ -149,11 +150,11 @@ pub async fn upload_file(
         ));
     }
 
-    // 5. Verify user owns the session
-    let session_check = sqlx::query!(
-        "SELECT id, user_id FROM study_sessions WHERE id = $1",
-        session_id
+    // 5. Verify profile owns the session
+    let session_check = sqlx::query_as::<_, (Uuid, Uuid)>(
+        "SELECT id, profile_id FROM study_sessions WHERE id = $1"
     )
+    .bind(session_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|_| {
@@ -173,7 +174,7 @@ pub async fn upload_file(
         )
     })?;
 
-    if session_check.user_id != user_id {
+    if session_check.1 != profile_id {
         return Err((
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -212,8 +213,6 @@ pub async fn upload_file(
         session_id,
         &file_name,
         &storage_path,
-        "", // Empty content initially
-        0,
     )
     .await
     .map_err(|e| {
@@ -243,7 +242,7 @@ pub async fn upload_file(
                 tracing::error!("Document processing failed for {}: {:?}", doc_id, e);
                 // Update status to failed
                 let _ = sqlx::query(
-                    "UPDATE documents SET extraction_status = 'failed' WHERE id = $1"
+                    "UPDATE documents SET processing_status = 'FAILED' WHERE id = $1"
                 )
                 .bind(doc_id)
                 .execute(&pool)
@@ -257,12 +256,12 @@ pub async fn upload_file(
         id: doc.id.to_string(),
         file_name: doc.file_name,
         file_path: doc.file_path,
-        extraction_status: "processing".to_string(),
+        processing_status: "PROCESSING".to_string(),
         message: "File uploaded successfully. Text extraction in progress.".to_string(),
     }))
 }
 
-fn extract_user_id(headers: &HeaderMap, config: &Config) -> Result<Uuid, String> {
+fn extract_profile_id(headers: &HeaderMap, config: &Config) -> Result<Uuid, String> {
     let auth_header = headers
         .get("authorization")
         .ok_or_else(|| "Missing Authorization header".to_string())?
@@ -274,9 +273,8 @@ fn extract_user_id(headers: &HeaderMap, config: &Config) -> Result<Uuid, String>
     }
 
     let token = &auth_header[7..];
-    let user_id = verify_jwt(token, &config.jwt_secret)
+    let profile_id = verify_jwt(token, &config.jwt_secret)
         .map_err(|_| "Invalid or expired token".to_string())?;
 
-    Ok(user_id)
+    Ok(profile_id)
 }
-

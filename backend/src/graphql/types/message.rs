@@ -36,8 +36,10 @@ impl From<MessageRole> for &'static str {
 }
 
 #[derive(SimpleObject, Clone)]
+#[graphql(rename_fields = "camelCase")]
 pub struct Message {
     pub id: Uuid,
+    pub chat_id: Uuid,
     pub role: MessageRole,
     pub content: String,
     pub created_at: DateTime<Utc>,
@@ -47,6 +49,7 @@ impl From<MessageRow> for Message {
     fn from(row: MessageRow) -> Self {
         Self {
             id: row.id,
+            chat_id: row.chat_id,
             role: MessageRole::from(row.role.as_str()),
             content: row.content,
             created_at: row.created_at,

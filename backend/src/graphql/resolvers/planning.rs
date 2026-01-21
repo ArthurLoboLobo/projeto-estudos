@@ -4,66 +4,31 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::graphql::context::GraphQLContext;
-use crate::graphql::types::{Session, StudyPlan};
+use crate::graphql::types::Session;
 use crate::services::planning;
-use crate::storage::{sessions, study_plans, documents};
+use crate::storage::{sessions, documents, topics, chats};
+use crate::storage::sessions::{SessionStatus, DraftPlan, DraftPlanTopic};
 
-/// Get the current study plan for a session
-pub async fn get_study_plan(ctx: &Context<'_>, session_id: ID) -> Result<Option<StudyPlan>> {
+/// Generate the initial study plan from documents (stores as draft_plan)
+pub async fn generate_plan(ctx: &Context<'_>, session_id: ID) -> Result<Session> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
-    let pool = ctx.data::<PgPool>()?;
-
-    let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
-
-    // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
-    if session.is_none() {
-        return Err("Session not found".into());
-    }
-
-    let plan = study_plans::get_current_plan(pool, session_uuid).await?;
-    Ok(plan.map(Into::into))
-}
-
-/// Get the study plan version history for undo functionality
-pub async fn get_study_plan_history(ctx: &Context<'_>, session_id: ID) -> Result<Vec<StudyPlan>> {
-    let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
-    let pool = ctx.data::<PgPool>()?;
-
-    let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
-
-    // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
-    if session.is_none() {
-        return Err("Session not found".into());
-    }
-
-    let plans = study_plans::get_plan_history(pool, session_uuid).await?;
-    Ok(plans.into_iter().map(Into::into).collect())
-}
-
-/// Start the planning phase - generates initial study plan from documents
-pub async fn start_planning(ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
-    let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
     let session = session.ok_or("Session not found")?;
 
-    // Check if session is in the right stage
-    if session.stage != "uploading" {
-        return Err("Session must be in 'uploading' stage to start planning".into());
+    // Check if session is in the right status
+    if session.status != SessionStatus::Planning {
+        return Err("Session must be in 'PLANNING' status to generate a plan".into());
     }
 
     // Check if at least one document has completed extraction
-    let doc_texts = documents::get_session_document_texts(pool, user_id, session_uuid).await?;
+    let doc_texts = documents::get_session_document_texts(pool, profile_id, session_uuid).await?;
     if doc_texts.is_empty() {
         return Err("At least one document must have completed extraction before planning".into());
     }
@@ -74,157 +39,197 @@ pub async fn start_planning(ctx: &Context<'_>, session_id: ID) -> Result<StudyPl
     let plan_content = planning::generate_study_plan(
         pool,
         config,
-        user_id,
+        profile_id,
         session_uuid,
         &session.title,
         session.description.as_deref(),
     )
     .await?;
 
-    // Save the plan
-    let plan = study_plans::create_study_plan(pool, session_uuid, &plan_content).await?;
+    // Convert to DraftPlan format
+    let draft_plan = DraftPlan {
+        topics: plan_content
+            .topics
+            .into_iter()
+            .map(|t| DraftPlanTopic {
+                id: t.id,
+                title: t.title,
+                description: Some(t.description),
+                is_completed: false,
+            })
+            .collect(),
+    };
 
-    // Update session stage to 'planning'
-    sessions::update_session_stage(pool, user_id, session_uuid, "planning").await?;
+    // Save the draft plan to the session
+    let updated_session = sessions::update_draft_plan(pool, profile_id, session_uuid, &draft_plan).await?;
+    let updated_session = updated_session.ok_or("Failed to update session with draft plan")?;
 
     tracing::info!("Study plan generated and saved for session {}", session_uuid);
 
-    Ok(plan.into())
+    Ok(updated_session.into())
 }
 
-/// Revise the study plan based on user instruction
-pub async fn revise_study_plan(
+/// Revise the draft plan based on user instruction
+pub async fn revise_plan(
     ctx: &Context<'_>,
     session_id: ID,
     instruction: String,
-) -> Result<StudyPlan> {
+) -> Result<Session> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
     let session = session.ok_or("Session not found")?;
 
-    // Allow plan revisions in both planning and studying stages
+    // Check if session is in the right status
+    if session.status != SessionStatus::Planning {
+        return Err("Session must be in 'PLANNING' status to revise the plan".into());
+    }
 
-    // Get current plan
-    let current_plan = study_plans::get_current_plan(pool, session_uuid).await?;
-    let current_plan = current_plan.ok_or("No study plan found for this session")?;
+    // Get current draft plan
+    let current_draft = sessions::parse_draft_plan(&session)?;
+    let current_draft = current_draft.ok_or("No draft plan found. Please generate a plan first.")?;
 
     tracing::info!("Revising study plan for session {} with instruction: {}", session_uuid, instruction);
 
-    // Parse the current plan's JSON content
-    let current_content = study_plans::parse_plan_content(&current_plan)?;
+    // Convert to planning service format
+    let current_content = crate::storage::sessions::DraftPlan {
+        topics: current_draft.topics,
+    };
 
     // Revise the plan using AI
     let revised_content = planning::revise_study_plan(
         pool,
         config,
-        user_id,
+        profile_id,
         session_uuid,
         &current_content,
         &instruction,
     )
     .await?;
 
-    // Save the new version
-    let new_plan = study_plans::create_plan_version(pool, session_uuid, &revised_content, &instruction).await?;
+    // Convert back to DraftPlan format
+    let draft_plan = DraftPlan {
+        topics: revised_content
+            .topics
+            .into_iter()
+            .map(|t| DraftPlanTopic {
+                id: t.id,
+                title: t.title,
+                description: Some(t.description),
+                is_completed: false,
+            })
+            .collect(),
+    };
 
-    tracing::info!("Study plan revised and saved (version {}) for session {}", new_plan.version, session_uuid);
+    // Save the revised draft plan
+    let updated_session = sessions::update_draft_plan(pool, profile_id, session_uuid, &draft_plan).await?;
+    let updated_session = updated_session.ok_or("Failed to update session with revised plan")?;
 
-    Ok(new_plan.into())
+    tracing::info!("Study plan revised for session {}", session_uuid);
+
+    Ok(updated_session.into())
 }
 
-/// Undo the last study plan revision
-pub async fn undo_study_plan(ctx: &Context<'_>, session_id: ID) -> Result<StudyPlan> {
-    let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
-    let pool = ctx.data::<PgPool>()?;
-
-    let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
-
-    // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
-    let session = session.ok_or("Session not found")?;
-
-    // Allow plan undo in both planning and studying stages
-
-    tracing::info!("Undoing study plan revision for session {}", session_uuid);
-
-    // Delete the latest version and return the previous one
-    let previous_plan = study_plans::delete_latest_version(pool, session_uuid).await?;
-    let previous_plan = previous_plan.ok_or("No previous plan version to restore")?;
-
-    tracing::info!("Reverted to plan version {} for session {}", previous_plan.version, session_uuid);
-
-    Ok(previous_plan.into())
-}
-
-/// Update a topic's knowledge status
-pub async fn update_topic_status(
+/// Update a topic's completion status in the draft plan (pre-filtering)
+pub async fn update_draft_topic_completion(
     ctx: &Context<'_>,
     session_id: ID,
     topic_id: String,
-    status: String,
-) -> Result<StudyPlan> {
+    is_completed: bool,
+) -> Result<Session> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
-    if session.is_none() {
-        return Err("Session not found".into());
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
+    let session = session.ok_or("Session not found")?;
+
+    // Check if session is in the right status
+    if session.status != SessionStatus::Planning {
+        return Err("Session must be in 'PLANNING' status to update topic completion".into());
     }
 
-    // Validate status value
-    if !["need_to_learn", "need_review", "know_well"].contains(&status.as_str()) {
-        return Err("Invalid status. Must be: need_to_learn, need_review, or know_well".into());
-    }
+    // Get current draft plan
+    let mut draft_plan = sessions::parse_draft_plan(&session)?;
+    let draft_plan = draft_plan.as_mut().ok_or("No draft plan found")?;
 
-    tracing::info!("Updating topic {} status to {} for session {}", topic_id, status, session_uuid);
+    // Find and update the topic
+    let topic = draft_plan.topics
+        .iter_mut()
+        .find(|t| t.id == topic_id)
+        .ok_or("Topic not found in draft plan")?;
+    
+    topic.is_completed = is_completed;
 
-    // Update the topic status
-    let updated_plan = study_plans::update_topic_status(pool, session_uuid, &topic_id, &status).await?;
+    // Save the updated draft plan
+    let updated_session = sessions::update_draft_plan(pool, profile_id, session_uuid, draft_plan).await?;
+    let updated_session = updated_session.ok_or("Failed to update session")?;
 
-    Ok(updated_plan.into())
+    Ok(updated_session.into())
 }
 
 /// Finalize the plan and start studying
+/// This materializes the draft_plan into topics and creates chats
 pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
     let session = session.ok_or("Session not found")?;
 
-    // Check if session is in planning stage
-    if session.stage != "planning" {
-        return Err("Session must be in 'planning' stage to start studying".into());
+    // Check if session is in planning status
+    if session.status != SessionStatus::Planning {
+        return Err("Session must be in 'PLANNING' status to start studying".into());
     }
 
-    // Verify a plan exists
-    let plan = study_plans::get_current_plan(pool, session_uuid).await?;
-    if plan.is_none() {
-        return Err("No study plan found. Please complete the planning phase first.".into());
-    }
+    // Verify a draft plan exists
+    let draft_plan = sessions::parse_draft_plan(&session)?;
+    let draft_plan = draft_plan.ok_or("No study plan found. Please generate a plan first.")?;
 
     tracing::info!("Starting studying phase for session {}", session_uuid);
 
-    // Update session stage to 'studying'
-    let updated = sessions::update_session_stage(pool, user_id, session_uuid, "studying").await?;
-    let updated = updated.ok_or("Failed to update session stage")?;
+    // Materialize topics from draft_plan
+    let topics_data: Vec<(String, Option<String>, i32)> = draft_plan
+        .topics
+        .iter()
+        .filter(|t| !t.is_completed) // Only create topics for non-completed items
+        .enumerate()
+        .map(|(i, t)| (t.title.clone(), t.description.clone(), i as i32))
+        .collect();
+
+    let created_topics = topics::create_topics_batch(pool, session_uuid, topics_data).await?;
+
+    // Create a chat for each topic
+    for topic in &created_topics {
+        chats::create_topic_chat(pool, session_uuid, topic.id).await?;
+    }
+
+    // Create the general review chat
+    chats::create_review_chat(pool, session_uuid).await?;
+
+    // Update session status to ACTIVE and clear the draft_plan
+    sessions::update_session_status(pool, profile_id, session_uuid, SessionStatus::Active).await?;
+    let updated = sessions::clear_draft_plan(pool, profile_id, session_uuid).await?;
+    let updated = updated.ok_or("Failed to update session status")?;
+
+    tracing::info!(
+        "Started studying for session {} with {} topics",
+        session_uuid,
+        created_topics.len()
+    );
 
     Ok(updated.into())
 }
-

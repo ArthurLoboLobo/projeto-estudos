@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 use crate::config::Config;
 use crate::services::auth::{jwt, password};
-use crate::storage::users;
+use crate::storage::profiles;
 
 use super::super::types::User;
 
@@ -17,23 +17,23 @@ pub async fn register(ctx: &Context<'_>, email: String, password: String) -> Res
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
-    // Check if user already exists
-    if users::get_user_by_email(pool, &email).await?.is_some() {
+    // Check if profile already exists
+    if profiles::get_profile_by_email(pool, &email).await?.is_some() {
         return Err("User already exists".into());
     }
 
     // Hash password
     let password_hash = password::hash_password(&password)?;
 
-    // Create user
-    let user = users::create_user(pool, &email, &password_hash).await?;
+    // Create profile
+    let profile = profiles::create_profile(pool, &email, &password_hash).await?;
 
     // Generate JWT
-    let token = jwt::create_jwt(user.id, &config.jwt_secret)?;
+    let token = jwt::create_jwt(profile.id, &config.jwt_secret)?;
 
     Ok(AuthPayload {
         token,
-        user: user.into(),
+        user: profile.into(),
     })
 }
 
@@ -41,22 +41,21 @@ pub async fn login(ctx: &Context<'_>, email: String, password: String) -> Result
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
-    // Find user
-    let user = users::get_user_by_email(pool, &email)
+    // Find profile
+    let profile = profiles::get_profile_by_email(pool, &email)
         .await?
         .ok_or("Invalid credentials")?;
 
     // Verify password
-    if !password::verify_password(&password, &user.password_hash)? {
+    if !password::verify_password(&password, &profile.password_hash)? {
         return Err("Invalid credentials".into());
     }
 
     // Generate JWT
-    let token = jwt::create_jwt(user.id, &config.jwt_secret)?;
+    let token = jwt::create_jwt(profile.id, &config.jwt_secret)?;
 
     Ok(AuthPayload {
         token,
-        user: user.into(),
+        user: profile.into(),
     })
 }
-

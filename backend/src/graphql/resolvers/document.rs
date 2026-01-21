@@ -9,27 +9,28 @@ use crate::graphql::context::GraphQLContext;
 use crate::graphql::types::Document;
 use crate::services::documents::{ingestion, storage_client::{self, StorageClient}};
 use crate::storage::{documents, sessions};
+use crate::storage::documents::ProcessingStatus;
 
 /// Get all documents for a session
 pub async fn get_documents(ctx: &Context<'_>, session_id: ID) -> Result<Vec<Document>> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
     if session.is_none() {
         return Err("Session not found".into());
     }
 
-    let docs = documents::get_session_documents(pool, user_id, session_uuid).await?;
+    let docs = documents::get_session_documents(pool, profile_id, session_uuid).await?;
     Ok(docs.into_iter().map(Into::into).collect())
 }
 
 /// Add a document to a session
-/// file_path should be the path in Supabase Storage (e.g., "documents/user_id/file.pdf")
+/// file_path should be the path in Supabase Storage (e.g., "documents/profile_id/file.pdf")
 pub async fn add_document(
     ctx: &Context<'_>,
     session_id: ID,
@@ -37,23 +38,66 @@ pub async fn add_document(
     file_name: String,
 ) -> Result<Document> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
     // Verify session exists and belongs to user
-    let session = sessions::get_session_by_id(pool, user_id, session_uuid).await?;
+    let session = sessions::get_session_by_id(pool, profile_id, session_uuid).await?;
     if session.is_none() {
         return Err("Session not found".into());
     }
 
     tracing::info!("Processing document: {} for session {}", file_name, session_uuid);
 
+    // Create document record with pending status
+    let document = documents::create_document(
+        pool,
+        session_uuid,
+        &file_name,
+        &file_path,
+    )
+    .await?;
+
+    let document_id = document.id;
+    let pool_clone = pool.clone();
+    let config_clone = config.clone();
+    let file_path_clone = file_path.clone();
+
+    // Spawn background task for processing
+    tokio::spawn(async move {
+        if let Err(e) = process_document_background(
+            &pool_clone,
+            &config_clone,
+            document_id,
+            &file_path_clone,
+        )
+        .await
+        {
+            tracing::error!("Background document processing failed: {:?}", e);
+            // Update status to failed
+            let _ = documents::update_document_status(&pool_clone, document_id, ProcessingStatus::Failed).await;
+        }
+    });
+
+    Ok(document.into())
+}
+
+/// Background task to process a document
+async fn process_document_background(
+    pool: &PgPool,
+    config: &Config,
+    document_id: Uuid,
+    file_path: &str,
+) -> Result<(), async_graphql::Error> {
+    // Update status to processing
+    documents::update_document_status(pool, document_id, ProcessingStatus::Processing).await?;
+
     // Download file from Supabase Storage
     let storage = StorageClient::new(config);
-    let file_bytes = storage.download(&file_path).await?;
+    let file_bytes = storage.download(file_path).await?;
 
     tracing::info!("Downloaded {} bytes from storage", file_bytes.len());
 
@@ -87,32 +131,29 @@ pub async fn add_document(
         processed.page_count
     );
 
-    // Save to database
-    let content_length = processed.extracted_text.len() as i32;
-    let document = documents::create_document(
+    // Update document with extracted content
+    documents::update_document_content(
         pool,
-        session_uuid,
-        &file_name,
-        &file_path,
+        document_id,
         &processed.extracted_text,
-        content_length,
+        ProcessingStatus::Completed,
     )
     .await?;
 
-    Ok(document.into())
+    Ok(())
 }
 
 /// Delete a document
 pub async fn delete_document(ctx: &Context<'_>, id: ID) -> Result<bool> {
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
     let document_id = Uuid::parse_str(&id).map_err(|_| "Invalid document ID")?;
 
     // Delete from database (returns file_path if successful)
-    let file_path = documents::delete_document(pool, user_id, document_id).await?;
+    let file_path = documents::delete_document(pool, profile_id, document_id).await?;
 
     if let Some(path) = file_path {
         // Also delete from storage
@@ -132,7 +173,7 @@ pub async fn get_document_url(ctx: &Context<'_>, id: ID) -> Result<String> {
     tracing::info!("get_document_url called for id: {:?}", id);
     
     let gql_ctx = ctx.data::<GraphQLContext>()?;
-    let user_id = gql_ctx.require_auth()?;
+    let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
     let config = ctx.data::<Config>()?;
 
@@ -140,7 +181,7 @@ pub async fn get_document_url(ctx: &Context<'_>, id: ID) -> Result<String> {
     tracing::info!("Parsed document_id: {}", document_id);
 
     // Get document and verify ownership
-    let doc = documents::get_document_by_id(pool, user_id, document_id).await?;
+    let doc = documents::get_document_by_id(pool, profile_id, document_id).await?;
     tracing::info!("Document found: {:?}", doc.is_some());
     
     let doc = doc.ok_or("Document not found")?;

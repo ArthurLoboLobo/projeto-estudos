@@ -2,17 +2,18 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::config::Config;
-use crate::storage::{documents, messages, study_plans};
+use crate::storage::{documents, messages, topics};
 
 use super::ai_client::OpenRouterClient;
 
 const CHAT_MODEL: &str = "google/gemini-2.5-flash";
 const MAX_HISTORY_MESSAGES: i32 = 20;
 
-/// System prompt template for the AI tutor
-const SYSTEM_PROMPT_TEMPLATE: &str = r#"<goal>
+/// System prompt template for topic-specific chat
+const TOPIC_SYSTEM_PROMPT: &str = r#"<goal>
 You are Caky, a smart, friendly, and structured University Exam Tutor.
-Your mission is to guide the student through their <study_plan> from start to finish, helping them master every topic.
+Your mission is to guide the student through learning the specific topic: "{topic_name}".
+You are currently teaching ONLY this topic. Do not veer into other topics unless necessary for context.
 Prioritize the user's uploaded <context_documents> for definitions and problem styles, and use your internal knowledge if needed.
 </goal>
 
@@ -63,75 +64,102 @@ Follow this pedagogical approach for every interaction:
 - **Reinforce Logic:** Briefly explain *why* their correct answer is correct.
 </teaching_methodology>
 
-<session_flow>
-## 1. Topic Transition
-- Follow the <study_plan> order strictly.
-- Briefly explain how the new topic connects to the previous one (Building Blocks).
-
-## 2. Execution
-- **Need to Learn:** Use <teaching_methodology> "Concept Approach" (Analogy -> Definition -> Check).
-- **Need Review:** Quick summary -> Immediate Practice.
-- **Practice Phase:** Use <teaching_methodology> "Problem-Solving Approach". Mimic the exam format found in <context_documents>.
-
-## 3. Mastery Trigger
-- As soon as the student solves **2 independent problems** correctly, congratulate them and suggest the next topic.
-</session_flow>
+<mastery_trigger>
+When the student solves **2 independent problems** correctly for this topic:
+1. Congratulate them enthusiastically
+2. Suggest marking this topic as complete
+3. Recommend moving to the next topic in their study plan
+</mastery_trigger>
 
 <restrictions>
 ## Integrity and Safety
 - **No Hallucinations:** If a specific detail (like a professor's naming convention) is missing, admit it. Do not guess.
 - **Conversation Scope:** Keep the conversation strictly about academic and study-related topics.
+- **Topic Focus:** You are teaching "{topic_name}" only. Redirect politely if the student veers off-topic.
 </restrictions>
-
-<data_injection>
-<study_plan>
-{study_plan}
-</study_plan>
 
 <context_documents>
 {context}
 </context_documents>
-</data_injection>
 
-<first_message_logic>
-If the chat history is empty, generate a welcome message:
-1. Greet as Caky.
-2. Brief overview of the journey.
-3. List the topics in <study_plan> with short descriptions.
-4. Explain why this order makes sense.
-5. Suggest starting with the first "unknown" topic.
-6. Ask if they want to adjust the plan.
-</first_message_logic>
+<current_topic>
+Topic: {topic_name}
+</current_topic>"#;
 
-<output_instructions>
-## If this is the FIRST message (no previous chat history):
-1. Follow <first_message_logic>.
+/// System prompt template for general review chat
+const REVIEW_SYSTEM_PROMPT: &str = r#"<goal>
+You are Caky, a smart, friendly, and structured University Exam Tutor.
+Your mission is to help the student with general review and practice for their exam.
+This is the final review phase - the student should have already learned the individual topics.
+Prioritize the user's uploaded <context_documents> for practice problems and exam-style questions.
+</goal>
 
-## For all subsequent messages:
-1. Analyze the user's input.
-2. Determine the current phase in <teaching_flow>.
-3. Respond accordingly, adhering to <restrictions> and <format_rules>.
-</output_instructions>"#;
+<format_rules>
+Use Markdown for clarity. Follow these style rules:
+
+## Language Priority
+1. Match the language of the student's current message.
+2. Match the predominant language of the study materials.
+3. **Default:** Brazilian Portuguese (pt-BR) if no clear context exists.
+
+## Tone and Style
+- **Direct Speech:** DO NOT prefix your messages or sections with "Caky:", "Tutor:", or "AI:". Speak directly to the student as if in a normal chat.
+- **Conversational:** Fluid, friendly, and motivating (e.g., "Boa!", "Quase lá!", "Você está pronto!").
+- **Pedagogical:** Be patient. Celebrate small wins.
+- **Academic:** Maintain professional correctness despite the friendly tone.
+
+## Visual Formatting (React Markdown Support)
+- **Math:** ALWAYS use LaTeX.
+    - **Inline:** Use single dollar signs (e.g., $E=mc^2$).
+    - **Block:** Use double dollar signs for centered equations (e.g., $$\sum_{i=1}^{n} x_i$$).
+- **Tables:** Use standard Markdown tables for comparisons or structured data.
+- **Code:** Use triple backticks (```) with language specification for code snippets.
+- **Emphasis:** Use **bold** for key terms and definitions.
+</format_rules>
+
+<review_methodology>
+## 1. Exam Simulation
+- Find questions from past exams in <context_documents>
+- Present them in exam format
+- Time expectations if applicable
+
+## 2. Integrated Problems
+- Create problems that combine multiple topics
+- Help students see connections between concepts
+
+## 3. Weak Spot Detection
+- If student struggles with a concept, briefly review it
+- Suggest revisiting the specific topic if needed
+</review_methodology>
+
+<restrictions>
+## Integrity and Safety
+- **No Hallucinations:** If a specific detail is missing, admit it. Do not guess.
+- **Conversation Scope:** Keep the conversation strictly about academic and study-related topics.
+</restrictions>
+
+<context_documents>
+{context}
+</context_documents>"#;
 
 /// Process a chat message and get AI response
 pub async fn process_message(
     pool: &PgPool,
     config: &Config,
-    user_id: Uuid,
+    profile_id: Uuid,
     session_id: Uuid,
+    chat_id: Uuid,
     user_message: &str,
+    topic_name: Option<&str>,
 ) -> Result<String, async_graphql::Error> {
     // 1. Fetch document context
-    tracing::info!("Fetching documents for session {} by user {}", session_id, user_id);
-    let doc_texts = documents::get_session_document_texts(pool, user_id, session_id).await?;
+    tracing::info!("Fetching documents for session {} by profile {}", session_id, profile_id);
+    let doc_texts = documents::get_session_document_texts(pool, profile_id, session_id).await?;
     
     tracing::info!("Found {} documents with completed extraction", doc_texts.len());
-    for (name, content) in &doc_texts {
-        tracing::info!("  - {}: {} chars", name, content.len());
-    }
     
     let context = if doc_texts.is_empty() {
-        tracing::warn!("No documents found with extraction_status='completed' for session {}", session_id);
+        tracing::warn!("No documents found with processing_status='COMPLETED' for session {}", session_id);
         "No study materials have been uploaded yet. Please upload your course materials (slides, past exams, notes) to get personalized help.".to_string()
     } else {
         doc_texts
@@ -141,53 +169,31 @@ pub async fn process_message(
             .join("\n\n")
     };
 
-    // 2. Fetch study plan if it exists
-    let study_plan_text = match study_plans::get_current_plan(pool, session_id).await? {
-        Some(plan) => {
-            if let Some(json_value) = &plan.content_json {
-                if let Ok(content) = serde_json::from_value::<study_plans::StudyPlanContent>(json_value.clone()) {
-                    let mut plan_text = String::from("STUDY PLAN WITH YOUR KNOWLEDGE LEVELS:\n\n");
-                    for (i, topic) in content.topics.iter().enumerate() {
-                        let status_label = match topic.status.as_str() {
-                            "need_to_learn" => "Need to Learn",
-                            "need_review" => "Need Review",
-                            "know_well" => "Know Well",
-                            _ => "Unknown",
-                        };
-                        plan_text.push_str(&format!("{}. {} [{}]\n   {}\n\n", 
-                            i + 1, topic.title, status_label, topic.description));
-                    }
-                    plan_text
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            }
-        }
-        None => String::new(),
+    // 2. Build system prompt based on chat type
+    let system_prompt = if let Some(topic) = topic_name {
+        TOPIC_SYSTEM_PROMPT
+            .replace("{topic_name}", topic)
+            .replace("{context}", &context)
+    } else {
+        REVIEW_SYSTEM_PROMPT
+            .replace("{context}", &context)
     };
 
-    // 3. Build system prompt with context and study plan
-    let system_prompt = SYSTEM_PROMPT_TEMPLATE
-        .replace("{study_plan}", &study_plan_text)
-        .replace("{context}", &context);
-
-    // 4. Fetch recent conversation history
+    // 3. Fetch recent conversation history for this specific chat
     let recent_messages = messages::get_recent_messages(
         pool, 
-        user_id, 
-        session_id, 
+        profile_id, 
+        chat_id, 
         MAX_HISTORY_MESSAGES
     ).await?;
 
-    // 5. Build conversation history for the AI
+    // 4. Build conversation history for the AI
     let history: Vec<(String, String)> = recent_messages
         .iter()
         .map(|m| (m.role.clone(), m.content.clone()))
         .collect();
 
-    // 6. Call AI
+    // 5. Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
     
     let ai_response = ai_client
@@ -197,83 +203,70 @@ pub async fn process_message(
     Ok(ai_response)
 }
 
-/// Generate the initial welcome message when a student starts studying
-/// This is called without any user message - the AI generates the first message
+/// Generate the initial welcome message when a student enters a chat
 pub async fn generate_welcome_message(
     pool: &PgPool,
     config: &Config,
+    profile_id: Uuid,
     session_id: Uuid,
+    topic_name: Option<&str>,
 ) -> Result<String, async_graphql::Error> {
-    tracing::info!("Generating welcome message for session {}", session_id);
+    tracing::info!("Generating welcome message for session {}, topic: {:?}", session_id, topic_name);
 
-    // 1. Fetch study plan (required for welcome message)
-    let study_plan_text = match study_plans::get_current_plan(pool, session_id).await? {
-        Some(plan) => {
-            if let Some(json_value) = &plan.content_json {
-                if let Ok(content) = serde_json::from_value::<study_plans::StudyPlanContent>(json_value.clone()) {
-                    let mut plan_text = String::from("PLANO DE ESTUDOS COM NÍVEIS DE CONHECIMENTO:\n\n");
-                    for (i, topic) in content.topics.iter().enumerate() {
-                        let status_label = match topic.status.as_str() {
-                            "need_to_learn" => "Preciso Aprender",
-                            "need_review" => "Preciso Revisar",
-                            "know_well" => "Sei Bem",
-                            _ => "Desconhecido",
-                        };
-                        plan_text.push_str(&format!("{}. {} [{}]\n   {}\n\n", 
-                            i + 1, topic.title, status_label, topic.description));
-                    }
-                    plan_text
-                } else {
-                    return Err(async_graphql::Error::new("Failed to parse study plan"));
-                }
-            } else {
-                return Err(async_graphql::Error::new("Study plan has no content"));
-            }
-        }
-        None => return Err(async_graphql::Error::new("No study plan found")),
-    };
-
-    // 2. Fetch document context (optional, but helpful for welcome)
-    // Note: We don't have user_id here, so we fetch documents directly by session
-    let doc_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM documents WHERE session_id = $1 AND extraction_status = 'completed'"
-    )
-    .bind(session_id)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
-
-    let context = if doc_count == 0 {
+    // 1. Fetch document context
+    let doc_texts = documents::get_session_document_texts(pool, profile_id, session_id).await?;
+    
+    let context = if doc_texts.is_empty() {
         "Nenhum material de estudo foi processado ainda.".to_string()
     } else {
-        format!("{} documento(s) de estudo carregado(s) e processado(s).", doc_count)
+        doc_texts
+            .iter()
+            .map(|(name, content)| format!("=== {} ===\n{}", name, content))
+            .collect::<Vec<_>>()
+            .join("\n\n")
     };
 
-    // 3. Build system prompt with study plan
-    let system_prompt = SYSTEM_PROMPT_TEMPLATE
-        .replace("{study_plan}", &study_plan_text)
-        .replace("{context}", &context);
+    // 2. Build system prompt and welcome instruction based on chat type
+    let (system_prompt, welcome_instruction) = if let Some(topic) = topic_name {
+        let prompt = TOPIC_SYSTEM_PROMPT
+            .replace("{topic_name}", topic)
+            .replace("{context}", &context);
+        let instruction = format!(
+            "Generate a welcome message for the student who is starting to study the topic '{}'. \
+            1. Greet them warmly as Caky \
+            2. Briefly introduce what this topic is about \
+            3. Explain why it's important/useful \
+            4. Ask if they want to start with theory or jump into practice \
+            Be conversational and motivating!",
+            topic
+        );
+        (prompt, instruction)
+    } else {
+        // Get all topics to show progress
+        let all_topics = topics::get_session_topics(pool, profile_id, session_id).await?;
+        let completed_count = all_topics.iter().filter(|t| t.is_completed).count();
+        let total_count = all_topics.len();
 
-    // 4. Call AI to generate the welcome message (no user message, just follow first_message_instructions)
+        let prompt = REVIEW_SYSTEM_PROMPT
+            .replace("{context}", &context);
+        let instruction = format!(
+            "Generate a welcome message for the General Review chat. \
+            The student has completed {}/{} topics and is now ready for final review. \
+            1. Congratulate them on reaching the review phase \
+            2. Explain this is for exam simulation and integrated practice \
+            3. Ask what they'd like to focus on: past exam problems, specific topics, or a full practice test \
+            Be enthusiastic and supportive!",
+            completed_count, total_count
+        );
+        (prompt, instruction)
+    };
+
+    // 3. Call AI to generate the welcome message
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
     
     let welcome_message = ai_client
-        .generate_from_system_prompt(CHAT_MODEL, &system_prompt)
+        .chat(CHAT_MODEL, &system_prompt, &welcome_instruction)
         .await?;
 
     Ok(welcome_message)
 }
-
-/// Get the total context size for a session (for UI display)
-pub async fn get_session_context_size(
-    pool: &PgPool,
-    user_id: Uuid,
-    session_id: Uuid,
-) -> Result<i32, async_graphql::Error> {
-    let doc_texts = documents::get_session_document_texts(pool, user_id, session_id).await?;
-    
-    let total_chars: usize = doc_texts.iter().map(|(_, content)| content.len()).sum();
-    
-    Ok(total_chars as i32)
-}
-

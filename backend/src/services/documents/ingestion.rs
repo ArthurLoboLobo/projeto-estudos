@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::services::documents::storage_client;
 use crate::services::messages::ai_client::{encode_base64, OpenRouterClient};
 use crate::storage::documents as doc_storage;
+use crate::storage::documents::ProcessingStatus;
 
 const VISION_MODEL: &str = "google/gemini-2.5-flash";
 
@@ -145,10 +146,9 @@ pub async fn process_document(
     tracing::info!("Processing document {}: {}", document_id, storage_path);
 
     // 1. Update status to processing
-    sqlx::query("UPDATE documents SET extraction_status = 'processing' WHERE id = $1")
-        .bind(document_id)
-        .execute(pool)
-        .await?;
+    doc_storage::update_document_status(pool, document_id, ProcessingStatus::Processing)
+        .await
+        .map_err(|e| format!("Failed to update status: {:?}", e))?;
 
     // 2. Download file from storage
     let pdf_data = storage_client::download_file(
@@ -181,8 +181,7 @@ pub async fn process_document(
         pool,
         document_id,
         &result.extracted_text,
-        result.page_count,
-        "completed",
+        ProcessingStatus::Completed,
     )
     .await
     .map_err(|e| format!("Database update failed: {:?}", e))?;
