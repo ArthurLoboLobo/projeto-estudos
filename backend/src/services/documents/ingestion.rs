@@ -4,6 +4,7 @@ use std::process::Command;
 use tempfile::TempDir;
 use tokio::fs;
 use uuid::Uuid;
+use futures::stream::{self, StreamExt};
 
 use crate::config::Config;
 use crate::services::documents::storage_client;
@@ -72,27 +73,48 @@ pub async fn process_pdf(
     // Create OpenRouter client
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
 
-    // Process each page
+    // Process pages in parallel
+    tracing::info!("Starting parallel processing of {} pages", page_count);
+
+    // Collect paths first to avoid borrowing issues with DirEntry
+    let page_paths: Vec<_> = page_files.iter().map(|e| e.path()).collect();
+
+    let mut results = stream::iter(page_paths.into_iter().enumerate())
+        .map(|(i, page_path)| {
+            let ai_client = ai_client.clone();
+            async move {
+                tracing::info!("Processing page {}", i + 1);
+
+                // Read image file
+                let image_data = fs::read(&page_path)
+                    .await
+                    .map_err(|e| async_graphql::Error::new(format!("Failed to read page image: {}", e)))?;
+
+                // Encode to base64
+                let base64_image = encode_base64(&image_data);
+
+                // Extract text using vision AI
+                let page_text = ai_client
+                    .extract_text_from_image(VISION_MODEL, &base64_image, "image/png")
+                    .await?;
+
+                Ok::<_, async_graphql::Error>((i, page_text))
+            }
+        })
+        .buffer_unordered(8) // Process up to 8 pages concurrently
+        .collect::<Vec<_>>()
+        .await;
+
+    // Sort results by page index since they complete out of order
+    results.sort_by_key(|res| match res {
+        Ok((i, _)) => *i,
+        Err(_) => 0,
+    });
+
     let mut all_text = Vec::new();
-
-    for (i, entry) in page_files.iter().enumerate() {
-        let page_path = entry.path();
-        tracing::info!("Processing page {}/{}", i + 1, page_count);
-
-        // Read image file
-        let image_data = fs::read(&page_path)
-            .await
-            .map_err(|e| async_graphql::Error::new(format!("Failed to read page image: {}", e)))?;
-
-        // Encode to base64
-        let base64_image = encode_base64(&image_data);
-
-        // Extract text using vision AI
-        let page_text = ai_client
-            .extract_text_from_image(VISION_MODEL, &base64_image, "image/png")
-            .await?;
-
-        all_text.push(format!("--- Page {} ---\n{}", i + 1, page_text));
+    for res in results {
+        let (i, text) = res?;
+        all_text.push(format!("--- Page {} ---\n{}", i + 1, text));
     }
 
     let extracted_text = all_text.join("\n\n");
