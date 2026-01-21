@@ -43,7 +43,7 @@ pub async fn generate_study_plan(
     }
 
     // Build materials context
-    let materials = doc_texts
+    let context = doc_texts
         .iter()
         .map(|(name, content)| format!("=== {} ===\n{}", name, content))
         .collect::<Vec<_>>()
@@ -51,7 +51,7 @@ pub async fn generate_study_plan(
 
     // Build the prompt
     let prompt = GENERATE_PLAN_PROMPT
-        .replace("{materials}", &materials)
+        .replace("{context}", &context)
         .replace("{title}", session_title)
         .replace("{description}", session_description.unwrap_or("No description provided"));
 
@@ -79,7 +79,7 @@ pub async fn revise_study_plan(
     // Fetch document texts for context
     let doc_texts = documents::get_session_document_texts(pool, profile_id, session_id).await?;
     
-    let materials = if doc_texts.is_empty() {
+    let context = if doc_texts.is_empty() {
         "No study materials available.".to_string()
     } else {
         doc_texts
@@ -107,7 +107,7 @@ pub async fn revise_study_plan(
     let prompt = REVISE_PLAN_PROMPT
         .replace("{current_plan}", &current_plan_json)
         .replace("{instruction}", instruction)
-        .replace("{materials}", &materials);
+        .replace("{context}", &context);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());

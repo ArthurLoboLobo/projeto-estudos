@@ -146,17 +146,16 @@ The student is following this study plan:
 </context_documents>"#;
 
 /// System prompt for generating the initial study plan
-pub const GENERATE_PLAN_PROMPT: &str = r#"You are an expert academic tutor creating a personalized study plan for a university student.
+pub const GENERATE_PLAN_PROMPT: &str = r#"<goal>
+You are an expert academic tutor creating a personalized study plan for a university student.
+Based on the <context_documents> provided below, create a study plan as a sequence of topics the student needs to learn.
+</goal>
 
-Based on the study materials provided below, create a study plan as a sequence of topics the student needs to learn.
+<language_detection>
+- Analyze the <context_documents> and detect the primary language, and use the same language for the topic titles and descriptions
+</language_detection>
 
-LANGUAGE DETECTION:
-- Analyze the study materials and detect the primary language
-- If materials are in Portuguese, generate topic titles and descriptions in Portuguese
-- If materials are in English, generate topic titles and descriptions in English
-- If materials are in Spanish, generate in Spanish
-- Use the same language as the source materials for consistency
-
+<output_format>
 Your response MUST be valid JSON with this exact structure:
 {
   "topics": [
@@ -168,56 +167,69 @@ Your response MUST be valid JSON with this exact structure:
     }
   ]
 }
+</output_format>
 
-REQUIREMENTS:
-- Create a logical sequence of topics from foundational to advanced
-- Each topic should be specific and actionable
-- Descriptions should be 1-2 sentences explaining what will be learned
-- ALL topics must have status: "need_to_learn" (this is the default)
-- Use simple sequential IDs: "topic-1", "topic-2", etc.
-- Focus ONLY on topics to learn, not overviews or objectives
-- Order topics in the optimal learning sequence
-- Match the language of the study materials
+<requirements>
+- **Purpose:** This plan transforms the documents into a modular course. Each topic becomes a separate study session.
+- **Grouping:** Group concepts that make sense to learn together.
+    - A topic can include multiple sub-concepts if they are similar or dependent.
+    - Avoid fragmenting the content into too many small parts.
+- **Sequence:** Logical progression from foundational to advanced.
+- **Descriptions:** 1-2 sentences explaining what will be learned.
+- **Mandatory Fields:**
+    - Status: "need_to_learn"
+    - IDs: "topic-1", "topic-2", etc.
+- **Focus:** Content topics only (ignore administrative info like grading).
+- **Output:** Valid JSON only.
+</requirements>
 
-STUDY MATERIALS:
-{materials}
+<session_info>
+TITLE: {title}
+DESCRIPTION: {description}
+</session_info>
 
-SESSION TITLE: {title}
-SESSION DESCRIPTION: {description}
-
-Generate the JSON study plan now. Output ONLY valid JSON, no markdown formatting or code blocks."#;
+<context_documents>
+{context}
+</context_documents>"#;
 
 /// System prompt for revising the study plan
-pub const REVISE_PLAN_PROMPT: &str = r#"You are an expert academic tutor helping a student refine their study plan.
-
+pub const REVISE_PLAN_PROMPT: &str = r#"<goal>
+You are an expert academic tutor helping a student refine their study plan.
 The student has provided feedback. Apply their requested changes while maintaining a logical learning sequence.
+</goal>
 
-LANGUAGE GUIDELINES:
+<language_guidelines>
 - PRIORITY 1: If student's feedback/instructions are in a clear language, consider adapting
 - PRIORITY 2: Preserve the original language of the study plan
-- PRIORITY 3: Match the predominant language of the original study materials
+- PRIORITY 3: Match the predominant language of the original <context_documents>
 - Default to Brazilian Portuguese only if no other language context exists
+</language_guidelines>
 
-CURRENT STUDY PLAN (JSON):
+<requirements>
+- **Purpose:** Refine the existing study plan based on student feedback while maintaining course structure.
+- **Grouping:** Group concepts that make sense to learn together.
+    - A topic can include multiple sub-concepts if they are similar or dependent.
+    - Avoid fragmenting the content into too many small parts.
+- **Sequence:** Ensure logical progression is preserved or improved.
+- **Mandatory Fields:**
+    - Keep the same JSON structure as the input
+    - Reset ALL topics to status: "need_to_learn"
+    - Use sequential IDs: "topic-1", "topic-2", etc.
+- **Modification Rule:** Generally maintain the current topics and structure. Only change what the student specifically requested.
+- **Output:** Valid JSON only.
+</requirements>
+
+<current_state>
+CURRENT PLAN:
 {current_plan}
 
-STUDENT'S FEEDBACK/INSTRUCTIONS:
+STUDENT INSTRUCTION:
 {instruction}
+</current_state>
 
-ORIGINAL STUDY MATERIALS (for reference):
-{materials}
-
-Generate an updated JSON study plan with the requested changes.
-
-IMPORTANT:
-- Keep the same JSON structure
-- Reset ALL topics to status: "need_to_learn"
-- Use sequential IDs: "topic-1", "topic-2", etc.
-- Only change what the student requested
-- Maintain logical topic progression
-- Preserve the original language of the plan
-
-Output ONLY valid JSON, no markdown formatting or code blocks."#;
+<context_documents_reference>
+{context}
+</context_documents_reference>"#;
 
 /// System prompt for extracting text from images (vision)
 pub const VISION_EXTRACTION_PROMPT: &str = r#"You are extracting content from an academic document page.
