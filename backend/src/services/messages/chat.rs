@@ -10,6 +10,18 @@ use super::ai_client::OpenRouterClient;
 const CHAT_MODEL: &str = "google/gemini-2.5-flash";
 const MAX_HISTORY_MESSAGES: i32 = 20;
 
+/// Convert language code to full language name
+fn language_name(code: &str) -> &str {
+    match code {
+        "en" => "English",
+        "pt" => "Portuguese",
+        "es" => "Spanish",
+        "fr" => "French",
+        "de" => "German",
+        _ => code
+    }
+}
+
 /// Process a chat message and get AI response
 pub async fn process_message(
     pool: &PgPool,
@@ -47,18 +59,22 @@ pub async fn process_message(
         .join("\n");
 
     // 3. Build system prompt based on chat type
+    let lang = language_name(language);
     let system_prompt = if let Some(topic) = topic_name {
         TOPIC_SYSTEM_PROMPT
             .replace("{topic_name}", topic)
             .replace("{context}", &context)
             .replace("{study_plan}", &study_plan_context)
-            .replace("{language}", language)
+            .replace("{language}", lang)
     } else {
         REVIEW_SYSTEM_PROMPT
             .replace("{context}", &context)
             .replace("{study_plan}", &study_plan_context)
-            .replace("{language}", language)
+            .replace("{language}", lang)
     };
+
+    // Debug logging: show the final system prompt
+    tracing::debug!("Final system prompt for chat {}: {}", chat_id, system_prompt);
 
     // 4. Fetch recent conversation history for this specific chat
     let recent_messages = messages::get_recent_messages(
@@ -109,11 +125,13 @@ pub async fn generate_welcome_message(
     };
 
     // 2. Build system prompt and welcome instruction based on chat type
+    let lang = language_name(language);
     let (system_prompt, welcome_instruction) = if let Some(topic) = topic_name {
         let prompt = TOPIC_SYSTEM_PROMPT
             .replace("{topic_name}", topic)
             .replace("{context}", &context)
-            .replace("{language}", language);
+            .replace("{study_plan}", "")
+            .replace("{language}", lang);
         let instruction = format!(
             "Generate a welcome message for the student who is starting to study the topic '{}'. \
             1. Briefly introduce what this topic is about and why it's useful. \
@@ -131,7 +149,8 @@ pub async fn generate_welcome_message(
 
         let prompt = REVIEW_SYSTEM_PROMPT
             .replace("{context}", &context)
-            .replace("{language}", language);
+            .replace("{study_plan}", "")
+            .replace("{language}", lang);
         let instruction = format!(
             "Generate a welcome message for the General Review chat. \
             The student has completed {}/{} topics and is now ready for final review. \
@@ -143,6 +162,10 @@ pub async fn generate_welcome_message(
         );
         (prompt, instruction)
     };
+
+    // Debug logging: show the final system prompt and welcome instruction
+    tracing::debug!("Final welcome system prompt: {}", system_prompt);
+    tracing::debug!("Final welcome instruction: {}", welcome_instruction);
 
     // 3. Call AI to generate the welcome message
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());

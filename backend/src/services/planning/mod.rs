@@ -10,6 +10,18 @@ use crate::storage::sessions::DraftPlan;
 
 const PLANNING_MODEL: &str = "google/gemini-2.5-flash";
 
+/// Convert language code to full language name
+fn language_name(code: &str) -> &str {
+    match code {
+        "en" => "English",
+        "pt" => "Portuguese",
+        "es" => "Spanish",
+        "fr" => "French",
+        "de" => "German",
+        _ => code
+    }
+}
+
 /// Internal structure for AI responses (matches the JSON format)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StudyPlanTopic {
@@ -51,11 +63,15 @@ pub async fn generate_study_plan(
         .join("\n\n---\n\n");
 
     // Build the prompt
+    let lang = language_name(language);
     let prompt = GENERATE_PLAN_PROMPT
         .replace("{context}", &context)
         .replace("{title}", session_title)
         .replace("{description}", session_description.unwrap_or("No description provided"))
-        .replace("{language}", language);
+        .replace("{language}", lang);
+
+    // Debug logging: show the final system prompt
+    tracing::debug!("Final plan generation prompt: {}", prompt);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
@@ -107,11 +123,15 @@ pub async fn revise_study_plan(
         .map_err(|e| async_graphql::Error::new(format!("JSON serialization error: {}", e)))?;
 
     // Build the revision prompt
+    let lang = language_name(language);
     let prompt = REVISE_PLAN_PROMPT
         .replace("{current_plan}", &current_plan_json)
         .replace("{instruction}", instruction)
         .replace("{context}", &context)
-        .replace("{language}", language);
+        .replace("{language}", lang);
+
+    // Debug logging: show the final system prompt
+    tracing::debug!("Final plan revision prompt: {}", prompt);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
