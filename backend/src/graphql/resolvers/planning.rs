@@ -6,7 +6,8 @@ use crate::config::Config;
 use crate::graphql::context::GraphQLContext;
 use crate::graphql::types::Session;
 use crate::services::planning;
-use crate::storage::{sessions, documents, topics, chats};
+use crate::services::messages::chat as chat_service;
+use crate::storage::{sessions, documents, topics, chats, messages};
 use crate::storage::sessions::{SessionStatus, DraftPlan, DraftPlanTopic};
 
 /// Generate the initial study plan from documents (stores as draft_plan)
@@ -183,6 +184,7 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
     let gql_ctx = ctx.data::<GraphQLContext>()?;
     let profile_id = gql_ctx.require_auth()?;
     let pool = ctx.data::<PgPool>()?;
+    let config = ctx.data::<Config>()?;
 
     let session_uuid = Uuid::parse_str(&session_id).map_err(|_| "Invalid session ID")?;
 
@@ -202,23 +204,24 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
     tracing::info!("Starting studying phase for session {}", session_uuid);
 
     // Materialize topics from draft_plan
-    let topics_data: Vec<(String, Option<String>, i32)> = draft_plan
+    let topics_data: Vec<(String, Option<String>, i32, bool)> = draft_plan
         .topics
         .iter()
-        .filter(|t| !t.is_completed) // Only create topics for non-completed items
         .enumerate()
-        .map(|(i, t)| (t.title.clone(), t.description.clone(), i as i32))
+        .map(|(i, t)| (t.title.clone(), t.description.clone(), i as i32, t.is_completed))
         .collect();
 
     let created_topics = topics::create_topics_batch(pool, session_uuid, topics_data).await?;
 
-    // Create a chat for each topic
+    // Create a chat for each topic and collect chat info for background generation
+    let mut topic_chats: Vec<(Uuid, String)> = Vec::new();
     for topic in &created_topics {
-        chats::create_topic_chat(pool, session_uuid, topic.id).await?;
+        let chat = chats::create_topic_chat(pool, session_uuid, topic.id).await?;
+        topic_chats.push((chat.id, topic.title.clone()));
     }
 
     // Create the general review chat
-    chats::create_review_chat(pool, session_uuid).await?;
+    let review_chat = chats::create_review_chat(pool, session_uuid).await?;
 
     // Update session status to ACTIVE and clear the draft_plan
     sessions::update_session_status(pool, profile_id, session_uuid, SessionStatus::Active).await?;
@@ -231,5 +234,83 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
         created_topics.len()
     );
 
+    // Spawn background tasks to generate welcome messages for all chats
+    let pool_clone = pool.clone();
+    let config_clone = config.clone();
+    
+    tokio::spawn(async move {
+        // Generate welcome messages for all topic chats in parallel
+        let mut handles = Vec::new();
+        
+        for (chat_id, topic_title) in topic_chats {
+            let pool = pool_clone.clone();
+            let config = config_clone.clone();
+            
+            let handle = tokio::spawn(async move {
+                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, chat_id, Some(&topic_title)).await {
+                    Ok(_) => tracing::info!("Welcome message generated for topic chat {}", chat_id),
+                    Err(e) => tracing::error!("Failed to generate welcome for topic chat {}: {:?}", chat_id, e),
+                }
+            });
+            handles.push(handle);
+        }
+        
+        // Generate welcome message for review chat
+        let review_handle = tokio::spawn({
+            let pool = pool_clone.clone();
+            let config = config_clone.clone();
+            let review_chat_id = review_chat.id;
+            
+            async move {
+                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, review_chat_id, None).await {
+                    Ok(_) => tracing::info!("Welcome message generated for review chat {}", review_chat_id),
+                    Err(e) => tracing::error!("Failed to generate welcome for review chat {}: {:?}", review_chat_id, e),
+                }
+            }
+        });
+        handles.push(review_handle);
+        
+        // Wait for all to complete
+        for handle in handles {
+            let _ = handle.await;
+        }
+        
+        tracing::info!("All welcome messages generated for session {}", session_uuid);
+    });
+
     Ok(updated.into())
+}
+
+/// Helper function to generate and save a welcome message
+async fn generate_and_save_welcome(
+    pool: &PgPool,
+    config: &Config,
+    profile_id: Uuid,
+    session_id: Uuid,
+    chat_id: Uuid,
+    topic_name: Option<&str>,
+) -> Result<(), async_graphql::Error> {
+    // Generate welcome message from AI
+    let welcome_content = chat_service::generate_welcome_message(
+        pool,
+        config,
+        profile_id,
+        session_id,
+        topic_name,
+    )
+    .await?;
+
+    // Save the welcome message as an assistant message
+    messages::create_message(
+        pool,
+        chat_id,
+        "assistant",
+        &welcome_content,
+    )
+    .await?;
+
+    // Mark chat as started
+    chats::mark_chat_started(pool, profile_id, chat_id).await?;
+
+    Ok(())
 }

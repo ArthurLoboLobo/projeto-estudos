@@ -4,9 +4,8 @@ import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { useAuth } from '../lib/auth';
 import { REVISE_PLAN, START_STUDYING, UPDATE_DRAFT_TOPIC_COMPLETION } from '../lib/graphql/mutations';
-import SessionHeader from '../components/SessionHeader';
+import Header from '../components/Header';
 import type { Session, DraftPlanTopic } from '../types';
 
 interface SessionPlanningProps {
@@ -15,7 +14,6 @@ interface SessionPlanningProps {
 }
 
 export default function SessionPlanning({ session, onSessionUpdate }: SessionPlanningProps) {
-  const { user, logout } = useAuth();
   const [instruction, setInstruction] = useState('');
   const [revising, setRevising] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -28,7 +26,7 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
   }, []);
 
   const [revisePlan] = useMutation<{ revisePlan: Session }>(REVISE_PLAN);
-  const [startStudying] = useMutation<{ startStudying: Session }>(START_STUDYING);
+  const [startStudying, { loading: startingStudying }] = useMutation<{ startStudying: Session }>(START_STUDYING);
   const [updateDraftTopicCompletion] = useMutation<{ updateDraftTopicCompletion: Session }>(UPDATE_DRAFT_TOPIC_COMPLETION);
 
   const topics: DraftPlanTopic[] = session.draftPlan?.topics || [];
@@ -90,12 +88,9 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <SessionHeader
-        session={session}
-        user={user}
-        onLogout={logout}
-        isMobile={isMobile}
-        hideLogoOnMobile={true}
+      <Header
+        sessionTitle={session.title}
+        showBackButton={true}
       />
 
       {/* Main Content */}
@@ -245,10 +240,17 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
                     <button
                       type="button"
                       onClick={handleStartStudying}
-                      disabled={revising || activeTopicsCount === 0}
+                      disabled={revising || startingStudying || topics.length === 0}
                       className="w-full md:flex-1 py-3 bg-caky-primary text-white font-bold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 active:scale-95"
                     >
-                      Começar a Estudar ({activeTopicsCount} tópicos)
+                      {startingStudying ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          Preparando a Sessão de Estudo...
+                        </>
+                      ) : (
+                        'Começar a Estudar'
+                      )}
                     </button>
                   </div>
                 </form>

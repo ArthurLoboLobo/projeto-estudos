@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
-import { useAuth, getAuthToken } from '../lib/auth';
+import { getAuthToken } from '../lib/auth';
 import { GET_DOCUMENTS } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, GENERATE_PLAN } from '../lib/graphql/mutations';
-import SessionHeader from '../components/SessionHeader';
+import Header from '../components/Header';
 import ProcessingStatusBadge from '../components/ProcessingStatusBadge';
 import type { Document, Session, ProcessingStatus } from '../types';
 
@@ -16,7 +16,6 @@ interface SessionUploadProps {
 }
 
 export default function SessionUpload({ session, onPlanGenerated }: SessionUploadProps) {
-  const { user, logout } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -140,13 +139,9 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   return (
     <div className="min-h-screen bg-caky-bg">
       {/* Header */}
-      <SessionHeader
-        session={session}
-        user={user}
-        onLogout={logout}
-        maxWidth="4xl"
-        isMobile={isMobile}
-        hideLogoOnMobile={true}
+      <Header
+        sessionTitle={session.title}
+        showBackButton={true}
       />
 
       {/* Main Content */}

@@ -111,11 +111,11 @@ pub async fn generate_welcome_message(
             .replace("{context}", &context);
         let instruction = format!(
             "Generate a welcome message for the student who is starting to study the topic '{}'. \
-            1. Greet them warmly as Caky \
-            2. Briefly introduce what this topic is about \
-            3. Explain why it's important/useful \
-            4. Ask if they want to start with theory or jump into practice \
-            Be conversational and motivating!",
+            1. Greet them naturally. \
+            2. Briefly introduce what this topic is about and why it's useful. \
+            3. Based on the study materials, suggest the first important concept or 'thing' they should learn. \
+            4. Ask if they are ready to start with that specific concept. \
+            Be direct and focus on getting started.",
             topic
         );
         (prompt, instruction)
@@ -130,10 +130,11 @@ pub async fn generate_welcome_message(
         let instruction = format!(
             "Generate a welcome message for the General Review chat. \
             The student has completed {}/{} topics and is now ready for final review. \
-            1. Congratulate them on reaching the review phase \
-            2. Explain this is for exam simulation and integrated practice \
-            3. Ask what they'd like to focus on: past exam problems, specific topics, or a full practice test \
-            Be enthusiastic and supportive!",
+            1. Greet them naturally. \
+            2. Congratulate them on reaching the review phase. \
+            3. Explain this is for exam simulation and integrated practice. \
+            4. Ask what they'd like to focus on: past exam problems, specific topics, or a full practice test. \
+            Be direct, enthusiastic and supportive.",
             completed_count, total_count
         );
         (prompt, instruction)

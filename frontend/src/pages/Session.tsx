@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
-import { useAuth, getAuthToken } from '../lib/auth';
+import { getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_TOPICS, GET_CHATS, GET_MESSAGES, GET_REVIEW_CHAT, GET_DOCUMENTS, GET_DOCUMENT_URL } from '../lib/graphql/queries';
-import { SEND_MESSAGE, GENERATE_WELCOME, UPDATE_TOPIC_COMPLETION, DELETE_DOCUMENT } from '../lib/graphql/mutations';
-import SessionHeader from '../components/SessionHeader';
+import { SEND_MESSAGE, UPDATE_TOPIC_COMPLETION, DELETE_DOCUMENT } from '../lib/graphql/mutations';
+import Header from '../components/Header';
 import Markdown from '../components/ui/Markdown';
 import type { Session as SessionType, Topic, Chat, Message, Document } from '../types';
 import ProcessingStatusBadge from '../components/ProcessingStatusBadge';
@@ -94,7 +94,6 @@ interface SessionStudyingProps {
 }
 
 function SessionStudying({ session }: SessionStudyingProps) {
-  const { user, logout } = useAuth();
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showReviewChat, setShowReviewChat] = useState(false);
@@ -423,11 +422,9 @@ function SessionStudying({ session }: SessionStudyingProps) {
         </div>
       )}
 
-      <SessionHeader
-        session={session}
-        user={user}
-        onLogout={logout}
-        isMobile={isMobile}
+      <Header
+        sessionTitle={session.title}
+        showBackButton={true}
       />
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
@@ -623,33 +620,24 @@ function TopicChat({
 
   // Mutations
   const [sendMessage, { loading: sending }] = useMutation<{ sendMessage: Message }>(SEND_MESSAGE);
-  const [generateWelcome, { loading: generatingWelcome }] = useMutation<{ generateWelcome: Message }>(GENERATE_WELCOME);
 
   const serverMessages: Message[] = messagesData?.messages || [];
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [aiTyping, setAiTyping] = useState(false);
   const messages: Message[] = [...serverMessages, ...optimisticMessages];
-  const [welcomeTriggered, setWelcomeTriggered] = useState(false);
 
-  // Auto-trigger welcome message
+  // Poll for messages while they're being generated in the background
+  const isWaitingForWelcome = !loadingMessages && serverMessages.length === 0;
+  
   useEffect(() => {
-    if (!loadingMessages && serverMessages.length === 0 && !welcomeTriggered && !generatingWelcome) {
-      setWelcomeTriggered(true);
-      setAiTyping(true);
-
-      generateWelcome({
-        variables: { chatId },
-        onCompleted: () => {
-          refetchMessages();
-          setAiTyping(false);
-        },
-        onError: (err) => {
-          console.error('Welcome message error:', err);
-          setAiTyping(false);
-        }
-      });
+    if (isWaitingForWelcome) {
+      // Poll every 1 second while waiting for the welcome message
+      const interval = setInterval(() => {
+        refetchMessages();
+      }, 1000);
+      return () => clearInterval(interval);
     }
-  }, [loadingMessages, serverMessages.length, welcomeTriggered, generatingWelcome, chatId, generateWelcome, refetchMessages]);
+  }, [isWaitingForWelcome, refetchMessages]);
 
   // Auto-scroll
   useEffect(() => {
@@ -792,15 +780,20 @@ function TopicChat({
                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-caky-primary border-t-transparent"></div>
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-full text-center px-4 opacity-80 py-12">
-                <h3 className="text-xl md:text-2xl font-bold text-caky-text mb-2 md:mb-3">
-                  {isReviewChat ? 'Pronto para revisar!' : `Vamos aprender ${topic?.title}`}
-                </h3>
-                <p className="text-caky-text/60 max-w-md text-sm md:text-base font-medium">
-                  {isReviewChat
-                    ? 'Pratique com questões que integram todos os tópicos do seu plano de estudos.'
-                    : 'Pergunte-me qualquer coisa sobre este tópico. Vou te ajudar a entender os conceitos e resolver exercícios.'}
-                </p>
+              <div className="flex flex-col items-center justify-center min-h-full text-center px-4 py-12">
+                {/* Show typing indicator while waiting for welcome message */}
+                <div className="flex justify-start w-full mb-4">
+                  <div className={`max-w-[85%] md:max-w-2xl rounded-2xl ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} bg-white text-caky-text rounded-tl-none border border-caky-secondary/30 shadow-sm`}>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                      </div>
+                      <span className="text-sm text-caky-text/50 font-medium">Caky está preparando sua aula...</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <>

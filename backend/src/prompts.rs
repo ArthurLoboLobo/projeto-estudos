@@ -162,7 +162,7 @@ Your response MUST be valid JSON with this exact structure:
     {
       "id": "topic-1",
       "title": "Topic Name",
-      "description": "Brief explanation of what the student will learn in this topic",
+      "description": "Brief explanation of what will be learned (direct verb)",
       "status": "need_to_learn"
     }
   ]
@@ -175,7 +175,7 @@ Your response MUST be valid JSON with this exact structure:
     - A topic can include multiple sub-concepts if they are similar or dependent.
     - Avoid fragmenting the content into too many small parts.
 - **Sequence:** Logical progression from foundational to advanced.
-- **Descriptions:** 1-2 sentences explaining what will be learned.
+- **Descriptions:** 1-2 sentences explaining what will be learned. Be direct (e.g., "Calculate limits using L'Hôpital's rule" instead of "The student will learn how to...").
 - **Mandatory Fields:**
     - Status: "need_to_learn"
     - IDs: "topic-1", "topic-2", etc.
@@ -215,6 +215,7 @@ The student has provided feedback. Apply their requested changes while maintaini
     - Keep the same JSON structure as the input
     - Reset ALL topics to status: "need_to_learn"
     - Use sequential IDs: "topic-1", "topic-2", etc.
+    - Descriptions: Be direct (e.g., "Calculate limits using..." instead of "The student will learn...").
 - **Modification Rule:** Generally maintain the current topics and structure. Only change what the student specifically requested.
 - **Output:** Valid JSON only.
 </requirements>

@@ -21,11 +21,12 @@ pub async fn create_topic(
     title: &str,
     description: Option<&str>,
     order_index: i32,
+    is_completed: bool,
 ) -> Result<TopicRow, async_graphql::Error> {
     let topic = sqlx::query_as::<_, TopicRow>(
         r#"
-        INSERT INTO topics (session_id, title, description, order_index)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO topics (session_id, title, description, order_index, is_completed)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id, session_id, title, description, order_index, is_completed, created_at, updated_at
         "#,
     )
@@ -33,6 +34,7 @@ pub async fn create_topic(
     .bind(title)
     .bind(description)
     .bind(order_index)
+    .bind(is_completed)
     .fetch_one(pool)
     .await
     .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
@@ -44,12 +46,12 @@ pub async fn create_topic(
 pub async fn create_topics_batch(
     pool: &PgPool,
     session_id: Uuid,
-    topics: Vec<(String, Option<String>, i32)>, // (title, description, order_index)
+    topics: Vec<(String, Option<String>, i32, bool)>, // (title, description, order_index, is_completed)
 ) -> Result<Vec<TopicRow>, async_graphql::Error> {
     let mut created_topics = Vec::new();
 
-    for (title, description, order_index) in topics {
-        let topic = create_topic(pool, session_id, &title, description.as_deref(), order_index).await?;
+    for (title, description, order_index, is_completed) in topics {
+        let topic = create_topic(pool, session_id, &title, description.as_deref(), order_index, is_completed).await?;
         created_topics.push(topic);
     }
 
