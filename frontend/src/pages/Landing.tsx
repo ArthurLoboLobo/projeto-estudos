@@ -11,7 +11,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-caky-bg text-caky-text font-sans overflow-x-hidden">
       {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 p-4 md:p-6 z-10">
+      <nav className="absolute top-0 left-0 right-0 p-4 md:p-6 z-50">
         <div className="max-w-6xl mx-auto px-4 md:px-6 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
             <img src="/caky_logo.png" alt="Caky Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
