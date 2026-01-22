@@ -32,6 +32,7 @@ pub async fn generate_study_plan(
     session_id: Uuid,
     session_title: &str,
     session_description: Option<&str>,
+    language: &str,
 ) -> Result<StudyPlanContent, async_graphql::Error> {
     // Fetch all document texts
     let doc_texts = documents::get_session_document_texts(pool, profile_id, session_id).await?;
@@ -53,7 +54,8 @@ pub async fn generate_study_plan(
     let prompt = GENERATE_PLAN_PROMPT
         .replace("{context}", &context)
         .replace("{title}", session_title)
-        .replace("{description}", session_description.unwrap_or("No description provided"));
+        .replace("{description}", session_description.unwrap_or("No description provided"))
+        .replace("{language}", language);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());
@@ -75,6 +77,7 @@ pub async fn revise_study_plan(
     session_id: Uuid,
     current_plan: &DraftPlan,
     instruction: &str,
+    language: &str,
 ) -> Result<StudyPlanContent, async_graphql::Error> {
     // Fetch document texts for context
     let doc_texts = documents::get_session_document_texts(pool, profile_id, session_id).await?;
@@ -107,7 +110,8 @@ pub async fn revise_study_plan(
     let prompt = REVISE_PLAN_PROMPT
         .replace("{current_plan}", &current_plan_json)
         .replace("{instruction}", instruction)
-        .replace("{context}", &context);
+        .replace("{context}", &context)
+        .replace("{language}", language);
 
     // Call AI
     let ai_client = OpenRouterClient::new(config.openrouter_api_key.clone());

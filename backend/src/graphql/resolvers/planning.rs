@@ -44,6 +44,7 @@ pub async fn generate_plan(ctx: &Context<'_>, session_id: ID) -> Result<Session>
         session_uuid,
         &session.title,
         session.description.as_deref(),
+        &gql_ctx.language,
     )
     .await?;
 
@@ -111,6 +112,7 @@ pub async fn revise_plan(
         session_uuid,
         &current_content,
         &instruction,
+        &gql_ctx.language,
     )
     .await?;
 
@@ -237,6 +239,7 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
     // Spawn background tasks to generate welcome messages for all chats
     let pool_clone = pool.clone();
     let config_clone = config.clone();
+    let language = gql_ctx.language.clone();
     
     tokio::spawn(async move {
         // Generate welcome messages for all topic chats in parallel
@@ -245,9 +248,10 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
         for (chat_id, topic_title) in topic_chats {
             let pool = pool_clone.clone();
             let config = config_clone.clone();
+            let language = language.clone();
             
             let handle = tokio::spawn(async move {
-                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, chat_id, Some(&topic_title)).await {
+                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, chat_id, Some(&topic_title), &language).await {
                     Ok(_) => tracing::info!("Welcome message generated for topic chat {}", chat_id),
                     Err(e) => tracing::error!("Failed to generate welcome for topic chat {}: {:?}", chat_id, e),
                 }
@@ -260,9 +264,10 @@ pub async fn start_studying(ctx: &Context<'_>, session_id: ID) -> Result<Session
             let pool = pool_clone.clone();
             let config = config_clone.clone();
             let review_chat_id = review_chat.id;
+            let language = language.clone();
             
             async move {
-                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, review_chat_id, None).await {
+                match generate_and_save_welcome(&pool, &config, profile_id, session_uuid, review_chat_id, None, &language).await {
                     Ok(_) => tracing::info!("Welcome message generated for review chat {}", review_chat_id),
                     Err(e) => tracing::error!("Failed to generate welcome for review chat {}: {:?}", review_chat_id, e),
                 }
@@ -289,6 +294,7 @@ async fn generate_and_save_welcome(
     session_id: Uuid,
     chat_id: Uuid,
     topic_name: Option<&str>,
+    language: &str,
 ) -> Result<(), async_graphql::Error> {
     // Generate welcome message from AI
     let welcome_content = chat_service::generate_welcome_message(
@@ -297,6 +303,7 @@ async fn generate_and_save_welcome(
         profile_id,
         session_id,
         topic_name,
+        language,
     )
     .await?;
 

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { useTranslation } from 'react-i18next';
 import ThemeToggle from './ui/ThemeToggle';
+import LanguageSwitcher from './ui/LanguageSwitcher';
 
 interface HeaderProps {
   sessionTitle?: string;
@@ -9,10 +11,11 @@ interface HeaderProps {
 
 export default function Header({ sessionTitle, showBackButton = false }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-caky-text/10 bg-caky-card/80 backdrop-blur-md shadow-sm h-16">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 h-full flex items-center justify-between relative">
+      <div className="max-w-6xl mx-auto px-6 md:px-8 h-full flex items-center justify-between relative">
         {/* Left Section */}
         <div className="flex items-center gap-4 shrink-0">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -30,7 +33,7 @@ export default function Header({ sessionTitle, showBackButton = false }: HeaderP
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span className="hidden md:inline">Dashboard</span>
+                <span className="hidden md:inline">{t('header.dashboard')}</span>
               </Link>
             </div>
           )}
@@ -47,7 +50,10 @@ export default function Header({ sessionTitle, showBackButton = false }: HeaderP
 
         {/* Right Section */}
         <div className="flex items-center gap-3 md:gap-4 shrink-0">
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
           
           {user && (
             <div className="flex items-center gap-3 md:gap-4">
@@ -58,7 +64,7 @@ export default function Header({ sessionTitle, showBackButton = false }: HeaderP
                 onClick={logout}
                 className="px-3 md:px-4 py-2 text-sm text-caky-primary hover:bg-caky-primary/10 rounded-lg transition font-medium active:scale-95"
               >
-                Sair
+                {t('common.logout')}
               </button>
             </div>
           )}

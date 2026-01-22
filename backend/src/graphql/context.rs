@@ -4,16 +4,21 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Default)]
 pub struct GraphQLContext {
     pub user_id: Option<Uuid>,
+    pub language: String,
 }
 
 impl GraphQLContext {
-    pub fn new() -> Self {
-        Self { user_id: None }
+    pub fn new(language: String) -> Self {
+        Self { 
+            user_id: None,
+            language,
+        }
     }
 
-    pub fn authenticated(user_id: Uuid) -> Self {
+    pub fn authenticated(user_id: Uuid, language: String) -> Self {
         Self {
             user_id: Some(user_id),
+            language,
         }
     }
 

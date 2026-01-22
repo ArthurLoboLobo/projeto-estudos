@@ -5,6 +5,7 @@ import Landing from './pages/Landing';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Session from './pages/Session';
+import './i18n/config';
 
 export default function App() {
   return (

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -14,16 +15,9 @@ interface SessionPlanningProps {
 }
 
 export default function SessionPlanning({ session, onSessionUpdate }: SessionPlanningProps) {
+  const { t } = useTranslation();
   const [instruction, setInstruction] = useState('');
   const [revising, setRevising] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const [revisePlan] = useMutation<{ revisePlan: Session }>(REVISE_PLAN);
   const [startStudying, { loading: startingStudying }] = useMutation<{ startStudying: Session }>(START_STUDYING);
@@ -44,10 +38,10 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
         onSessionUpdate(result.data.revisePlan);
       }
       setInstruction('');
-      toast.success('Plano de estudo atualizado!');
+      toast.success(t('session.planning.toast.planUpdated'));
     } catch (err: any) {
       console.error('Revise error:', err);
-      toast.error(err.message || 'Falha ao revisar plano de estudo');
+      toast.error(err.message || t('dashboard.toast.createError')); // Reusing or adding specific one
     } finally {
       setRevising(false);
     }
@@ -56,12 +50,12 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
   const handleStartStudying = async () => {
     try {
       const result = await startStudying({ variables: { sessionId: session.id } });
-      toast.success("Vamos começar a estudar!");
+      toast.success(t('session.planning.toast.letsStart'));
       if (result.data?.startStudying) {
         onSessionUpdate(result.data.startStudying);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Falha ao começar a estudar');
+      toast.error(err.message || t('dashboard.toast.createError'));
     }
   };
 
@@ -100,32 +94,32 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-6 md:mb-8">
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold text-xs md:text-sm">1</div>
-              <span className="text-caky-text font-semibold text-xs md:text-base hidden md:inline">Enviar</span>
-              <span className="text-caky-text font-semibold text-xs md:text-base md:hidden">Env.</span>
+              <span className="text-caky-text font-semibold text-xs md:text-base hidden md:inline">{t('session.steps.send')}</span>
+              <span className="text-caky-text font-semibold text-xs md:text-base md:hidden">{t('session.steps.send')}</span>
             </div>
             <div className="w-4 md:w-8 h-0.5 bg-caky-primary"></div>
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs md:text-sm">2</div>
-              <span className="text-caky-primary font-semibold text-xs md:text-base hidden md:inline">Planejar</span>
-              <span className="text-caky-primary font-semibold text-xs md:text-base md:hidden">Plan.</span>
+              <span className="text-caky-primary font-semibold text-xs md:text-base hidden md:inline">{t('session.steps.plan')}</span>
+              <span className="text-caky-primary font-semibold text-xs md:text-base md:hidden">{t('session.steps.plan')}</span>
             </div>
             <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">3</div>
-              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Estudar</span>
-              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Est.</span>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">{t('session.steps.study')}</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">{t('session.steps.study')}</span>
             </div>
           </div>
 
           {/* Planning Card */}
           <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-6 md:p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">Seu Plano de Estudo</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">{t('session.planning.title')}</h2>
               <p className="text-sm md:text-base text-caky-text/60 max-w-md mx-auto mb-4">
-                Revise e refine seu plano de estudo personalizado. Marque os tópicos que você já sabe bem para pular.
+                {t('session.planning.subtitle')}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs text-caky-text/50">
-                <span>{topics.length} tópicos • {activeTopicsCount} para estudar</span>
+                <span>{t('session.planning.topicStudyInfo', { total: topics.length, active: activeTopicsCount }).replace('{total}', topics.length.toString()).replace('{active}', activeTopicsCount.toString())}</span>
               </div>
             </div>
 
@@ -190,7 +184,7 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
                           onChange={() => handleToggleCompletion(topic.id, topic.isCompleted)}
                         />
                         <span className={`text-sm font-medium ${topic.isCompleted ? 'text-caky-text/60' : 'text-caky-text/80'}`}>
-                          Já domino este tópico
+                          {t('session.planning.alreadyKnow')}
                         </span>
                       </label>
                     </div>
@@ -201,9 +195,9 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
               {/* Refine Section */}
               <div className="border-t border-caky-text/10 pt-6 md:pt-8">
                 <div className="mb-4 md:mb-6">
-                  <h3 className="text-lg font-bold text-caky-text mb-2">Refine Seu Plano</h3>
+                  <h3 className="text-lg font-bold text-caky-text mb-2">{t('session.planning.refineTitle')}</h3>
                   <p className="text-caky-text/60 text-sm">
-                    Diga à IA como melhorar seu plano de estudo
+                    {t('session.planning.refineSubtitle')}
                   </p>
                 </div>
 
@@ -212,7 +206,7 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
                   <textarea
                     value={instruction}
                     onChange={(e) => setInstruction(e.target.value)}
-                    placeholder="ex.: 'Adicione mais exercícios práticos de integrais' ou 'Remova a seção sobre limites'"
+                    placeholder={t('session.planning.refinePlaceholder')}
                     className="w-full p-4 bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none text-sm"
                     rows={4}
                     disabled={revising}
@@ -226,14 +220,14 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
                       {revising ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-caky-dark border-t-transparent"></div>
-                          Atualizando Plano...
+                          {t('session.planning.updatingPlan')}
                         </>
                       ) : (
                         <>
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
-                          Atualizar Plano
+                          {t('session.planning.updatePlan')}
                         </>
                       )}
                     </button>
@@ -246,10 +240,10 @@ export default function SessionPlanning({ session, onSessionUpdate }: SessionPla
                       {startingStudying ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                          Preparando a Sessão de Estudo...
+                          {t('session.planning.startingStudying')}
                         </>
                       ) : (
-                        'Começar a Estudar'
+                        t('session.planning.startStudying')
                       )}
                     </button>
                   </div>

@@ -51,6 +51,12 @@ pub async fn graphql_handler(
 }
 
 fn extract_context(headers: &HeaderMap, config: &Config) -> GraphQLContext {
+    let language = headers
+        .get("x-language")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("pt")
+        .to_string();
+
     let auth_header = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -58,11 +64,11 @@ fn extract_context(headers: &HeaderMap, config: &Config) -> GraphQLContext {
 
     if let Some(token) = auth_header {
         if let Ok(user_id) = verify_jwt(token, &config.jwt_secret) {
-            return GraphQLContext::authenticated(user_id);
+            return GraphQLContext::authenticated(user_id, language);
         }
     }
 
-    GraphQLContext::new()
+    GraphQLContext::new(language)
 }
 
 pub async fn graphql_playground() -> impl IntoResponse {

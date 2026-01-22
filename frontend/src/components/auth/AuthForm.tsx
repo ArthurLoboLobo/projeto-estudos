@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth';
 import { LOGIN, REGISTER } from '../../lib/graphql/mutations';
 import ThemeToggle from '../ui/ThemeToggle';
+import LanguageSwitcher from '../ui/LanguageSwitcher';
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,6 +13,7 @@ export default function AuthForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login: authLogin } = useAuth();
+  const { t } = useTranslation();
 
   const [loginMutation, { loading: loginLoading }] = useMutation(LOGIN);
   const [registerMutation, { loading: registerLoading }] = useMutation(REGISTER);
@@ -31,11 +34,11 @@ export default function AuthForm() {
       const typedData = data as any;
       const result = isLogin ? typedData?.login : typedData?.register;
       if (result) {
-        toast.success(isLogin ? 'Bem-vindo de volta!' : 'Conta criada!');
+        toast.success(isLogin ? t('auth.welcomeBack') : t('auth.accountCreated'));
         authLogin(result.token, result.user);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Ocorreu um erro';
+      const message = err instanceof Error ? err.message : t('auth.genericError');
       setError(message);
       toast.error(message);
     }
@@ -43,7 +46,8 @@ export default function AuthForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-caky-bg relative overflow-hidden p-4">
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeToggle />
       </div>
       {/* Decorative Background Elements */}
@@ -55,44 +59,44 @@ export default function AuthForm() {
         <div className="text-center mb-6 md:mb-8">
           <img src="/caky_logo.png" alt="Caky Logo" className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 drop-shadow-md" />
           <h1 className="text-3xl md:text-4xl font-bold text-caky-primary mb-2">
-            Caky
+            {t('auth.title')}
           </h1>
           <p className="text-caky-text/70 font-medium text-sm md:text-base">
-            Preparação para provas com IA
+            {t('auth.subtitle')}
           </p>
         </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-caky-secondary/30">
           <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-6 text-center">
-            {isLogin ? 'Bem-vindo de Volta' : 'Criar Conta'}
+            {isLogin ? t('auth.welcome') : t('auth.createAccount')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
             <div>
               <label className="block text-sm font-semibold text-caky-text mb-2">
-                Email
+                {t('auth.email')}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
-                placeholder="voce@universidade.edu.br"
+                placeholder={t('auth.emailPlaceholder')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-caky-text mb-2">
-                Senha
+                {t('auth.password')}
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary transition"
-                placeholder="••••••••"
+                placeholder={t('auth.passwordPlaceholder')}
                 required
                 minLength={6}
               />
@@ -115,10 +119,10 @@ export default function AuthForm() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Processando...
+                  {t('auth.processing')}
                 </span>
               ) : (
-                isLogin ? 'Entrar' : 'Criar Conta'
+                isLogin ? t('auth.login') : t('auth.register')
               )}
             </button>
           </form>
@@ -131,16 +135,14 @@ export default function AuthForm() {
               }}
               className="text-caky-primary hover:text-caky-text font-medium transition underline-offset-4 hover:underline text-sm md:text-base p-2 active:bg-caky-secondary/10 rounded-lg"
             >
-              {isLogin
-                ? "Não tem uma conta? Cadastre-se"
-                : 'Já tem uma conta? Entrar'}
+              {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
             </button>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-caky-text/50 text-xs md:text-sm mt-8 font-medium px-4">
-          Faça upload dos seus slides, provas antigas e anotações — obtenha tutoria personalizada de IA
+          {t('auth.footer')}
         </p>
       </div>
     </div>

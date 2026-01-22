@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { getAuthToken } from '../lib/auth';
 import { GET_SESSION, GET_TOPICS, GET_CHATS, GET_MESSAGES, GET_REVIEW_CHAT, GET_DOCUMENTS, GET_DOCUMENT_URL } from '../lib/graphql/queries';
@@ -17,6 +18,7 @@ const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') 
 export default function Session() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [session, setSession] = useState<SessionType | null>(null);
 
   // Fetch session data
@@ -35,10 +37,10 @@ export default function Session() {
   // Redirect if session not found
   useEffect(() => {
     if (sessionError) {
-      toast.error('Sessão não encontrada');
+      toast.error(t('session.notFound'));
       navigate('/dashboard');
     }
-  }, [sessionError, navigate]);
+  }, [sessionError, navigate, t]);
 
   // Loading state
   if (!session) {
@@ -94,6 +96,7 @@ interface SessionStudyingProps {
 }
 
 function SessionStudying({ session }: SessionStudyingProps) {
+  const { t } = useTranslation();
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showReviewChat, setShowReviewChat] = useState(false);
@@ -183,17 +186,17 @@ function SessionStudying({ session }: SessionStudyingProps) {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Apenas arquivos PDF são suportados');
+      toast.error(t('session.onlyPdf'));
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      toast.error('O tamanho do arquivo deve ser menor que 50MB');
+      toast.error(t('session.maxFileSize'));
       return;
     }
 
     setUploading(true);
-    setUploadProgress('Enviando...');
+    setUploadProgress(t('session.uploading'));
 
     try {
       const token = getAuthToken();
@@ -226,11 +229,11 @@ function SessionStudying({ session }: SessionStudyingProps) {
         throw new Error(data.error || 'Upload failed');
       }
 
-      toast.success('Documento enviado! Processamento iniciado.');
+      toast.success(t('session.documentUploaded'));
       refetchDocs();
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error(err.message || 'Falha ao enviar documento');
+      toast.error(err.message || t('session.uploadError'));
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -241,20 +244,20 @@ function SessionStudying({ session }: SessionStudyingProps) {
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
-    if (!confirm(`Remover "${fileName}"?`)) return;
+    if (!confirm(t('session.deleteConfirm', { fileName }))) return;
 
     try {
       await deleteDocument({ variables: { id: docId } });
-      toast.success('Documento removido');
+      toast.success(t('session.documentRemoved'));
       refetchDocs();
     } catch (err: any) {
-      toast.error(err.message || 'Falha ao excluir documento');
+      toast.error(err.message || t('session.deleteError'));
     }
   };
 
   const handleViewDocument = async (doc: Document) => {
     if (doc.processingStatus !== 'COMPLETED') {
-      toast.info('O documento ainda está sendo processado.');
+      toast.info(t('session.documentProcessing'));
       return;
     }
 
@@ -263,11 +266,11 @@ function SessionStudying({ session }: SessionStudyingProps) {
       if (data?.documentUrl) {
         window.open(data.documentUrl, '_blank');
       } else {
-        toast.error('Não foi possível obter o link do documento.');
+        toast.error(t('session.documentUrlError'));
       }
     } catch (err: any) {
       console.error('Error fetching document URL:', err);
-      toast.error('Erro ao abrir documento.');
+      toast.error(t('session.documentOpenError'));
     }
   };
 
@@ -277,9 +280,9 @@ function SessionStudying({ session }: SessionStudyingProps) {
         variables: { id: topic.id, isCompleted: !topic.isCompleted },
       });
       refetchTopics();
-      toast.success(topic.isCompleted ? 'Tópico reaberto' : 'Tópico concluído!');
+      toast.success(topic.isCompleted ? t('session.topicReopened') : t('session.topicCompleted'));
     } catch (err: any) {
-      toast.error(err.message || 'Falha ao atualizar tópico');
+      toast.error(err.message || t('session.updateTopicError'));
     }
   };
 
@@ -321,8 +324,8 @@ function SessionStudying({ session }: SessionStudyingProps) {
           >
             <div className="p-6 border-b border-caky-secondary/20 flex justify-between items-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
               <div>
-                <h2 className="text-xl font-bold text-caky-text">Seus Documentos</h2>
-                <p className="text-sm text-caky-text/60">Gerencie os materiais de estudo desta sessão</p>
+                <h2 className="text-xl font-bold text-caky-text">{t('session.yourDocuments')}</h2>
+                <p className="text-sm text-caky-text/60">{t('session.manageDocuments')}</p>
               </div>
               <button 
                 onClick={() => setIsDocModalOpen(false)}
@@ -352,15 +355,15 @@ function SessionStudying({ session }: SessionStudyingProps) {
                   {uploading ? (
                     <>
                       <div className="animate-spin rounded-full h-8 w-8 border-3 border-caky-primary border-t-transparent"></div>
-                      <span className="font-semibold">{uploadProgress || 'Enviando...'}</span>
+                      <span className="font-semibold">{uploadProgress || t('session.uploading')}</span>
                     </>
                   ) : (
                     <>
                       <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                       </svg>
-                      <span className="font-bold text-lg">Upload de Arquivos</span>
-                      <span className="text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
+                      <span className="font-bold text-lg">{t('session.uploadFiles')}</span>
+                      <span className="text-sm text-caky-text/50">{t('session.uploadSubtitle')}</span>
                     </>
                   )}
                 </button>
@@ -368,10 +371,10 @@ function SessionStudying({ session }: SessionStudyingProps) {
 
               {/* Document List */}
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">Documentos Enviados</h3>
+                <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">{t('session.documentsUploaded')}</h3>
                 {documents.length === 0 ? (
                   <div className="text-center py-8 text-caky-text/50 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    Nenhum documento enviado ainda.
+                    {t('session.noDocuments')}
                   </div>
                 ) : (
                   documents.map((doc) => (
@@ -407,7 +410,7 @@ function SessionStudying({ session }: SessionStudyingProps) {
                       <button
                         onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
                         className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
-                        title="Excluir"
+                        title={t('session.deleteDocument')}
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -431,8 +434,8 @@ function SessionStudying({ session }: SessionStudyingProps) {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold text-caky-text">Progresso</h2>
-            <span className="text-sm text-caky-text/60">{completedCount} de {topics.length} tópicos</span>
+            <h2 className="text-xl font-bold text-caky-text">{t('session.progress')}</h2>
+            <span className="text-sm text-caky-text/60">{completedCount} {t('session.topicsCount', { total: topics.length }).replace('{total}', topics.length.toString())}</span>
           </div>
           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -477,7 +480,7 @@ function SessionStudying({ session }: SessionStudyingProps) {
                       handleToggleTopicCompletion(topic);
                     }}
                     className="absolute top-4 right-4 group/checkbox select-none"
-                    title={topic.isCompleted ? 'Reabrir tópico' : 'Marcar como concluído'}
+                    title={topic.isCompleted ? t('session.reopenTopic') : t('session.markComplete')}
                   >
                     <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
                       topic.isCompleted
@@ -512,7 +515,7 @@ function SessionStudying({ session }: SessionStudyingProps) {
                         ? 'bg-caky-primary/10 text-caky-primary'
                         : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {topic.isCompleted ? 'Concluído' : isStarted ? 'Em progresso' : 'Não iniciado'}
+                      {topic.isCompleted ? t('session.completed') : isStarted ? t('session.inProgress') : t('session.notStarted')}
                     </span>
                     <svg className="w-5 h-5 text-caky-text/30 group-hover:text-caky-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -535,9 +538,9 @@ function SessionStudying({ session }: SessionStudyingProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="font-bold text-xl mb-2">Documentos</h3>
+              <h3 className="font-bold text-xl mb-2">{t('session.documents')}</h3>
               <p className="text-white/70 text-sm">
-                Veja os documentos eviados e envie novos.
+                {t('session.documentsSubtitle')}
               </p>
             </div>
 
@@ -552,9 +555,9 @@ function SessionStudying({ session }: SessionStudyingProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <h3 className="font-bold text-xl mb-2">Revisão Geral</h3>
+                <h3 className="font-bold text-xl mb-2">{t('session.reviewGeneral')}</h3>
                 <p className="text-white/70 text-sm">
-                  Revise os conteúdos de cada tópico e pratique com exercícios.
+                  {t('session.reviewSubtitle')}
                 </p>
               </div>
             )}
@@ -570,13 +573,13 @@ function SessionStudying({ session }: SessionStudyingProps) {
               </div>
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-bold text-xl mb-2">Simulados</h3>
+                  <h3 className="font-bold text-xl mb-2">{t('session.simulados')}</h3>
                   <p className="text-white/70 text-sm">
-                    Monte simulados personalizados para praticar.
+                    {t('session.simuladosSubtitle')}
                   </p>
                 </div>
                 <span className="bg-white/20 text-white text-[10px] px-5 py-1 rounded-full font-bold uppercase tracking-wide whitespace-nowrap">
-                  Em breve
+                  {t('session.comingSoon')}
                 </span>
               </div>
             </div>
@@ -609,6 +612,7 @@ function TopicChat({
   isExpanded,
   onToggleExpand
 }: TopicChatProps) {
+  const { t } = useTranslation();
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
@@ -684,14 +688,14 @@ function TopicChat({
       setAiTyping(false);
     } catch (err: any) {
       console.error('Send error:', err);
-      toast.error(err.message || 'Falha ao enviar mensagem');
+      toast.error(err.message || t('session.chat.sendError'));
       setMessageInput(content);
       setOptimisticMessages([]);
       setAiTyping(false);
     }
   };
 
-  const chatTitle = isReviewChat ? 'Revisão Geral' : topic?.title || 'Chat';
+  const chatTitle = isReviewChat ? t('session.reviewGeneral') : topic?.title || t('session.chat.title');
 
   // Determine popup styles based on expansion state
   const popupStyles = isExpanded 
@@ -733,7 +737,7 @@ function TopicChat({
                   onChange={onTopicComplete}
                 />
                 <span className={`text-sm font-medium ${topic.isCompleted ? 'text-green-700' : 'text-caky-text/70'}`}>
-                  {topic.isCompleted ? 'Concluído' : 'Marcar Concluído'}
+                  {topic.isCompleted ? t('session.completed') : t('session.markCompleted')}
                 </span>
               </label>
             )}
@@ -742,7 +746,7 @@ function TopicChat({
             <button
               onClick={onToggleExpand}
               className="p-2 text-caky-text/70 hover:text-caky-text hover:bg-caky-secondary/20 rounded-lg transition active:scale-95"
-              title={isExpanded ? "Reduzir" : "Expandir"}
+              title={isExpanded ? t('session.chat.reduce') : t('session.chat.expand')}
             >
               {isExpanded ? (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -759,7 +763,7 @@ function TopicChat({
             <button
               onClick={onClose}
               className="p-2 text-caky-text/70 hover:text-red-500 hover:bg-red-50 rounded-lg transition active:scale-95"
-              title="Fechar Chat"
+              title={t('session.chat.close')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -790,7 +794,7 @@ function TopicChat({
                         <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                         <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                       </div>
-                      <span className="text-sm text-caky-text/50 font-medium">Caky está preparando sua aula...</span>
+                      <span className="text-sm text-caky-text/50 font-medium">{t('session.chat.cakyPreparing')}</span>
                     </div>
                   </div>
                 </div>
@@ -809,7 +813,7 @@ function TopicChat({
                           <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                           <span className="w-2 h-2 bg-caky-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                         </div>
-                        <span className="text-sm text-caky-text/50 font-medium">Caky está pensando...</span>
+                        <span className="text-sm text-caky-text/50 font-medium">{t('session.chat.cakyThinking')}</span>
                       </div>
                     </div>
                   </div>
@@ -834,7 +838,7 @@ function TopicChat({
                 handleSendMessage(e);
               }
             }}
-            placeholder={isMobile ? "Pergunte..." : "Pergunte qualquer coisa..."}
+            placeholder={isMobile ? t('session.chat.askPlaceholderMobile') : t('session.chat.askPlaceholder')}
             className={`flex-1 ${isMobile ? 'px-4 py-3 min-h-[56px]' : 'px-3 md:px-4 py-2 md:py-3'} bg-gray-50 dark:bg-caky-card/50 border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary ${isMobile ? 'text-base resize-none' : 'text-sm md:text-base'} transition resize-none`}
             disabled={sending}
             autoComplete="off"

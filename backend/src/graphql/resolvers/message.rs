@@ -61,6 +61,7 @@ pub async fn send_message(
         chat_uuid,
         &content,
         topic_info.as_ref().map(|(title, _)| title.as_str()),
+        &gql_ctx.language,
     )
     .await?;
 
@@ -135,6 +136,7 @@ pub async fn generate_welcome(ctx: &Context<'_>, chat_id: ID) -> Result<Message>
         profile_id,
         chat_row.session_id,
         topic_info.as_ref().map(|(title, _)| title.as_str()),
+        &gql_ctx.language,
     )
     .await?;
 

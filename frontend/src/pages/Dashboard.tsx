@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { GET_SESSIONS } from '../lib/graphql/queries';
 import { CREATE_SESSION, DELETE_SESSION } from '../lib/graphql/mutations';
@@ -9,6 +10,7 @@ import type { Session, SessionStatus } from '../types';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
 
   const [showNewSession, setShowNewSession] = useState(false);
@@ -21,7 +23,7 @@ export default function Dashboard() {
       setShowNewSession(false);
       setNewTitle('');
       setNewDescription('');
-      toast.success('Sessão criada!');
+      toast.success(t('dashboard.toast.sessionCreated'));
       // Navigate to the new session automatically
       if (data?.createSession?.id) {
         navigate(`/session/${data.createSession.id}`);
@@ -30,16 +32,16 @@ export default function Dashboard() {
       }
     },
     onError: (err) => {
-      toast.error(err.message || 'Falha ao criar sessão');
+      toast.error(err.message || t('dashboard.toast.createError'));
     },
   });
   const [deleteSession] = useMutation(DELETE_SESSION, {
     onCompleted: () => {
-      toast.success('Sessão excluída');
+      toast.success(t('dashboard.toast.sessionDeleted'));
       refetch();
     },
     onError: (err) => {
-      toast.error(err.message || 'Falha ao excluir sessão');
+      toast.error(err.message || t('dashboard.toast.deleteError'));
     },
   });
 
@@ -55,7 +57,7 @@ export default function Dashboard() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta sessão?')) return;
+    if (!confirm(t('dashboard.session.deleteConfirm'))) return;
     await deleteSession({ variables: { id } });
   };
 
@@ -71,17 +73,17 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-caky-text mb-2">
-              Suas Sessões
+              {t('dashboard.title')}
             </h1>
             <p className="text-caky-text/60 text-sm md:text-base">
-              Estude com inteligência artificial usando seus próprios materiais
+              {t('dashboard.subtitle')}
             </p>
           </div>
           <button
             onClick={() => setShowNewSession(true)}
             className="hidden md:block px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            + Nova Sessão
+            {t('dashboard.newSession')}
           </button>
         </div>
 
@@ -89,7 +91,7 @@ export default function Dashboard() {
         <button
           onClick={() => setShowNewSession(true)}
           className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-caky-primary text-white rounded-full shadow-xl flex items-center justify-center z-40 active:scale-90 transition-transform"
-          aria-label="Nova Sessão"
+          aria-label={t('dashboard.newSessionMobile')}
         >
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -101,18 +103,18 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-4 sm:p-4">
             <div className="bg-white rounded-t-2xl md:rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl border border-caky-secondary/30 animate-in slide-in-from-bottom-10 md:slide-in-from-bottom-0 md:fade-in-0 duration-200">
               <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-6">
-                Criar Sessão de Estudo
+                {t('dashboard.modal.title')}
               </h2>
               <form onSubmit={handleCreateSession} className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-caky-text mb-2">
-                    Título da Sessão
+                    {t('dashboard.modal.titleLabel')}
                   </label>
                   <input
                     type="text"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="ex.: Prova Final de Cálculo II"
+                    placeholder={t('dashboard.modal.titlePlaceholder')}
                     className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary"
                     required
                     autoFocus
@@ -120,12 +122,12 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-caky-text mb-2">
-                    Descrição (opcional)
+                    {t('dashboard.modal.descriptionLabel')}
                   </label>
                   <textarea
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Tópicos, data da prova, anotações..."
+                    placeholder={t('dashboard.modal.descriptionPlaceholder')}
                     rows={3}
                     className="w-full px-4 py-3 bg-white dark:bg-caky-card border border-gray-200 dark:border-gray-600 rounded-xl text-caky-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-caky-primary/50 focus:border-caky-primary resize-none"
                   />
@@ -136,14 +138,14 @@ export default function Dashboard() {
                     onClick={() => setShowNewSession(false)}
                     className="flex-1 py-3 text-caky-text bg-gray-100 dark:bg-caky-card hover:bg-gray-200 dark:hover:bg-caky-card/70 rounded-xl transition font-medium active:scale-95"
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={creating}
                     className="flex-1 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition disabled:opacity-50 shadow-md active:scale-95"
                   >
-                    {creating ? 'Criando...' : 'Criar'}
+                    {creating ? t('common.creating') : t('common.create')}
                   </button>
                 </div>
               </form>
@@ -158,21 +160,21 @@ export default function Dashboard() {
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
-            Erro ao carregar sessões: {error.message}
+            {t('dashboard.errors.loadSessions')} {error.message}
           </div>
         ) : sessions.length === 0 ? (
           <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-caky-text/10">
             <h3 className="text-2xl font-bold text-caky-text mb-3">
-              Nenhuma sessão de estudo ainda
+              {t('dashboard.empty.title')}
             </h3>
             <p className="text-caky-text/60 mb-8 max-w-md mx-auto">
-              Crie sua primeira sessão para começar a estudar com contexto de IA dos seus documentos.
+              {t('dashboard.empty.subtitle')}
             </p>
             <button
               onClick={() => setShowNewSession(true)}
               className="px-6 py-3 bg-caky-primary text-white font-semibold rounded-xl hover:bg-caky-dark transition shadow-md"
             >
-              + Criar Primeira Sessão
+              {t('dashboard.empty.cta')}
             </button>
           </div>
         ) : (
@@ -189,7 +191,7 @@ export default function Dashboard() {
                       handleDeleteSession(session.id);
                     }}
                     className="text-gray-400 dark:text-gray-500 hover:text-red-500 transition p-2 bg-white dark:bg-caky-card rounded-full shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-100 md:border-transparent active:scale-90"
-                    title="Excluir sessão"
+                    title={t('dashboard.session.deleteTitle')}
                   >
                     <svg
                       className="w-5 h-5"
@@ -223,7 +225,7 @@ export default function Dashboard() {
                   )}
                   {!session.description && (
                     <p className="text-caky-text/40 text-sm italic min-h-[2.5em]">
-                      Sem descrição
+                      {t('dashboard.session.noDescription')}
                     </p>
                   )}
                 </div>
@@ -236,7 +238,7 @@ export default function Dashboard() {
                     to={`/session/${session.id}`}
                     className="px-4 py-2 bg-caky-secondary/20 text-caky-primary font-semibold rounded-lg hover:bg-caky-primary hover:text-white transition text-sm active:scale-95"
                   >
-                    Abrir Sessão →
+                    {t('dashboard.session.openSession')}
                   </Link>
                 </div>
               </div>
@@ -249,17 +251,19 @@ export default function Dashboard() {
 }
 
 function StatusBadge({ status }: { status: SessionStatus }) {
-  const config: Record<SessionStatus, { label: string; className: string }> = {
+  const { t } = useTranslation();
+  
+  const config: Record<SessionStatus, { labelKey: string; className: string }> = {
     PLANNING: {
-      label: 'Planejamento',
+      labelKey: 'dashboard.status.planning',
       className: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     },
     ACTIVE: {
-      label: 'Estudando',
+      labelKey: 'dashboard.status.active',
       className: 'bg-green-100 text-green-700 border-green-200',
     },
     COMPLETED: {
-      label: 'Concluído',
+      labelKey: 'dashboard.status.completed',
       className: 'bg-blue-100 text-blue-700 border-blue-200',
     },
   };
@@ -268,7 +272,7 @@ function StatusBadge({ status }: { status: SessionStatus }) {
 
   return (
     <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full border whitespace-nowrap ${statusConfig.className}`}>
-      {statusConfig.label}
+      {t(statusConfig.labelKey)}
     </span>
   );
 }

@@ -101,7 +101,7 @@ pub async fn process_pdf(
                 Ok::<_, async_graphql::Error>((i, page_text))
             }
         })
-        .buffer_unordered(8) // Process up to 8 pages concurrently
+        .buffer_unordered(20) // Process up to 20 pages concurrently
         .collect::<Vec<_>>()
         .await;
 

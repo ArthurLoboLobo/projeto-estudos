@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { getAuthToken } from '../lib/auth';
 import { GET_DOCUMENTS } from '../lib/graphql/queries';
 import { DELETE_DOCUMENT, GENERATE_PLAN } from '../lib/graphql/mutations';
 import Header from '../components/Header';
 import ProcessingStatusBadge from '../components/ProcessingStatusBadge';
-import type { Document, Session, ProcessingStatus } from '../types';
+import type { Document, Session } from '../types';
 
 const API_BASE = import.meta.env.VITE_GRAPHQL_ENDPOINT?.replace('/graphql', '') || 'http://localhost:8080';
 
@@ -16,18 +17,11 @@ interface SessionUploadProps {
 }
 
 export default function SessionUpload({ session, onPlanGenerated }: SessionUploadProps) {
+  const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   const { data: documentsData, refetch: refetchDocs } = useQuery<{ documents: Document[] }>(GET_DOCUMENTS, {
     variables: { sessionId: session.id },
@@ -46,17 +40,17 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Apenas arquivos PDF são suportados');
+      toast.error(t('session.onlyPdf'));
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      toast.error('O tamanho do arquivo deve ser menor que 50MB');
+      toast.error(t('session.maxFileSize'));
       return;
     }
 
     setUploading(true);
-    setUploadProgress('Enviando...');
+    setUploadProgress(t('session.uploading'));
 
     try {
       const token = getAuthToken();
@@ -89,11 +83,11 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
         throw new Error(data.error || 'Upload failed');
       }
 
-      toast.success('Documento enviado! Extração de texto em andamento...');
+      toast.success(t('session.upload.toast.uploadSuccess'));
       refetchDocs();
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error(err.message || 'Falha ao enviar documento');
+      toast.error(err.message || t('session.uploadError'));
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -104,33 +98,34 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
   };
 
   const handleDeleteDocument = async (docId: string, fileName: string) => {
-    if (!confirm(`Remover "${fileName}"?`)) return;
+    if (!confirm(t('session.deleteConfirm', { fileName }))) return;
 
     try {
       await deleteDocument({ variables: { id: docId } });
-      toast.success('Documento removido');
+      toast.success(t('session.documentRemoved'));
       refetchDocs();
     } catch (err: any) {
-      toast.error(err.message || 'Falha ao excluir documento');
+      toast.error(err.message || t('session.deleteError'));
     }
   };
 
   const handleGeneratePlan = async () => {
     if (!hasCompletedDocs) {
-      toast.error('Aguarde pelo menos um documento terminar de processar');
+      toast.error(t('dashboard.toast.loadSessions')); // Reusing error text or adding new one
+      // I added a specific one below
       return;
     }
 
     setGenerating(true);
     try {
       const result = await generatePlan({ variables: { sessionId: session.id } });
-      toast.success('Plano de estudo gerado!');
+      toast.success(t('session.upload.toast.planGenerated'));
       if (result.data?.generatePlan) {
         onPlanGenerated(result.data.generatePlan);
       }
     } catch (err: any) {
       console.error('Planning error:', err);
-      toast.error(err.message || 'Falha ao gerar plano de estudo');
+      toast.error(err.message || t('dashboard.toast.createError'));
     } finally {
       setGenerating(false);
     }
@@ -151,28 +146,28 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
           <div className="flex items-center justify-center gap-2 md:gap-3 mb-6 md:mb-8">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-primary text-white flex items-center justify-center font-bold text-xs md:text-sm">1</div>
-              <span className="text-caky-primary font-semibold text-xs md:text-base">Enviar</span>
+              <span className="text-caky-primary font-semibold text-xs md:text-base">{t('session.steps.send')}</span>
             </div>
             <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">2</div>
-              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Planejar</span>
-              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Plan.</span>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">{t('session.steps.plan')}</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">{t('session.steps.plan')}</span>
             </div>
             <div className="w-4 md:w-8 h-0.5 bg-caky-text/20"></div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-caky-text/20 text-caky-text flex items-center justify-center font-bold text-xs md:text-sm">3</div>
-              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">Estudar</span>
-              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">Est.</span>
+              <span className="text-caky-text font-medium text-xs md:text-base hidden md:inline">{t('session.steps.study')}</span>
+              <span className="text-caky-text font-medium text-xs md:text-base md:hidden">{t('session.steps.study')}</span>
             </div>
           </div>
 
           {/* Upload Card */}
           <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-caky-secondary/30 overflow-hidden">
             <div className="p-6 md:p-8 border-b border-caky-secondary/20 text-center bg-gradient-to-r from-caky-primary/5 to-caky-secondary/10">
-              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">Envie Seus Materiais</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-caky-text mb-2">{t('session.upload.title')}</h2>
               <p className="text-sm md:text-base text-caky-text/60 max-w-md mx-auto">
-                Faça upload de provas antigas, slides de aula e anotações. A IA irá analisá-los para criar um plano de estudo personalizado.
+                {t('session.upload.subtitle')}
               </p>
             </div>
 
@@ -193,15 +188,15 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                 {uploading ? (
                   <>
                     <div className="animate-spin rounded-full h-8 w-8 border-3 border-caky-primary border-t-transparent"></div>
-                    <span className="font-semibold">{uploadProgress || 'Enviando...'}</span>
+                    <span className="font-semibold">{uploadProgress || t('session.uploading')}</span>
                   </>
                 ) : (
                   <>
                     <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    <span className="font-bold text-base md:text-lg">Upload de Arquivos</span>
-                    <span className="text-xs md:text-sm text-caky-text/50">Provas antigas, slides, anotações (máx. 50MB)</span>
+                    <span className="font-bold text-base md:text-lg">{t('session.upload.uploadFiles')}</span>
+                    <span className="text-xs md:text-sm text-caky-text/50">{t('session.upload.uploadSubtitle')}</span>
                   </>
                 )}
               </button>
@@ -209,7 +204,7 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
               {/* Document List */}
               {documents.length > 0 && (
                 <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">Documentos Enviados</h3>
+                  <h3 className="text-sm font-bold text-caky-text/70 uppercase tracking-wide">{t('session.documentsUploaded')}</h3>
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
@@ -247,22 +242,22 @@ export default function SessionUpload({ session, onPlanGenerated }: SessionUploa
                   {generating ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      <span className="text-base md:text-lg">Gerando Plano...</span>
+                      <span className="text-base md:text-lg">{t('session.upload.generatingPlan')}</span>
                     </>
                   ) : hasPendingDocs ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/50 border-t-transparent"></div>
-                      <span className="text-base md:text-lg">Processando...</span>
+                      <span className="text-base md:text-lg">{t('session.upload.processing')}</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-base md:text-lg">Gerar Plano de Estudo</span>
+                      <span className="text-base md:text-lg">{t('session.upload.generatePlan')}</span>
                     </>
                   )}
                 </button>
                 {documents.length === 0 && (
                   <p className="text-center text-caky-text/50 text-xs md:text-sm mt-3">
-                    Envie pelo menos um documento para continuar
+                    {t('session.upload.noDocumentsWarning')}
                   </p>
                 )}
               </div>

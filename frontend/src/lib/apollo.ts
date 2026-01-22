@@ -8,10 +8,13 @@ const httpLink = new HttpLink({
 
 const authLink = setContext((_, { headers }) => {
   const token = getAuthToken();
+  const language = localStorage.getItem('language') || 'pt';
+  
   return {
     headers: {
       ...headers,
       authorization: token ? `Bearer ${token}` : '',
+      'x-language': language,
     },
   };
 });

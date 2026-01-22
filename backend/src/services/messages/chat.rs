@@ -19,6 +19,7 @@ pub async fn process_message(
     chat_id: Uuid,
     user_message: &str,
     topic_name: Option<&str>,
+    language: &str,
 ) -> Result<String, async_graphql::Error> {
     // 1. Fetch document context
     tracing::info!("Fetching documents for session {} by profile {}", session_id, profile_id);
@@ -51,10 +52,12 @@ pub async fn process_message(
             .replace("{topic_name}", topic)
             .replace("{context}", &context)
             .replace("{study_plan}", &study_plan_context)
+            .replace("{language}", language)
     } else {
         REVIEW_SYSTEM_PROMPT
             .replace("{context}", &context)
             .replace("{study_plan}", &study_plan_context)
+            .replace("{language}", language)
     };
 
     // 4. Fetch recent conversation history for this specific chat
@@ -88,6 +91,7 @@ pub async fn generate_welcome_message(
     profile_id: Uuid,
     session_id: Uuid,
     topic_name: Option<&str>,
+    language: &str,
 ) -> Result<String, async_graphql::Error> {
     tracing::info!("Generating welcome message for session {}, topic: {:?}", session_id, topic_name);
 
@@ -108,13 +112,13 @@ pub async fn generate_welcome_message(
     let (system_prompt, welcome_instruction) = if let Some(topic) = topic_name {
         let prompt = TOPIC_SYSTEM_PROMPT
             .replace("{topic_name}", topic)
-            .replace("{context}", &context);
+            .replace("{context}", &context)
+            .replace("{language}", language);
         let instruction = format!(
             "Generate a welcome message for the student who is starting to study the topic '{}'. \
-            1. Greet them naturally. \
-            2. Briefly introduce what this topic is about and why it's useful. \
-            3. Based on the study materials, suggest the first important concept or 'thing' they should learn. \
-            4. Ask if they are ready to start with that specific concept. \
+            1. Briefly introduce what this topic is about and why it's useful. \
+            2. Based on the study materials, suggest the first important concept or 'thing' they should learn. \
+            3. Ask if they are ready to start with that specific concept. \
             Be direct and focus on getting started.",
             topic
         );
@@ -126,14 +130,14 @@ pub async fn generate_welcome_message(
         let total_count = all_topics.len();
 
         let prompt = REVIEW_SYSTEM_PROMPT
-            .replace("{context}", &context);
+            .replace("{context}", &context)
+            .replace("{language}", language);
         let instruction = format!(
             "Generate a welcome message for the General Review chat. \
             The student has completed {}/{} topics and is now ready for final review. \
-            1. Greet them naturally. \
-            2. Congratulate them on reaching the review phase. \
-            3. Explain this is for exam simulation and integrated practice. \
-            4. Ask what they'd like to focus on: past exam problems, specific topics, or a full practice test. \
+            1. Congratulate them on reaching the review phase. \
+            2. Explain this is for exam simulation and integrated practice. \
+            3. Ask what they'd like to focus on: past exam problems, specific topics, or a full practice test. \
             Be direct, enthusiastic and supportive.",
             completed_count, total_count
         );

@@ -1,0 +1,199 @@
+{
+  "common": {
+    "logout": "Sair",
+    "cancel": "Cancelar",
+    "create": "Criar",
+    "creating": "Criando...",
+    "delete": "Excluir",
+    "loading": "Carregando..."
+  },
+  "header": {
+    "dashboard": "Dashboard"
+  },
+  "landing": {
+    "nav": {
+      "start": "Começar",
+      "dashboard": "Painel"
+    },
+    "hero": {
+      "badge": "✨ Assistente de Estudos com IA",
+      "title": "Estudar com",
+      "titleHighlight": "IA",
+      "titleEnd": "nunca foi tão fácil",
+      "subtitle": "Diferente dos tutores genéricos, o Caky conhece exatamente seu conteúdo. Faça upload dos seus materiais e tenha um assistente personalizado que gera planos de estudos inteligentes.",
+      "ctaPrimary": "Começar a Estudar Grátis →",
+      "ctaSecondary": "Ver Como Funciona"
+    },
+    "howItWorks": {
+      "title": "Como Funciona",
+      "step": "Passo",
+      "steps": [
+        {
+          "title": "Envie Seus Materiais",
+          "description": "Faça upload de slides e provas antigas. Nossa IA processa tudo, incluindo fórmulas e imagens."
+        },
+        {
+          "title": "Receba seu Plano",
+          "description": "Obtenha um roteiro de estudos focado no que realmente cai na prova, organizado por prioridade."
+        },
+        {
+          "title": "Estude e Domine",
+          "description": "Tire dúvidas e faça exercícios com um tutor que domina o conteúdo da sua disciplina."
+        }
+      ],
+      "cta": "Criar Conta Gratuita"
+    },
+    "footer": {
+      "builtBy": "Built by"
+    }
+  },
+  "auth": {
+    "title": "Caky",
+    "subtitle": "Preparação para provas com IA",
+    "welcome": "Bem-vindo de Volta",
+    "createAccount": "Criar Conta",
+    "email": "Email",
+    "emailPlaceholder": "voce@universidade.edu.br",
+    "password": "Senha",
+    "passwordPlaceholder": "••••••••",
+    "processing": "Processando...",
+    "login": "Entrar",
+    "register": "Criar Conta",
+    "noAccount": "Não tem uma conta? Cadastre-se",
+    "hasAccount": "Já tem uma conta? Entrar",
+    "footer": "Faça upload dos seus slides, provas antigas e anotações — obtenha tutoria personalizada de IA",
+    "welcomeBack": "Bem-vindo de volta!",
+    "accountCreated": "Conta criada!",
+    "genericError": "Ocorreu um erro"
+  },
+  "session": {
+    "notFound": "Sessão não encontrada",
+    "progress": "Progresso",
+    "topicsCount": "de {total} tópicos",
+    "documents": "Documentos",
+    "documentsSubtitle": "Veja os documentos enviados e envie novos.",
+    "reviewGeneral": "Revisão Geral",
+    "reviewSubtitle": "Revise os conteúdos de cada tópico e pratique com exercícios.",
+    "simulados": "Simulados",
+    "simuladosSubtitle": "Monte simulados personalizados para praticar.",
+    "comingSoon": "Em breve",
+    "completed": "Concluído",
+    "inProgress": "Em progresso",
+    "notStarted": "Não iniciado",
+    "reopenTopic": "Reabrir tópico",
+    "markComplete": "Marcar como concluído",
+    "markCompleted": "Marcar Concluído",
+    "topicReopened": "Tópico reaberto",
+    "topicCompleted": "Tópico concluído!",
+    "updateTopicError": "Falha ao atualizar tópico",
+    "uploadFiles": "Upload de Arquivos",
+    "uploadSubtitle": "Provas antigas, slides, anotações (máx. 50MB)",
+    "yourDocuments": "Seus Documentos",
+    "manageDocuments": "Gerencie os materiais de estudo desta sessão",
+    "documentsUploaded": "Documentos Enviados",
+    "noDocuments": "Nenhum documento enviado ainda.",
+    "deleteDocument": "Excluir",
+    "onlyPdf": "Apenas arquivos PDF são suportados",
+    "maxFileSize": "O tamanho do arquivo deve ser menor que 50MB",
+    "documentUploaded": "Documento enviado! Processamento iniciado.",
+    "uploadError": "Falha ao enviar documento",
+    "deleteConfirm": "Remover \"{fileName}\"?",
+    "documentRemoved": "Documento removido",
+    "deleteError": "Falha ao excluir documento",
+    "documentProcessing": "O documento ainda está sendo processado.",
+    "documentUrlError": "Não foi possível obter o link do documento.",
+    "documentOpenError": "Erro ao abrir documento.",
+    "processingStatus": {
+      "pending": "Pendente",
+      "processing": "Processando",
+      "completed": "Pronto",
+      "failed": "Falhou"
+    },
+    "uploading": "Enviando...",
+    "steps": {
+      "send": "Enviar",
+      "plan": "Planejar",
+      "study": "Estudar"
+    },
+    "upload": {
+      "title": "Envie Seus Materiais",
+      "subtitle": "Faça upload de provas antigas, slides de aula e anotações. A IA irá analisá-los para criar um plano de estudo personalizado.",
+      "uploadFiles": "Upload de Arquivos",
+      "uploadSubtitle": "Provas antigas, slides, anotações (máx. 50MB)",
+      "generatingPlan": "Gerando Plano...",
+      "processing": "Processando...",
+      "generatePlan": "Gerar Plano de Estudo",
+      "noDocumentsWarning": "Envie pelo menos um documento para continuar",
+      "toast": {
+        "uploadSuccess": "Documento enviado! Extração de texto em andamento...",
+        "planGenerated": "Plano de estudo gerado!"
+      }
+    },
+    "planning": {
+      "title": "Seu Plano de Estudo",
+      "subtitle": "Revise e refine seu plano de estudo personalizado. Marque os tópicos que você já sabe bem para pular.",
+      "topicStudyInfo": "{total} tópicos • {active} para estudar",
+      "alreadyKnow": "Já domino este tópico",
+      "refineTitle": "Refine Seu Plano",
+      "refineSubtitle": "Diga à IA como melhorar seu plano de estudo",
+      "refinePlaceholder": "ex.: 'Adicione mais exercícios práticos de integrais' ou 'Remova a seção sobre limites'",
+      "updatePlan": "Atualizar Plano",
+      "updatingPlan": "Atualizando Plano...",
+      "startStudying": "Começar a Estudar",
+      "startingStudying": "Preparando a Sessão de Estudo...",
+      "toast": {
+        "planUpdated": "Plano de estudo atualizado!",
+        "letsStart": "Vamos começar a estudar!"
+      }
+    },
+    "chat": {
+      "title": "Chat",
+      "close": "Fechar Chat",
+      "expand": "Expandir",
+      "reduce": "Reduzir",
+      "askPlaceholder": "Pergunte qualquer coisa...",
+      "askPlaceholderMobile": "Pergunte...",
+      "cakyPreparing": "Caky está preparando sua aula...",
+      "cakyThinking": "Caky está pensando...",
+      "sendError": "Falha ao enviar mensagem"
+    }
+  },
+  "dashboard": {
+    "title": "Suas Sessões",
+    "subtitle": "Estude com inteligência artificial usando seus próprios materiais",
+    "newSession": "+ Nova Sessão",
+    "newSessionMobile": "Nova Sessão",
+    "modal": {
+      "title": "Criar Sessão de Estudo",
+      "titleLabel": "Título da Sessão",
+      "titlePlaceholder": "ex.: Prova Final de Cálculo II",
+      "descriptionLabel": "Descrição (opcional)",
+      "descriptionPlaceholder": "Tópicos, data da prova, anotações..."
+    },
+    "empty": {
+      "title": "Nenhuma sessão de estudo ainda",
+      "subtitle": "Crie sua primeira sessão para começar a estudar com contexto de IA dos seus documentos.",
+      "cta": "+ Criar Primeira Sessão"
+    },
+    "session": {
+      "noDescription": "Sem descrição",
+      "openSession": "Abrir Sessão →",
+      "deleteConfirm": "Tem certeza que deseja excluir esta sessão?",
+      "deleteTitle": "Excluir sessão"
+    },
+    "status": {
+      "planning": "Planejamento",
+      "active": "Estudando",
+      "completed": "Concluído"
+    },
+    "toast": {
+      "sessionCreated": "Sessão criada!",
+      "sessionDeleted": "Sessão excluída",
+      "createError": "Falha ao criar sessão",
+      "deleteError": "Falha ao excluir sessão"
+    },
+    "errors": {
+      "loadSessions": "Erro ao carregar sessões:"
+    }
+  }
+}
