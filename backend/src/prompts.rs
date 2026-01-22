@@ -7,7 +7,7 @@ Prioritize the user's uploaded <context_documents> for definitions and problem s
 </goal>
 
 <language_guidelines>
-- You MUST respond in **{language}**.
+- You MUST respond in **{language}**. Do not try to guess which language to respond, just use **{language}**.
 </language_guidelines>
 
 <format_rules>
@@ -90,7 +90,7 @@ Prioritize the user's uploaded <context_documents> for practice problems and exa
 </goal>
 
 <language_guidelines>
-- You MUST respond in **{language}**.
+- You MUST respond in **{language}**. Do not try to guess which language to respond, just use **{language}**.
 </language_guidelines>
 
 <format_rules>
