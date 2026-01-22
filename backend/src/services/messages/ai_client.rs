@@ -131,30 +131,7 @@ impl OpenRouterClient {
         self.send_request(request).await
     }
 
-    /// Generate a response from just the system prompt (for welcome messages, etc.)
-    /// Sends a minimal user message to trigger the AI to follow the system instructions
-    pub async fn generate_from_system_prompt(
-        &self,
-        model: &str,
-        system_prompt: &str,
-    ) -> Result<String, async_graphql::Error> {
-        let request = ChatRequest {
-            model: model.to_string(),
-            messages: vec![
-                Message {
-                    role: "system".to_string(),
-                    content: MessageContent::Text(system_prompt.to_string()),
-                },
-                Message {
-                    role: "user".to_string(),
-                    content: MessageContent::Text("Start the session.".to_string()),
-                },
-            ],
-            max_tokens: None,
-        };
-
-        self.send_request(request).await
-    }
+    
 
     /// Extract text from an image using vision model
     pub async fn extract_text_from_image(

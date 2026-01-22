@@ -30,7 +30,6 @@ pub struct DocumentRow {
     pub session_id: Uuid,
     pub file_name: String,
     pub file_path: String,
-    pub content_text: Option<String>,
     pub content_length: Option<i32>,
     pub processing_status: ProcessingStatus,
     pub created_at: DateTime<Utc>,
@@ -47,7 +46,7 @@ pub async fn create_document(
         r#"
         INSERT INTO documents (session_id, file_name, file_path, processing_status)
         VALUES ($1, $2, $3, 'PENDING')
-        RETURNING id, session_id, file_name, file_path, content_text, content_length, processing_status, created_at
+        RETURNING id, session_id, file_name, file_path, content_length, processing_status, created_at
         "#,
     )
     .bind(session_id)
@@ -117,7 +116,7 @@ pub async fn get_session_documents(
 ) -> Result<Vec<DocumentRow>, async_graphql::Error> {
     let documents = sqlx::query_as::<_, DocumentRow>(
         r#"
-        SELECT d.id, d.session_id, d.file_name, d.file_path, d.content_text, d.content_length, 
+        SELECT d.id, d.session_id, d.file_name, d.file_path, d.content_length, 
                d.processing_status, d.created_at
         FROM documents d
         JOIN study_sessions s ON d.session_id = s.id
@@ -142,7 +141,7 @@ pub async fn get_document_by_id(
 ) -> Result<Option<DocumentRow>, async_graphql::Error> {
     let document = sqlx::query_as::<_, DocumentRow>(
         r#"
-        SELECT d.id, d.session_id, d.file_name, d.file_path, d.content_text, d.content_length,
+        SELECT d.id, d.session_id, d.file_name, d.file_path, d.content_length,
                d.processing_status, d.created_at
         FROM documents d
         JOIN study_sessions s ON d.session_id = s.id

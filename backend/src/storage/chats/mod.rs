@@ -193,24 +193,4 @@ pub async fn mark_chat_started(
     Ok(chat)
 }
 
-/// Delete all chats for a session (used when regenerating plan)
-pub async fn delete_session_chats(
-    pool: &PgPool,
-    profile_id: Uuid,
-    session_id: Uuid,
-) -> Result<u64, async_graphql::Error> {
-    let result = sqlx::query(
-        r#"
-        DELETE FROM chats c
-        USING study_sessions s
-        WHERE c.session_id = s.id AND c.session_id = $1 AND s.profile_id = $2
-        "#,
-    )
-    .bind(session_id)
-    .bind(profile_id)
-    .execute(pool)
-    .await
-    .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    Ok(result.rows_affected())
-}

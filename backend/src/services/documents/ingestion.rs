@@ -125,38 +125,7 @@ pub async fn process_pdf(
     })
 }
 
-/// Download a file from Supabase Storage
-pub async fn download_from_storage(
-    file_path: &str,
-    config: &Config,
-) -> Result<Vec<u8>, async_graphql::Error> {
-    let url = format!(
-        "{}/storage/v1/object/{}",
-        config.supabase_url, file_path
-    );
 
-    let client = reqwest::Client::new();
-    let response = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", config.supabase_service_key))
-        .send()
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Failed to download file: {}", e)))?;
-
-    if !response.status().is_success() {
-        return Err(async_graphql::Error::new(format!(
-            "Storage download failed: {}",
-            response.status()
-        )));
-    }
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Failed to read file bytes: {}", e)))?;
-
-    Ok(bytes.to_vec())
-}
 
 /// Process a document: download, extract text, update database
 pub async fn process_document(

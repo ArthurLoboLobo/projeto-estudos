@@ -136,29 +136,7 @@ pub async fn download_file(
     Ok(bytes.to_vec())
 }
 
-/// Delete a file from Supabase Storage (standalone version)
-pub async fn delete_file(
-    supabase_url: &str,
-    service_key: &str,
-    file_path: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let client = Client::new();
-    let url = format!("{}/storage/v1/object/{}/{}", supabase_url, BUCKET_NAME, file_path);
 
-    let response = client
-        .delete(&url)
-        .header("Authorization", format!("Bearer {}", service_key))
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-        return Err(format!("Storage delete failed ({}): {}", status, error_text).into());
-    }
-
-    Ok(())
-}
 
 /// Create a signed URL for viewing a file (expires in 1 hour)
 pub async fn create_signed_url(

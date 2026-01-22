@@ -131,24 +131,4 @@ pub async fn update_topic_completion(
     Ok(topic)
 }
 
-/// Delete all topics for a session (used when regenerating plan)
-pub async fn delete_session_topics(
-    pool: &PgPool,
-    profile_id: Uuid,
-    session_id: Uuid,
-) -> Result<u64, async_graphql::Error> {
-    let result = sqlx::query(
-        r#"
-        DELETE FROM topics t
-        USING study_sessions s
-        WHERE t.session_id = s.id AND t.session_id = $1 AND s.profile_id = $2
-        "#,
-    )
-    .bind(session_id)
-    .bind(profile_id)
-    .execute(pool)
-    .await
-    .map_err(|e| async_graphql::Error::new(format!("Database error: {}", e)))?;
 
-    Ok(result.rows_affected())
-}

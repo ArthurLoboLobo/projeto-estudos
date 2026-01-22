@@ -40,7 +40,6 @@ pub struct DraftPlan {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionRow {
     pub id: Uuid,
-    pub profile_id: Uuid,
     pub title: String,
     pub description: Option<String>,
     pub status: SessionStatus,
@@ -60,7 +59,7 @@ pub async fn create_session(
         r#"
         INSERT INTO study_sessions (profile_id, title, description, status)
         VALUES ($1, $2, $3, 'PLANNING')
-        RETURNING id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        RETURNING id, title, description, status, draft_plan, created_at, updated_at
         "#,
     )
     .bind(profile_id)
@@ -80,7 +79,7 @@ pub async fn get_profile_sessions(
 ) -> Result<Vec<SessionRow>, async_graphql::Error> {
     let sessions = sqlx::query_as::<_, SessionRow>(
         r#"
-        SELECT id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        SELECT id, title, description, status, draft_plan, created_at, updated_at
         FROM study_sessions
         WHERE profile_id = $1
         ORDER BY updated_at DESC
@@ -102,7 +101,7 @@ pub async fn get_session_by_id(
 ) -> Result<Option<SessionRow>, async_graphql::Error> {
     let session = sqlx::query_as::<_, SessionRow>(
         r#"
-        SELECT id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        SELECT id, title, description, status, draft_plan, created_at, updated_at
         FROM study_sessions
         WHERE id = $1 AND profile_id = $2
         "#,
@@ -137,7 +136,7 @@ pub async fn update_session(
         query.push_str(&format!(", description = ${}", param_count));
     }
 
-    query.push_str(" WHERE id = $1 AND profile_id = $2 RETURNING id, profile_id, title, description, status, draft_plan, created_at, updated_at");
+    query.push_str(" WHERE id = $1 AND profile_id = $2 RETURNING id, title, description, status, draft_plan, created_at, updated_at");
 
     let mut q = sqlx::query_as::<_, SessionRow>(&query)
         .bind(session_id)
@@ -171,7 +170,7 @@ pub async fn update_session_status(
         UPDATE study_sessions
         SET status = $3, updated_at = NOW()
         WHERE id = $1 AND profile_id = $2
-        RETURNING id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        RETURNING id, title, description, status, draft_plan, created_at, updated_at
         "#,
     )
     .bind(session_id)
@@ -199,7 +198,7 @@ pub async fn update_draft_plan(
         UPDATE study_sessions
         SET draft_plan = $3, updated_at = NOW()
         WHERE id = $1 AND profile_id = $2
-        RETURNING id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        RETURNING id, title, description, status, draft_plan, created_at, updated_at
         "#,
     )
     .bind(session_id)
@@ -223,7 +222,7 @@ pub async fn clear_draft_plan(
         UPDATE study_sessions
         SET draft_plan = NULL, updated_at = NOW()
         WHERE id = $1 AND profile_id = $2
-        RETURNING id, profile_id, title, description, status, draft_plan, created_at, updated_at
+        RETURNING id, title, description, status, draft_plan, created_at, updated_at
         "#,
     )
     .bind(session_id)

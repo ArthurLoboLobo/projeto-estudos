@@ -1,6 +1,6 @@
 mod api;
 mod config;
-mod errors;
+
 mod graphql;
 mod prompts;
 mod services;
