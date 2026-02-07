@@ -1,6 +1,6 @@
 # Step 02: Database Models + Alembic Migrations
 
-**Status:** PENDING
+**Status:** COMPLETED
 
 **Prerequisites:** Step 01 completed
 
@@ -76,4 +76,11 @@ Edit this file:
 
 ## Completion Notes
 
-_To be filled by Claude after completing this step._
+- **Migration written manually** instead of using `--autogenerate`, because autogenerate requires a live DB connection. The migration file (`alembic/versions/5ac214bfd3bf_initial_schema.py`) was hand-written to exactly match the schema in `improve.md`, including all indexes, enums, constraints, and the `vector` extension.
+- **HNSW index** on `document_chunks.embedding` and **GIN index** on `document_chunks.related_topic_ids` are created via raw `op.execute()` SQL in the migration because Alembic's `op.create_index` doesn't fully support these PostgreSQL-specific index types with WHERE clauses.
+- **All 4 PostgreSQL enums** created: `session_status`, `processing_status`, `chat_type`, `chunk_type` — matching `improve.md` exactly.
+- **Session default status is `UPLOADING`** (as specified in `improve.md`), not `PLANNING` (which was the old Rust backend's default in `CLAUDE.md`).
+- **`alembic/env.py`** configured for async: uses `async_engine_from_config` + `asyncio.run()`. Reads `DATABASE_URL` from `app.config.settings` (overrides `alembic.ini`'s `sqlalchemy.url`).
+- **Model relationships** are all set up with proper `back_populates` and `cascade="all, delete-orphan"` where appropriate.
+- **DocumentChunk.embedding** uses `pgvector.sqlalchemy.Vector(768)` — note this column uses `mapped_column` without `Mapped[]` type annotation since pgvector's Vector type doesn't have a direct Python type equivalent.
+- **All acceptance criteria met:** 7 model files, PostgreSQL enums, Vector(768), async Alembic, migration matches schema, all indexes included.

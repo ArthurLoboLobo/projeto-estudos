@@ -1,6 +1,6 @@
 # Step 01: Python Backend Project Scaffold
 
-**Status:** PENDING
+**Status:** COMPLETED
 
 **Prerequisites:** None
 
@@ -79,4 +79,9 @@ Edit this file:
 
 ## Completion Notes
 
-_To be filled by Claude after completing this step._
+- **Venv created at `backend-python/venv/`** — Python 3.14.2 (Homebrew). The system Python uses PEP 668 externally-managed, so a venv is required. All subsequent steps should activate this venv or use `./venv/bin/python` directly.
+- **`.env` file created** with placeholder values for local dev (not committed — add to `.gitignore`). The `.env.example` has the template.
+- **`ALLOWED_ORIGINS`** is stored as a comma-separated string in config, exposed via `settings.allowed_origins_list` property that splits it into a list.
+- **`database.py`** defines `Base` (DeclarativeBase) used by all models, plus `get_db` async generator for FastAPI dependency injection.
+- **No routers included in `main.py` yet** — just the health endpoint and CORS middleware. Routers will be added as they're implemented in later steps.
+- **All acceptance criteria met:** app boots, health returns 200, config loads from `.env`, engine created, all package dirs exist.
