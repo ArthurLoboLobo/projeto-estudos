@@ -4,6 +4,31 @@ This document describes how the AI parts of this project will be improved.
 
 ---
 
+## Implementation Sessions
+
+Each session corresponds to one or more step files in this folder. Complete them in order, committing after each session.
+
+| Session | Step Files | Description |
+|---------|-----------|-------------|
+| 1 | Steps 01 + 02 | Project scaffold + SQLAlchemy models + Alembic |
+| 2 | Step 03 | Auth (register, login, JWT, Argon2) |
+| 3 | Steps 04 + 05 | Session CRUD + document upload + text extraction |
+| 4 | Step 06 | Study plan generation (SSE streaming) |
+| 5 | Step 07 | Study plan editing + start studying endpoints |
+| 6 | Step 08 | Chunking service (XML parsing, embeddings) |
+| 7 | Step 09 | RAG retrieval service |
+| 8 | Step 10 | Chat endpoints with RAG + streaming |
+| 9 | Steps 11 + 12 | Frontend API client setup + Auth/Dashboard migration |
+| 10 | Step 13 | Frontend upload page migration |
+| 11 | Step 14 | Frontend plan generation + editing pages |
+| 12 | Step 15 | Frontend study page + streaming chat |
+| 13 | Step 16 | Backend tests |
+
+**How to use:** At the start of each session, tell Claude:
+> "Read `implementation-plan/improve.md` and `implementation-plan/step-XX-<name>.md`. Implement what the step file describes. When done, edit the step file to mark it completed and write your completion notes."
+
+---
+
 ## Overview: The New Flow
 
 ```
