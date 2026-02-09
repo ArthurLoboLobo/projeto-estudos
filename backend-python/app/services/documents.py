@@ -15,7 +15,6 @@ from app.utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-VISION_MODEL = "gemini-2.5-flash"
 MAX_CONCURRENT_PAGES = 20
 
 VISION_EXTRACTION_PROMPT = """You are extracting content from an academic document page.
@@ -37,24 +36,45 @@ Do not add any commentary or explanations - just extract the content as-is."""
 
 
 async def _extract_page_text(image_path: Path, page_index: int) -> str:
-    """Extract text from a single page image using Gemini Vision."""
-    import google.generativeai as genai
+    """Extract text from a single page image using OpenRouter Vision API."""
+    import base64
+
+    import httpx
 
     from app.config import settings
 
-    genai.configure(api_key=settings.OPENROUTER_API_KEY)
-
     image_data = image_path.read_bytes()
+    image_b64 = base64.b64encode(image_data).decode("utf-8")
 
     async def _call_vision() -> str:
-        model = genai.GenerativeModel(VISION_MODEL)
-        response = await model.generate_content_async(
-            [
-                VISION_EXTRACTION_PROMPT,
-                {"mime_type": "image/png", "data": image_data},
-            ]
-        )
-        return response.text
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{settings.OPENROUTER_BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.MODEL_VISION,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": VISION_EXTRACTION_PROMPT},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{image_b64}",
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
 
     text = await retry_with_backoff(_call_vision, max_retries=5, base_delay=1.0, jitter=0.5)
     logger.info("Page %d extracted (%d chars)", page_index + 1, len(text))

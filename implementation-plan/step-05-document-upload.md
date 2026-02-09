@@ -30,12 +30,12 @@ Implement document upload to Supabase Storage, document listing/deletion, and th
 Port the existing Rust logic to Python:
 
 - Convert PDF to images using `pdftoppm` (subprocess call, same as current Rust impl)
-- For each page image, call Gemini Vision API to extract text (preserve LaTeX formulas)
+- For each page image, call Vision API via OpenRouter to extract text (preserve LaTeX formulas)
 - Process pages in parallel (use `asyncio.gather` with a semaphore to limit concurrency)
 - Concatenate results into final `content_text`
 - Include the retry logic with exponential backoff + jitter (see `improve.md`)
 
-Use the `google-generativeai` SDK directly (not OpenRouter). Model: `gemini-2.5-flash`.
+Use OpenRouter via `httpx` (OpenAI-compatible API). Model: `google/gemini-2.5-flash`.
 
 ### 3. Pydantic Schemas (`app/schemas/document.py`)
 
@@ -101,7 +101,7 @@ Edit this file:
   - `app/services/storage.py` — Supabase Storage client with `upload_file`, `delete_file`, `get_signed_url`. Uses `httpx.AsyncClient`. Signed URLs expire in 1 hour. Relative signed URL is made absolute by prepending `SUPABASE_URL/storage/v1`.
   - `app/services/documents.py` — Full text extraction pipeline:
     - `_pdf_to_images()`: Calls `pdftoppm -png -r 150` via subprocess (same as Rust impl).
-    - `_extract_page_text()`: Calls Gemini Vision (`gemini-2.5-flash`) via `google-generativeai` SDK with retry.
+    - `_extract_page_text()`: Calls Vision API via OpenRouter (`settings.MODEL_VISION`) with retry.
     - `extract_text_from_pdf()`: Orchestrates conversion + parallel page extraction with `asyncio.Semaphore(20)`.
     - `process_document_background()`: Background task that downloads PDF from Supabase (via signed URL), extracts text, updates DB status (PENDING → PROCESSING → COMPLETED/FAILED). Uses its own `async_session` since the request session is closed by the time background tasks run.
   - `app/schemas/document.py` — `DocumentResponse` and `DocumentUrlResponse`.
@@ -113,7 +113,7 @@ Edit this file:
 - **Files modified:**
   - `app/main.py` — Added `app.include_router(documents.router)`
 - **Design decisions:**
-  - **Gemini SDK** used directly (not OpenRouter) for Vision API, as specified in the step file. The API key reuses `OPENROUTER_API_KEY` from config — this should be a Gemini API key despite the name. If a separate key is needed, a `GEMINI_API_KEY` config field can be added later.
+  - **OpenRouter** used for Vision API calls via `httpx`. Model is configurable via `settings.MODEL_VISION` (default: `google/gemini-2.5-flash`). Base URL configurable via `settings.OPENROUTER_BASE_URL`.
   - **Session 150MB limit** is approximated as a document count check (6 files max at 25MB each) since the `Document` model has no `file_size` column. Per-file 25MB check is exact.
   - **Background task** uses `async_session()` directly (not the request-scoped `get_db` dependency) because FastAPI background tasks run after the response is sent.
   - **Vision prompt** is identical to the Rust backend's `VISION_EXTRACTION_PROMPT` — preserves LaTeX, tables, lists, and original language.

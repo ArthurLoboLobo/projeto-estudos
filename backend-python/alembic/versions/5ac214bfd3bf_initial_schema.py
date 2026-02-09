@@ -335,13 +335,6 @@ def upgrade() -> None:
     op.create_index("idx_chunks_type", "document_chunks", ["type"])
     op.execute(
         """
-        CREATE INDEX idx_chunks_embedding ON document_chunks
-        USING hnsw (embedding vector_cosine_ops)
-        WHERE embedding IS NOT NULL
-        """
-    )
-    op.execute(
-        """
         CREATE INDEX idx_chunks_topics ON document_chunks
         USING GIN (related_topic_ids)
         """

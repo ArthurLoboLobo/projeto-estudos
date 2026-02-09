@@ -55,7 +55,7 @@ Update `backend-python/app/models/__init__.py` to import all models (needed for 
 alembic revision --autogenerate -m "initial schema"
 ```
 
-Review the generated migration file to make sure it matches the schema in `improve.md`. Make sure it creates the `vector` extension and all indexes (especially the HNSW index on embeddings and the GIN index on related_topic_ids).
+Review the generated migration file to make sure it matches the schema in `improve.md`. Make sure it creates the `vector` extension and all indexes (especially the GIN index on related_topic_ids). No vector index on embeddings — we use exact scan (brute force) since the dataset is small (~50-1000 chunks per session).
 
 ## Acceptance Criteria
 
@@ -64,7 +64,7 @@ Review the generated migration file to make sure it matches the schema in `impro
 - [ ] Vector(768) column on DocumentChunk using pgvector
 - [ ] Alembic configured for async
 - [ ] Migration file generated and matches the schema in `improve.md`
-- [ ] All indexes from the schema are included (especially HNSW and GIN)
+- [ ] All indexes from the schema are included (especially GIN on related_topic_ids)
 
 ## When you're done
 
@@ -77,7 +77,7 @@ Edit this file:
 ## Completion Notes
 
 - **Migration written manually** instead of using `--autogenerate`, because autogenerate requires a live DB connection. The migration file (`alembic/versions/5ac214bfd3bf_initial_schema.py`) was hand-written to exactly match the schema in `improve.md`, including all indexes, enums, constraints, and the `vector` extension.
-- **HNSW index** on `document_chunks.embedding` and **GIN index** on `document_chunks.related_topic_ids` are created via raw `op.execute()` SQL in the migration because Alembic's `op.create_index` doesn't fully support these PostgreSQL-specific index types with WHERE clauses.
+- **GIN index** on `document_chunks.related_topic_ids` is created via raw `op.execute()` SQL in the migration because Alembic's `op.create_index` doesn't fully support this PostgreSQL-specific index type. No vector index on embeddings — exact scan (brute force) is used since the dataset is small (~50-1000 chunks per session).
 - **All 4 PostgreSQL enums** created: `session_status`, `processing_status`, `chat_type`, `chunk_type` — matching `improve.md` exactly.
 - **Session default status is `UPLOADING`** (as specified in `improve.md`), not `PLANNING` (which was the old Rust backend's default in `CLAUDE.md`).
 - **`alembic/env.py`** configured for async: uses `async_engine_from_config` + `asyncio.run()`. Reads `DATABASE_URL` from `app.config.settings` (overrides `alembic.ini`'s `sqlalchemy.url`).

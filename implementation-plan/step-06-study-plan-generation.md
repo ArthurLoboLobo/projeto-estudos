@@ -18,17 +18,17 @@ Read these files:
 
 Implement the incremental study plan generation endpoint that streams progress via SSE.
 
-### 1. Gemini AI Client (`app/services/ai_client.py`)
+### 1. OpenRouter AI Client (`app/services/ai_client.py`)
 
-Create a reusable Gemini client using the `google-generativeai` SDK:
-- Configure with `GEMINI_API_KEY`
-- Model: `gemini-2.5-flash`
-- Functions:
-  - `generate_text(system_prompt: str, user_prompt: str) -> str` — single completion
-  - `generate_text_stream(system_prompt: str, user_prompt: str) -> AsyncIterator[str]` — streaming (for chat, later)
+Create a reusable AI client using OpenRouter via `httpx` (OpenAI-compatible API):
+- Configure with `settings.OPENROUTER_API_KEY` and `settings.OPENROUTER_BASE_URL`
+- Functions accept a `model` parameter so each caller passes the appropriate config value:
+  - `generate_text(system_prompt: str, user_prompt: str, model: str) -> str` — single completion
+  - `generate_text_stream(system_prompt: str, user_prompt: str, model: str) -> AsyncIterator[str]` — streaming (for chat, later)
+- Callers pass the model from config: e.g., `generate_text(..., model=settings.MODEL_PLAN)`
 - Wrap calls with the retry utility from step 05
 
-This client will be reused by plan generation, chunking, chat, and plan revision.
+This client will be reused by plan generation (`settings.MODEL_PLAN`), chunking (`settings.MODEL_CHUNKING`), chat (`settings.MODEL_CHAT`), summarization (`settings.MODEL_SUMMARY`), and plan revision (`settings.MODEL_PLAN`).
 
 ### 2. Plan Generation Service (`app/services/study_plan.py`)
 
@@ -42,7 +42,7 @@ async def generate_plan_stream(session_id: UUID, db: AsyncSession) -> AsyncItera
     for i, doc in enumerate(documents):
         # AI receives: current plan + document text
         # AI returns: updated plan (JSON)
-        updated_plan = await call_gemini_for_plan(current_plan, doc.content_text, language)
+        updated_plan = await call_ai_for_plan(current_plan, doc.content_text, language)
         current_plan = updated_plan
 
         yield {
@@ -94,7 +94,7 @@ data: {"plan": [...final...]}
 
 ## Acceptance Criteria
 
-- [ ] Gemini AI client works with retry logic
+- [ ] OpenRouter AI client works with retry logic
 - [ ] Plan is built incrementally (one document at a time)
 - [ ] SSE endpoint streams progress events to the client
 - [ ] Final plan is saved to `session.draft_plan` as JSONB

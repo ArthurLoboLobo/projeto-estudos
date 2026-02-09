@@ -22,7 +22,7 @@ Implement the RAG retrieval service that finds relevant chunks for a user's chat
 
 - **Topic-specific chats:** Embed `"{topic_title}: {user_message}"` — the topic scopes the search naturally
 - **General review chats:**
-  - If user message is short (< 20 tokens): generate a brief conversation summary via Gemini and embed `"{summary}: {user_message}"`
+  - If user message is short (< 20 tokens): generate a brief conversation summary via the AI client (`settings.MODEL_SUMMARY`) and embed `"{summary}: {user_message}"`
   - Otherwise: embed the user message directly
 
 #### Vector Search Functions:

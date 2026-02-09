@@ -48,7 +48,7 @@ async def get_chat_context(chat_id: UUID, db: AsyncSession) -> tuple[str, list[d
     - If > 10 messages:
         - Check if a summary already exists (system message at the start)
         - If stale (more new messages since last summary): regenerate
-        - Summarize older messages into ~200-300 token summary
+        - Summarize older messages into ~200-300 token summary (use `settings.MODEL_SUMMARY`)
         - Save summary as a system message (replace previous if exists)
         - Return (summary, last 6-8 messages)
     """
@@ -65,7 +65,7 @@ async def send_message_stream(chat_id: UUID, content: str, user_id: UUID, langua
     # 3. Get conversation context (summary + recent messages)
     # 4. Embed query and retrieve RAG context
     # 5. Build system prompt
-    # 6. Call Gemini streaming API with system prompt + history + user message
+    # 6. Call ai_client.generate_text_stream(..., model=settings.MODEL_CHAT) with system prompt + history + user message
     # 7. Stream tokens to client
     # 8. When stream completes, save full AI response to DB
     # 9. Mark chat as started (is_started = true)

@@ -91,7 +91,7 @@ Test the happy path end-to-end (with mocked AI):
 
 ### 7. Mock AI Client
 
-Create a mock that replaces the real Gemini client in tests:
+Create a mock that replaces the real AI client (OpenRouter) in tests:
 
 ```python
 class MockAIClient:

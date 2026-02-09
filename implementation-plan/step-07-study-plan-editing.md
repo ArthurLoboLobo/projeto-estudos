@@ -29,7 +29,7 @@ Add a function to revise the plan via AI:
 
 ```python
 async def revise_plan(current_plan: list[dict], instruction: str, language: str) -> list[dict]:
-    # Send current plan + user instruction to Gemini
+    # Send current plan + user instruction to AI (via OpenRouter)
     # AI returns the modified plan in the same JSON format
     # Return the updated plan
 ```

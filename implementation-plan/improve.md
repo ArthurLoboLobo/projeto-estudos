@@ -369,7 +369,7 @@ f'(x) = cos(u) · u' = cos(x²) · 2x = 2x·cos(x²)
 ### Chat Streaming:
 
 Chat responses are streamed to the frontend via **SSE**. This is the industry standard for LLM streaming (used by ChatGPT, Claude, etc.):
-- Backend streams tokens as they arrive from Gemini
+- Backend streams tokens as they arrive from the AI model (via OpenRouter)
 - Frontend renders tokens incrementally
 
 ### Context Window Management:
@@ -582,10 +582,8 @@ CREATE INDEX idx_chunks_document ON document_chunks(document_id);
 CREATE INDEX idx_chunks_session ON document_chunks(session_id);
 CREATE INDEX idx_chunks_parent ON document_chunks(parent_chunk_id);
 CREATE INDEX idx_chunks_type ON document_chunks(type);
-CREATE INDEX idx_chunks_embedding ON document_chunks
-    USING hnsw (embedding vector_cosine_ops)
-    WHERE embedding IS NOT NULL;
 CREATE INDEX idx_chunks_topics ON document_chunks USING GIN (related_topic_ids);
+-- No vector index needed: exact scan (brute force) is fast enough for ~50-1000 chunks per session
 ```
 
 ---
@@ -612,7 +610,7 @@ If a background process (plan generation, chunking) is interrupted, use an **ide
 ## Backend Migration: Rust → Python
 
 ### Why Migrate?
-- **Better AI ecosystem**: Native Gemini SDK, easier embedding/LLM integration
+- **Better AI ecosystem**: Easier AI integration via OpenRouter (OpenAI-compatible API)
 - **Faster iteration**: No compile times, easier debugging
 - **Simpler async**: FastAPI's async is straightforward for AI calls
 
@@ -624,8 +622,8 @@ If a background process (plan generation, chunking) is interrupted, use an **ide
 | API Style | GraphQL (async-graphql) | **REST** |
 | Database | SQLx | **SQLAlchemy** (async) + **asyncpg** |
 | HTTP Client | reqwest | **httpx** |
-| AI SDK | OpenRouter via HTTP | **google-generativeai** |
-| Embeddings | N/A | **google-generativeai** |
+| AI SDK | OpenRouter via HTTP | **OpenRouter via httpx** (OpenAI-compatible API) |
+| Embeddings | N/A | **OpenRouter via httpx** (embedding endpoint) |
 
 ### Authorization (No Supabase RLS):
 
@@ -688,7 +686,7 @@ backend-python/
 │   │   ├── documents.py     # File upload, text extraction
 │   │   ├── study_plan.py    # AI study plan generation
 │   │   ├── chunking.py      # Document → chunks
-│   │   ├── embeddings.py    # Gemini embeddings
+│   │   ├── embeddings.py    # OpenRouter embeddings
 │   │   ├── rag.py           # Retrieval logic
 │   │   └── chat.py          # AI chat with RAG
 │   │
@@ -715,7 +713,7 @@ pydantic-settings>=2.0.0
 python-jose[cryptography]>=3.3.0  # JWT
 argon2-cffi>=23.1.0               # Password hashing (Argon2, same as current Rust backend)
 httpx>=0.26.0                     # Async HTTP client
-google-generativeai>=0.3.0        # Gemini SDK
+# AI calls go through OpenRouter via httpx (already listed above)
 pgvector>=0.2.0                   # Vector types for SQLAlchemy
 python-multipart>=0.0.6           # File uploads
 alembic>=1.13.0                   # Migrations
@@ -724,6 +722,22 @@ pytest>=8.0.0                     # Testing
 pytest-asyncio>=0.23.0            # Async test support
 httpx>=0.26.0                     # Also used as FastAPI test client
 ```
+
+### Model Configuration:
+
+All AI models are configurable via environment variables. This makes it trivial to swap providers (e.g., Gemini → GPT-4o → Claude) — just change the `.env` value.
+
+| Env Variable | Purpose | Default |
+|-------------|---------|---------|
+| `MODEL_VISION` | PDF page text extraction | `google/gemini-2.5-flash` |
+| `MODEL_PLAN` | Study plan generation + revision | `google/gemini-2.5-flash` |
+| `MODEL_CHUNKING` | Document analysis for chunks | `google/gemini-2.5-flash` |
+| `MODEL_CHAT` | User chat responses | `google/gemini-2.5-flash` |
+| `MODEL_SUMMARY` | Conversation summarization | `google/gemini-2.5-flash` |
+| `MODEL_EMBEDDING` | Embedding generation (768 dims) | `google/gemini-embedding-001` |
+| `OPENROUTER_BASE_URL` | API base URL | `https://openrouter.ai/api/v1` |
+
+All models are accessed through OpenRouter's OpenAI-compatible API. To swap chat models, change the model string (e.g., `anthropic/claude-sonnet-4`, `openai/gpt-4o`). For embeddings, ensure the new model supports 768 dimensions or update the DB schema accordingly.
 
 ### REST API Endpoints:
 
@@ -804,8 +818,9 @@ Hard cutover — replace Apollo Client with **TanStack Query (React Query) + fet
 | Chat context | All documents in prompt | RAG with hybrid search + context window management |
 | Chat history | Unlimited | Summarize older messages, keep last 6-8 verbatim |
 | Problem retrieval | N/A | Complete problem via parent chunk |
-| Embeddings | N/A | Gemini text-embedding-004 (768 dimensions) |
-| Vector index | N/A | HNSW (handles dynamic inserts without retraining) |
+| Embeddings | N/A | `google/gemini-embedding-001` via OpenRouter (768 dimensions) |
+| Vector search | N/A | Exact scan (brute force) — fast enough for ~50-1000 chunks per session |
+| AI models | Hardcoded | Configurable per-purpose via env vars (easy provider swap) |
 | Password hashing | Argon2 | Argon2 (kept, using argon2-cffi) |
 | Rate limiting | N/A | Exponential backoff + jitter |
 | Testing | None | pytest + httpx + fixtures |

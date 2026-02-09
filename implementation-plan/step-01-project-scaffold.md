@@ -28,7 +28,7 @@ Create the `backend-python/` directory with a working FastAPI project scaffold. 
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_KEY`
    - `JWT_SECRET`
-   - `GEMINI_API_KEY` (replacing OPENROUTER_API_KEY — we now use Gemini SDK directly)
+   - `OPENROUTER_API_KEY`
    - `PORT` (default 8080)
    - `ALLOWED_ORIGINS` (comma-separated string → list)
 
@@ -81,7 +81,7 @@ Edit this file:
 
 - **Venv created at `backend-python/venv/`** — Python 3.14.2 (Homebrew). The system Python uses PEP 668 externally-managed, so a venv is required. All subsequent steps should activate this venv or use `./venv/bin/python` directly.
 - **`.env` file created** with real Supabase credentials (not committed — in `.gitignore`). The `.env.example` has the template.
-- **`OPENROUTER_API_KEY`** used instead of `GEMINI_API_KEY` — the project uses OpenRouter, not the Gemini SDK directly. The config field in `app/config.py` is `OPENROUTER_API_KEY`.
+- **`OPENROUTER_API_KEY`** — all AI calls go through OpenRouter. Per-purpose model env vars (`MODEL_VISION`, `MODEL_PLAN`, etc.) were added later with sensible defaults.
 - **`DATABASE_URL` format:** Must use `postgresql+asyncpg://` prefix (not `postgresql://`) for the async driver. Uses the Supabase pooler connection (`pooler.supabase.com:5432`).
 - **`ALLOWED_ORIGINS`** is stored as a comma-separated string in config, exposed via `settings.allowed_origins_list` property that splits it into a list.
 - **`database.py`** defines `Base` (DeclarativeBase) used by all models, plus `get_db` async generator for FastAPI dependency injection.

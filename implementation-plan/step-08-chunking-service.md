@@ -14,7 +14,7 @@ Read these files:
 
 ## Task
 
-Implement the chunking pipeline: call Gemini to analyze each document, parse the XML response, create chunks (theory + problem), compute embeddings, and store everything.
+Implement the chunking pipeline: call the AI (via OpenRouter) to analyze each document, parse the XML response, create chunks (theory + problem), compute embeddings, and store everything.
 
 ### 1. XML Parser (`app/services/chunking.py`)
 
@@ -71,7 +71,9 @@ Parse `<FILE_DESCRIPTION>`, `<THEORETICAL_CONTENT>`, `<PROBLEM>` blocks using re
 
 ### 3. Embedding Service (`app/services/embeddings.py`)
 
-- Use Gemini `text-embedding-004` model (768 dimensions)
+- Use `settings.MODEL_EMBEDDING` (default: `google/gemini-embedding-001`) via OpenRouter
+- Endpoint: `{settings.OPENROUTER_BASE_URL}/embeddings`
+- Request `output_dimensionality: 768` to match the DB `VECTOR(768)` column
 - `embed_text(text: str) -> list[float]`
 - `embed_texts(texts: list[str]) -> list[list[float]]` — batch embedding
 - Wrap with retry logic
@@ -82,7 +84,7 @@ Main orchestration function:
 
 ```python
 async def process_document_for_chunks(doc: Document, topics: list[Topic], plan: list[dict], language: str, db: AsyncSession):
-    # 1. Call Gemini to analyze document → get XML response
+    # 1. Call AI via ai_client.generate_text(..., model=settings.MODEL_CHUNKING) → get XML response
     # 2. Parse XML response (with retry: max 3 attempts, include error in retry prompt)
     # 3. If all 3 parsing attempts fail → fall back to simple overlapping chunks (no topic linking)
     # 4. Create theory chunks (overlapping)
@@ -115,7 +117,7 @@ def estimate_tokens(text: str) -> int:
 - [ ] XML parser handles all document types (pure theory, pure problems, hybrid)
 - [ ] Theory chunks: overlapping, ~400 tokens, with topic linking
 - [ ] Problem chunks: hierarchical (parent not embedded, children embedded)
-- [ ] Embeddings computed via Gemini text-embedding-004
+- [ ] Embeddings computed via `settings.MODEL_EMBEDDING` (default: `google/gemini-embedding-001`, 768 dims)
 - [ ] Retry logic: max 3 attempts for XML parsing, fallback to simple chunks
 - [ ] Invalid order_index references stripped silently
 - [ ] SSE streams chunking progress

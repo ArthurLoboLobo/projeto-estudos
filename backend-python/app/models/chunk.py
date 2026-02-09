@@ -23,14 +23,6 @@ class DocumentChunk(Base):
         Index("idx_chunks_parent", "parent_chunk_id"),
         Index("idx_chunks_type", "type"),
         Index(
-            "idx_chunks_embedding",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_with={"m": 16, "ef_construction": 64},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-            postgresql_where="embedding IS NOT NULL",
-        ),
-        Index(
             "idx_chunks_topics",
             "related_topic_ids",
             postgresql_using="gin",
