@@ -11,28 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import async_session
 from app.models.document import Document, ProcessingStatus
 from app.services.storage import get_signed_url
+from app.prompts import VISION_EXTRACTION_PROMPT
 from app.utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_PAGES = 20
-
-VISION_EXTRACTION_PROMPT = """You are extracting content from an academic document page.
-
-Extract ALL text from this page exactly as shown, preserving the original language.
-
-For any mathematical formulas, equations, chemical formulas, or scientific notation:
-- Represent them in LaTeX format using $...$ for inline math and $$...$$ for block equations
-- Preserve the exact meaning and structure of the formulas
-
-For tables:
-- Format them clearly with proper alignment
-
-For bullet points and numbered lists:
-- Preserve the structure
-
-Output the extracted content in plain text with LaTeX formulas embedded where appropriate.
-Do not add any commentary or explanations - just extract the content as-is."""
 
 
 async def _extract_page_text(image_path: Path, page_index: int) -> str:
