@@ -1,6 +1,6 @@
 # Step 03: Authentication (Register, Login, JWT Middleware)
 
-**Status:** PENDING
+**Status:** COMPLETED
 
 **Prerequisites:** Step 02 completed
 
@@ -61,14 +61,14 @@ Add the auth router to the FastAPI app.
 
 ## Acceptance Criteria
 
-- [ ] `POST /auth/register` creates user and returns token
-- [ ] `POST /auth/login` authenticates and returns token
-- [ ] Passwords stored as Argon2 hashes (never plaintext)
-- [ ] JWT tokens work with 7-day expiry
-- [ ] `get_current_user` dependency extracts user from token
-- [ ] `x-language` header is extracted and accessible
-- [ ] Duplicate email returns appropriate error
-- [ ] Invalid credentials return 401 with generic message
+- [x] `POST /auth/register` creates user and returns token
+- [x] `POST /auth/login` authenticates and returns token
+- [x] Passwords stored as Argon2 hashes (never plaintext)
+- [x] JWT tokens work with 7-day expiry
+- [x] `get_current_user` dependency extracts user from token
+- [x] `x-language` header is extracted and accessible
+- [x] Duplicate email returns appropriate error
+- [x] Invalid credentials return 401 with generic message
 
 ## When you're done
 
@@ -80,4 +80,18 @@ Edit this file:
 
 ## Completion Notes
 
-_To be filled by Claude after completing this step._
+- **Files created:**
+  - `app/services/auth.py` — Password hashing (argon2-cffi) + JWT (python-jose, HS256, 7-day expiry)
+  - `app/schemas/auth.py` — Pydantic v2 schemas with `EmailStr` for email validation
+  - `app/dependencies.py` — `get_current_user` (extracts Bearer token → decodes JWT → fetches Profile from DB) and `get_language` (extracts `x-language` header, defaults to `"pt"`)
+  - `app/routers/auth.py` — `POST /auth/register` (201, handles IntegrityError for duplicate email → 409) and `POST /auth/login` (200, generic "Invalid email or password" for both wrong email and wrong password)
+- **Files modified:**
+  - `app/main.py` — Added `app.include_router(auth.router)`
+  - `requirements.txt` — Added `email-validator>=2.0.0` (required by Pydantic's `EmailStr`)
+- **Design decisions:**
+  - `get_current_user` and `get_language` are separate dependencies (not combined) so endpoints can use one or both as needed.
+  - `get_current_user` reads `Authorization` header directly (not via FastAPI's `OAuth2PasswordBearer`) — simpler and matches the existing frontend pattern of passing `Authorization: Bearer <token>`.
+  - `decode_token` raises `ValueError` on any JWT error (expired, invalid, missing sub); `get_current_user` converts this to HTTP 401.
+  - Duplicate email registration returns 409 Conflict (caught via SQLAlchemy `IntegrityError` on the unique constraint), not a generic 400.
+  - `UserResponse` uses `model_config = {"from_attributes": True}` so it can be built directly from the SQLAlchemy `Profile` model via `model_validate()`.
+- **All acceptance criteria verified** — imports, password hashing roundtrip, JWT roundtrip, and route registration all tested locally.
