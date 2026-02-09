@@ -80,8 +80,11 @@ Edit this file:
 ## Completion Notes
 
 - **Venv created at `backend-python/venv/`** — Python 3.14.2 (Homebrew). The system Python uses PEP 668 externally-managed, so a venv is required. All subsequent steps should activate this venv or use `./venv/bin/python` directly.
-- **`.env` file created** with placeholder values for local dev (not committed — add to `.gitignore`). The `.env.example` has the template.
+- **`.env` file created** with real Supabase credentials (not committed — in `.gitignore`). The `.env.example` has the template.
+- **`OPENROUTER_API_KEY`** used instead of `GEMINI_API_KEY` — the project uses OpenRouter, not the Gemini SDK directly. The config field in `app/config.py` is `OPENROUTER_API_KEY`.
+- **`DATABASE_URL` format:** Must use `postgresql+asyncpg://` prefix (not `postgresql://`) for the async driver. Uses the Supabase pooler connection (`pooler.supabase.com:5432`).
 - **`ALLOWED_ORIGINS`** is stored as a comma-separated string in config, exposed via `settings.allowed_origins_list` property that splits it into a list.
 - **`database.py`** defines `Base` (DeclarativeBase) used by all models, plus `get_db` async generator for FastAPI dependency injection.
 - **No routers included in `main.py` yet** — just the health endpoint and CORS middleware. Routers will be added as they're implemented in later steps.
+- **`.gitignore`** added at `backend-python/.gitignore` — excludes `venv/`, `.env`, `__pycache__/`, `*.pyc`, `.pytest_cache/`.
 - **All acceptance criteria met:** app boots, health returns 200, config loads from `.env`, engine created, all package dirs exist.

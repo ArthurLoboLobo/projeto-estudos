@@ -83,4 +83,7 @@ Edit this file:
 - **`alembic/env.py`** configured for async: uses `async_engine_from_config` + `asyncio.run()`. Reads `DATABASE_URL` from `app.config.settings` (overrides `alembic.ini`'s `sqlalchemy.url`).
 - **Model relationships** are all set up with proper `back_populates` and `cascade="all, delete-orphan"` where appropriate.
 - **DocumentChunk.embedding** uses `pgvector.sqlalchemy.Vector(768)` — note this column uses `mapped_column` without `Mapped[]` type annotation since pgvector's Vector type doesn't have a direct Python type equivalent.
+- **Enum creation fix:** Must use `postgresql.ENUM(..., create_type=False)` (from `sqlalchemy.dialects.postgresql`) instead of `sa.Enum(...)` in the migration. The generic `sa.Enum` tries to re-create the type during table creation even with `create_type=False`, causing `DuplicateObjectError`. The enums are created first via raw SQL `DO...EXCEPTION` blocks, then referenced with `postgresql.ENUM`. Future migrations that use enums must follow this pattern.
+- **Migration tested against Supabase** via pooler connection — full reset + `alembic upgrade head` verified: 7 tables, 4 enums, 12 indexes, Alembic version tracking all created successfully.
+- **The old `backend-python/migrations/` folder** (manual SQL files) has been replaced by Alembic — delete it if still present.
 - **All acceptance criteria met:** 7 model files, PostgreSQL enums, Vector(768), async Alembic, migration matches schema, all indexes included.
