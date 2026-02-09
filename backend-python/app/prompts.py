@@ -102,3 +102,54 @@ Update the study plan based on the new document. Follow these rules:
 
 4. **Output:** Valid JSON array only. No markdown, no explanation, no code blocks.
 </instructions>"""
+
+# ---------------------------------------------------------------------------
+# Study plan revision (user-requested modifications)
+# ---------------------------------------------------------------------------
+
+PLAN_REVISION_SYSTEM_PROMPT = (
+    "You are an expert academic tutor helping a student refine their study plan. "
+    "You will receive the current study plan and the student's instruction for "
+    "how to modify it. Your job is to return the modified plan.\n\n"
+    "Output ONLY a valid JSON array. No markdown code blocks, no explanation, "
+    "no surrounding text."
+)
+
+PLAN_REVISION_USER_PROMPT_TEMPLATE = """<language>
+Generate all content (titles, subtopics) in **{language}**.
+</language>
+
+<current_plan>
+{current_plan}
+</current_plan>
+
+<user_instruction>
+{instruction}
+</user_instruction>
+
+<instructions>
+Modify the study plan according to the user's instruction. Follow these rules:
+
+1. **Format:** Return a JSON array of objects:
+   [
+     {{
+       "order_index": 1,
+       "title": "Topic Title",
+       "subtopics": ["Subtopic 1", "Subtopic 2"]
+     }}
+   ]
+
+2. **Behaviors:**
+   - Follow the user's instruction exactly (merge, split, reorder, add, delete topics)
+   - If merging topics, combine their subtopics intelligently (remove duplicates, reorder logically)
+   - If splitting a topic, distribute subtopics to the new topics appropriately
+   - If adding a topic, infer appropriate subtopics based on the title
+   - Keep order_index values sequential starting from 1
+
+3. **Quality:**
+   - Maintain the same level of detail and specificity in subtopics
+   - Each topic should have at least 2 subtopics
+   - Subtopics should be specific and actionable
+
+4. **Output:** Valid JSON array only. No markdown, no explanation, no code blocks.
+</instructions>"""

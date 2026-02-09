@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.document import Document, ProcessingStatus
 from app.models.session import SessionStatus, StudySession
-from app.prompts import PLAN_SYSTEM_PROMPT, PLAN_USER_PROMPT_TEMPLATE, language_name
+from app.prompts import (
+    PLAN_REVISION_SYSTEM_PROMPT,
+    PLAN_REVISION_USER_PROMPT_TEMPLATE,
+    PLAN_SYSTEM_PROMPT,
+    PLAN_USER_PROMPT_TEMPLATE,
+    language_name,
+)
 from app.services.ai_client import generate_text
 
 logger = logging.getLogger(__name__)
@@ -123,3 +129,42 @@ async def generate_plan_stream(
         "event": "completed",
         "data": {"plan": current_plan},
     }
+
+
+async def revise_plan(
+    current_plan: list[dict],
+    instruction: str,
+    language: str,
+) -> list[dict]:
+    """Ask AI to modify the study plan based on user instruction.
+
+    Args:
+        current_plan: The current draft plan as a list of topic dicts
+        instruction: User's natural language instruction (e.g., "merge topics 3 and 4")
+        language: Language code (e.g., 'pt', 'en')
+
+    Returns:
+        The modified plan as a list of topic dicts
+
+    Raises:
+        ValueError: If AI returns invalid JSON or plan structure
+    """
+    lang = language_name(language)
+
+    prompt = PLAN_REVISION_USER_PROMPT_TEMPLATE.format(
+        language=lang,
+        current_plan=json.dumps(current_plan, ensure_ascii=False, indent=2),
+        instruction=instruction,
+    )
+
+    response = await generate_text(
+        system_prompt=PLAN_REVISION_SYSTEM_PROMPT,
+        user_prompt=prompt,
+        model=settings.MODEL_PLAN,
+    )
+
+    revised_plan = _parse_plan_json(response)
+
+    logger.info("Plan revised via AI: %d topics", len(revised_plan))
+
+    return revised_plan

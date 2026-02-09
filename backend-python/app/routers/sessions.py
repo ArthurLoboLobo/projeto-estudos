@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_language
+from app.models.chat import Chat, ChatType
 from app.models.document import Document, ProcessingStatus
 from app.models.profile import Profile
 from app.models.session import SessionStatus, StudySession
+from app.models.topic import Topic
+from app.schemas.plan import DraftPlan, RevisePlanRequest, SavePlanRequest
 from app.schemas.session import CreateSessionRequest, SessionResponse
 from app.services.authorization import get_authorized_session
-from app.services.study_plan import generate_plan_stream
+from app.services.study_plan import generate_plan_stream, revise_plan
 
 logger = logging.getLogger(__name__)
 
@@ -141,3 +144,149 @@ async def generate_plan(
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/{session_id}/plan", response_model=DraftPlan)
+async def get_plan(
+    session_id: UUID,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current draft study plan.
+
+    Returns the draft_plan JSONB field from the session.
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if not session.draft_plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No draft plan found. Generate a plan first.",
+        )
+
+    return session.draft_plan
+
+
+@router.post("/{session_id}/revise-plan", response_model=DraftPlan)
+async def revise_study_plan(
+    session_id: UUID,
+    body: RevisePlanRequest,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    language: str = Depends(get_language),
+):
+    """Ask AI to modify the draft plan based on user instruction.
+
+    User provides a natural language instruction like "merge topics 3 and 4"
+    or "add a topic about limits". AI returns the modified plan.
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if session.status != SessionStatus.EDITING_PLAN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Session status is '{session.status.value}', "
+                f"expected 'EDITING_PLAN'"
+            ),
+        )
+
+    if not session.draft_plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No draft plan found. Generate a plan first.",
+        )
+
+    # Call AI to revise the plan
+    revised_plan = await revise_plan(session.draft_plan, body.instruction, language)
+
+    # Update session with revised plan
+    session.draft_plan = revised_plan
+    await db.commit()
+
+    logger.info("Plan revised for session %s: %d topics", session_id, len(revised_plan))
+
+    return revised_plan
+
+
+@router.put("/{session_id}/plan", status_code=status.HTTP_200_OK)
+async def save_plan(
+    session_id: UUID,
+    body: SavePlanRequest,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save the final edited plan and start studying.
+
+    Creates Topic rows and Chat rows in the database:
+    - One Topic + Chat (TOPIC_SPECIFIC) for each non-completed topic
+    - One Chat (GENERAL_REVIEW) for the session
+    - Updates session status to CHUNKING
+
+    The full plan (including completed topics) is preserved in session.draft_plan
+    for the chunking phase to reference.
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if session.status != SessionStatus.EDITING_PLAN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Session status is '{session.status.value}', "
+                f"expected 'EDITING_PLAN'"
+            ),
+        )
+
+    # Update draft_plan with the final edited version from frontend
+    session.draft_plan = [topic.model_dump() for topic in body.topics]
+
+    # Create Topic + Chat rows only for non-completed topics
+    created_topics: list[Topic] = []
+
+    for topic_data in body.topics:
+        if not topic_data.is_completed:
+            # Create Topic
+            topic = Topic(
+                session_id=session_id,
+                title=topic_data.title,
+                subtopics=topic_data.subtopics,
+                order_index=topic_data.order_index,
+                is_completed=False,
+            )
+            db.add(topic)
+            await db.flush()  # Get topic.id
+
+            # Create topic-specific Chat
+            topic_chat = Chat(
+                session_id=session_id,
+                type=ChatType.TOPIC_SPECIFIC,
+                topic_id=topic.id,
+            )
+            db.add(topic_chat)
+
+            created_topics.append(topic)
+
+    # Create general review Chat
+    general_chat = Chat(
+        session_id=session_id,
+        type=ChatType.GENERAL_REVIEW,
+        topic_id=None,
+    )
+    db.add(general_chat)
+
+    # Update session status to CHUNKING
+    session.status = SessionStatus.CHUNKING
+    await db.commit()
+
+    logger.info(
+        "Plan saved for session %s: %d topics created (%d total in plan)",
+        session_id,
+        len(created_topics),
+        len(body.topics),
+    )
+
+    return {
+        "message": "Plan saved successfully",
+        "topics_created": len(created_topics),
+        "total_topics": len(body.topics),
+    }
