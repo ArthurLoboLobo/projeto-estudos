@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_SERVICE_KEY: str
     JWT_SECRET: str
-    GEMINI_API_KEY: str
+    OPENROUTER_API_KEY: str
     PORT: int = 8080
     ALLOWED_ORIGINS: str = "http://localhost:5173"
 

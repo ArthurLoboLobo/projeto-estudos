@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from pgvector.sqlalchemy import Vector
 
 
@@ -23,28 +24,56 @@ def upgrade() -> None:
     # Extensions
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
-    # Enums
-    session_status = sa.Enum(
-        "UPLOADING",
-        "GENERATING_PLAN",
-        "EDITING_PLAN",
-        "CHUNKING",
-        "ACTIVE",
-        "COMPLETED",
-        name="session_status",
+    # Enums (use raw SQL to avoid double-creation issues)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE session_status AS ENUM ('UPLOADING', 'GENERATING_PLAN', 'EDITING_PLAN', 'CHUNKING', 'ACTIVE', 'COMPLETED');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE processing_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE chat_type AS ENUM ('TOPIC_SPECIFIC', 'GENERAL_REVIEW');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE chunk_type AS ENUM ('problem', 'theory');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    # Use PostgreSQL ENUM type directly (references existing types, doesn't create them)
+    session_status = postgresql.ENUM(
+        "UPLOADING", "GENERATING_PLAN", "EDITING_PLAN", "CHUNKING", "ACTIVE", "COMPLETED",
+        name="session_status", create_type=False
     )
-    session_status.create(op.get_bind(), checkfirst=True)
-
-    processing_status = sa.Enum(
-        "PENDING", "PROCESSING", "COMPLETED", "FAILED", name="processing_status"
+    processing_status = postgresql.ENUM(
+        "PENDING", "PROCESSING", "COMPLETED", "FAILED",
+        name="processing_status", create_type=False
     )
-    processing_status.create(op.get_bind(), checkfirst=True)
-
-    chat_type = sa.Enum("TOPIC_SPECIFIC", "GENERAL_REVIEW", name="chat_type")
-    chat_type.create(op.get_bind(), checkfirst=True)
-
-    chunk_type = sa.Enum("problem", "theory", name="chunk_type")
-    chunk_type.create(op.get_bind(), checkfirst=True)
+    chat_type = postgresql.ENUM(
+        "TOPIC_SPECIFIC", "GENERAL_REVIEW",
+        name="chat_type", create_type=False
+    )
+    chunk_type = postgresql.ENUM(
+        "problem", "theory",
+        name="chunk_type", create_type=False
+    )
 
     # profiles
     op.create_table(
