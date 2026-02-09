@@ -1,6 +1,6 @@
 # Step 06: Study Plan Generation (SSE Streaming)
 
-**Status:** PENDING
+**Status:** COMPLETED
 
 **Prerequisites:** Step 05 completed
 
@@ -94,13 +94,13 @@ data: {"plan": [...final...]}
 
 ## Acceptance Criteria
 
-- [ ] OpenRouter AI client works with retry logic
-- [ ] Plan is built incrementally (one document at a time)
-- [ ] SSE endpoint streams progress events to the client
-- [ ] Final plan is saved to `session.draft_plan` as JSONB
-- [ ] Session status transitions: `UPLOADING` → `GENERATING_PLAN` → `EDITING_PLAN`
-- [ ] Error handling: status reverts to `UPLOADING` on failure
-- [ ] Plan format matches `improve.md`: `[{order_index, title, subtopics: [...]}]`
+- [x] OpenRouter AI client works with retry logic
+- [x] Plan is built incrementally (one document at a time)
+- [x] SSE endpoint streams progress events to the client
+- [x] Final plan is saved to `session.draft_plan` as JSONB
+- [x] Session status transitions: `UPLOADING` → `GENERATING_PLAN` → `EDITING_PLAN`
+- [x] Error handling: status reverts to `UPLOADING` on failure
+- [x] Plan format matches `improve.md`: `[{order_index, title, subtopics: [...]}]`
 
 ## When you're done
 
@@ -112,4 +112,24 @@ Edit this file:
 
 ## Completion Notes
 
-_To be filled by Claude after completing this step._
+- **Files created:**
+  - `app/services/ai_client.py` — Reusable OpenRouter AI client with two functions:
+    - `generate_text(system_prompt, user_prompt, model) -> str`: Single completion call wrapped with `retry_with_backoff(max_retries=5, base_delay=1.0, jitter=0.5)`. Uses `httpx.AsyncClient` with 120s timeout. Posts to `{OPENROUTER_BASE_URL}/chat/completions` with system + user messages.
+    - `generate_text_stream(system_prompt, user_prompt, model) -> AsyncIterator[str]`: Streaming completion for future use (chat). Parses SSE `data:` lines from OpenRouter, yields content deltas. No retry wrapper since partial results have already been sent.
+  - `app/services/study_plan.py` — Incremental plan generation service:
+    - `generate_plan_stream(session_id, db, language) -> AsyncIterator[dict]`: Fetches all COMPLETED documents ordered by `created_at`. For each document, sends the current plan + document text to the AI (`settings.MODEL_PLAN`). The AI returns an updated plan in `[{order_index, title, subtopics}]` format. Yields `document_processed` events after each document and a `completed` event at the end. Saves `draft_plan` as JSONB and transitions session to `EDITING_PLAN`.
+    - `_parse_plan_json(response)`: Handles markdown code blocks in AI responses, validates the JSON array structure (checks for required fields: `order_index`, `title`, `subtopics`).
+    - Language mapping: `LANGUAGE_NAMES` dict converts header code (e.g., `"pt"`) to full name (e.g., `"Portuguese"`) for AI prompts — same pattern as the Rust backend's `language_name()`.
+- **Files modified:**
+  - `app/routers/sessions.py` — Added `GET /sessions/{session_id}/generate-plan` SSE endpoint:
+    - Validates session ownership, status is `UPLOADING`, and at least 1 document has `COMPLETED` processing status (uses `func.count()` query).
+    - Transitions to `GENERATING_PLAN` before streaming begins.
+    - Returns `StreamingResponse` with `media_type="text/event-stream"` and `Cache-Control: no-cache`.
+    - Error handling: on exception inside the stream, performs `db.rollback()`, reloads the session, reverts status to `UPLOADING`, and sends an `error` SSE event.
+    - Added imports: `json`, `logging`, `HTTPException`, `StreamingResponse`, `func`, `get_language`, `Document`, `ProcessingStatus`, `generate_plan_stream`.
+- **Design decisions:**
+  - **AI prompt adapted for new format:** The Rust backend's `GENERATE_PLAN_PROMPT` used `{id, title, description, status}` format. The new prompt uses `{order_index, title, subtopics[]}` as specified in `improve.md`. The prompt explicitly instructs the AI to return only a JSON array (no wrapping object), to keep `order_index` sequential from 1, and to follow the merge/split/reorder behaviors from `improve.md`.
+  - **`generate_text` vs inline httpx calls:** The `documents.py` service makes direct httpx calls for Vision API (multimodal requests with images). The new `ai_client.py` handles text-only completions. The Vision calls were left as-is since they have a different request shape (image content).
+  - **Error handling in SSE:** Since the response has already started streaming (HTTP 200 sent), errors during generation can't change the status code. Instead, an `error` SSE event is sent. The session status is reverted to `UPLOADING` via `db.rollback()` + fresh load + commit, ensuring the user can retry.
+  - **`generate_plan_stream` accepts `language` parameter:** Added as a third parameter (not in the step's pseudocode signature) because the AI needs the language from the `x-language` header to generate content in the user's language.
+  - **Route ordering:** The `/{session_id}/generate-plan` route is placed after `/{session_id}` and `DELETE /{session_id}`. FastAPI correctly distinguishes these because `/generate-plan` is a literal path suffix, not a path parameter.

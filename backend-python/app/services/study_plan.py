@@ -1,0 +1,188 @@
+import json
+import logging
+from collections.abc import AsyncIterator
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.models.document import Document, ProcessingStatus
+from app.models.session import SessionStatus, StudySession
+from app.services.ai_client import generate_text
+
+logger = logging.getLogger(__name__)
+
+LANGUAGE_NAMES = {
+    "en": "English",
+    "pt": "Portuguese",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+}
+
+PLAN_SYSTEM_PROMPT = (
+    "You are an expert academic tutor creating a personalized study plan for a "
+    "university student. You will receive the current study plan (which may be "
+    "empty) and a new document's extracted text. Your job is to update the plan "
+    "based on the new document.\n\n"
+    "Output ONLY a valid JSON array. No markdown code blocks, no explanation, "
+    "no surrounding text."
+)
+
+PLAN_USER_PROMPT_TEMPLATE = """<language>
+Generate all content (titles, subtopics) in **{language}**.
+</language>
+
+<current_plan>
+{current_plan}
+</current_plan>
+
+<new_document>
+{document_text}
+</new_document>
+
+<instructions>
+Update the study plan based on the new document. Follow these rules:
+
+1. **Format:** Return a JSON array of objects:
+   [
+     {{
+       "order_index": 1,
+       "title": "Topic Title",
+       "subtopics": ["Subtopic 1", "Subtopic 2"]
+     }}
+   ]
+
+2. **Behaviors:**
+   - Create new topics when the document introduces concepts not in the current plan
+   - Add subtopics to existing topics when the document contains related content
+   - Update topic titles if a better name emerges from the document
+   - Reorder topics if the document suggests a different logical sequence
+   - Merge topics if they are too granular
+   - Split topics if they are too broad
+   - Keep order_index values sequential starting from 1
+
+3. **Quality:**
+   - Group concepts that make sense to learn together
+   - Sequence from foundational to advanced
+   - Focus on content topics only (ignore administrative info like grading, professor names, dates)
+   - Each topic should have at least 2 subtopics
+   - Subtopics should be specific and actionable (e.g., "Calculate limits using L'Hopital's rule" instead of "Limits")
+
+4. **Output:** Valid JSON array only. No markdown, no explanation, no code blocks.
+</instructions>"""
+
+
+def _language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code)
+
+
+def _parse_plan_json(response: str) -> list[dict]:
+    """Parse AI response into plan JSON, handling markdown code blocks."""
+    text = response.strip()
+
+    # Strip markdown code blocks if present
+    if text.startswith("```"):
+        lines = text.split("\n")
+        # Remove first line (```json or ```)
+        lines = lines[1:]
+        # Remove last ``` line
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    plan = json.loads(text)
+
+    if not isinstance(plan, list):
+        raise ValueError(f"Expected a JSON array, got {type(plan).__name__}")
+
+    # Validate each topic has the required fields
+    for item in plan:
+        if not isinstance(item, dict):
+            raise ValueError(f"Expected topic objects, got {type(item).__name__}")
+        if "order_index" not in item or "title" not in item or "subtopics" not in item:
+            raise ValueError(
+                f"Topic missing required fields (order_index, title, subtopics): {item}"
+            )
+
+    return plan
+
+
+async def generate_plan_stream(
+    session_id: UUID,
+    db: AsyncSession,
+    language: str,
+) -> AsyncIterator[dict]:
+    """Incrementally build a study plan, yielding SSE events after each document.
+
+    For each completed document in the session, the AI receives the current plan
+    plus the document text, and returns an updated plan. Progress events are
+    yielded after each document is processed.
+
+    On successful completion, saves the final plan to session.draft_plan and
+    updates session status to EDITING_PLAN.
+    """
+    # Fetch completed documents ordered by upload time
+    result = await db.execute(
+        select(Document)
+        .where(
+            Document.session_id == session_id,
+            Document.processing_status == ProcessingStatus.COMPLETED,
+        )
+        .order_by(Document.created_at)
+    )
+    documents = result.scalars().all()
+
+    if not documents:
+        raise ValueError("No completed documents found")
+
+    current_plan: list[dict] = []
+    lang = _language_name(language)
+
+    for i, doc in enumerate(documents):
+        prompt = PLAN_USER_PROMPT_TEMPLATE.format(
+            language=lang,
+            current_plan=(
+                json.dumps(current_plan, ensure_ascii=False, indent=2)
+                if current_plan
+                else "[]"
+            ),
+            document_text=doc.content_text or "",
+        )
+
+        response = await generate_text(
+            system_prompt=PLAN_SYSTEM_PROMPT,
+            user_prompt=prompt,
+            model=settings.MODEL_PLAN,
+        )
+
+        current_plan = _parse_plan_json(response)
+
+        logger.info(
+            "Session %s: processed document %d/%d (%d topics)",
+            session_id,
+            i + 1,
+            len(documents),
+            len(current_plan),
+        )
+
+        yield {
+            "event": "document_processed",
+            "data": {
+                "doc": i + 1,
+                "total": len(documents),
+                "plan": current_plan,
+            },
+        }
+
+    # Save final plan to session and transition status
+    session = await db.get(StudySession, session_id)
+    session.draft_plan = current_plan
+    session.status = SessionStatus.EDITING_PLAN
+    await db.commit()
+
+    yield {
+        "event": "completed",
+        "data": {"plan": current_plan},
+    }
