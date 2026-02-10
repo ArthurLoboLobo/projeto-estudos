@@ -14,7 +14,13 @@ from app.models.document import Document, ProcessingStatus
 from app.models.profile import Profile
 from app.models.session import SessionStatus, StudySession
 from app.models.topic import Topic
-from app.schemas.plan import DraftPlan, RevisePlanRequest, SavePlanRequest
+from app.schemas.plan import (
+    DraftPlan,
+    PlanResponse,
+    RevisePlanRequest,
+    SavePlanRequest,
+    UpdatePlanRequest,
+)
 from app.schemas.session import CreateSessionRequest, SessionResponse
 from app.services.authorization import get_authorized_session
 from app.services.study_plan import generate_plan_stream, revise_plan
@@ -146,7 +152,7 @@ async def generate_plan(
     )
 
 
-@router.get("/{session_id}/plan", response_model=DraftPlan)
+@router.get("/{session_id}/plan", response_model=PlanResponse)
 async def get_plan(
     session_id: UUID,
     user: Profile = Depends(get_current_user),
@@ -154,7 +160,7 @@ async def get_plan(
 ):
     """Get the current draft study plan.
 
-    Returns the draft_plan JSONB field from the session.
+    Returns the draft_plan and whether undo is available.
     """
     session = await get_authorized_session(session_id, user.id, db)
 
@@ -164,7 +170,10 @@ async def get_plan(
             detail="No draft plan found. Generate a plan first.",
         )
 
-    return session.draft_plan
+    return PlanResponse(
+        topics=session.draft_plan,
+        can_undo=bool(session.plan_history),
+    )
 
 
 @router.post("/{session_id}/revise-plan", response_model=DraftPlan)
@@ -197,6 +206,11 @@ async def revise_study_plan(
             detail="No draft plan found. Generate a plan first.",
         )
 
+    # Push current plan to history before changing it
+    history = list(session.plan_history or [])
+    history.append(session.draft_plan)
+    session.plan_history = history
+
     # Call AI to revise the plan
     revised_plan = await revise_plan(session.draft_plan, body.instruction, language)
 
@@ -209,6 +223,92 @@ async def revise_study_plan(
     return revised_plan
 
 
+@router.post("/{session_id}/update-plan", response_model=DraftPlan)
+async def update_plan(
+    session_id: UUID,
+    body: UpdatePlanRequest,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save manual edits to the draft plan (not the final save).
+
+    Called by the frontend whenever the user makes manual changes (add, delete,
+    edit, reorder, toggle completion). Pushes the old plan to history so the
+    user can undo.
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if session.status != SessionStatus.EDITING_PLAN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Session status is '{session.status.value}', "
+                f"expected 'EDITING_PLAN'"
+            ),
+        )
+
+    if not session.draft_plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No draft plan found. Generate a plan first.",
+        )
+
+    # Push current plan to history before changing it
+    history = list(session.plan_history or [])
+    history.append(session.draft_plan)
+    session.plan_history = history
+
+    # Update with the new plan from frontend
+    session.draft_plan = [topic.model_dump() for topic in body.topics]
+    await db.commit()
+
+    return session.draft_plan
+
+
+@router.post("/{session_id}/undo-plan", response_model=DraftPlan)
+async def undo_plan(
+    session_id: UUID,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Undo the last plan change.
+
+    Pops the most recent snapshot from plan_history and sets it as the current
+    draft_plan. Can be called multiple times to undo several changes.
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if session.status != SessionStatus.EDITING_PLAN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Session status is '{session.status.value}', "
+                f"expected 'EDITING_PLAN'"
+            ),
+        )
+
+    history = list(session.plan_history or [])
+    if not history:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nothing to undo.",
+        )
+
+    # Pop last snapshot and restore it
+    previous_plan = history.pop()
+    session.draft_plan = previous_plan
+    session.plan_history = history
+    await db.commit()
+
+    logger.info(
+        "Plan undone for session %s: %d remaining in history",
+        session_id,
+        len(history),
+    )
+
+    return previous_plan
+
+
 @router.put("/{session_id}/plan", status_code=status.HTTP_200_OK)
 async def save_plan(
     session_id: UUID,
@@ -219,9 +319,10 @@ async def save_plan(
     """Save the final edited plan and start studying.
 
     Creates Topic rows and Chat rows in the database:
-    - One Topic + Chat (TOPIC_SPECIFIC) for each non-completed topic
+    - One Topic + Chat (TOPIC_SPECIFIC) for each topic (completed ones start marked)
     - One Chat (GENERAL_REVIEW) for the session
     - Updates session status to CHUNKING
+    - Clears plan_history (no longer needed)
 
     The full plan (including completed topics) is preserved in session.draft_plan
     for the chunking phase to reference.
@@ -239,32 +340,29 @@ async def save_plan(
 
     # Update draft_plan with the final edited version from frontend
     session.draft_plan = [topic.model_dump() for topic in body.topics]
+    # Clear history — no longer needed after finalizing
+    session.plan_history = []
 
-    # Create Topic + Chat rows only for non-completed topics
-    created_topics: list[Topic] = []
-
+    # Create Topic + Chat rows for ALL topics.
+    # Completed topics start with is_completed=True; the student can still
+    # open the chat and unmark them later.
     for topic_data in body.topics:
-        if not topic_data.is_completed:
-            # Create Topic
-            topic = Topic(
-                session_id=session_id,
-                title=topic_data.title,
-                subtopics=topic_data.subtopics,
-                order_index=topic_data.order_index,
-                is_completed=False,
-            )
-            db.add(topic)
-            await db.flush()  # Get topic.id
+        topic = Topic(
+            session_id=session_id,
+            title=topic_data.title,
+            subtopics=topic_data.subtopics,
+            order_index=topic_data.order_index,
+            is_completed=topic_data.is_completed,
+        )
+        db.add(topic)
+        await db.flush()  # Get topic.id
 
-            # Create topic-specific Chat
-            topic_chat = Chat(
-                session_id=session_id,
-                type=ChatType.TOPIC_SPECIFIC,
-                topic_id=topic.id,
-            )
-            db.add(topic_chat)
-
-            created_topics.append(topic)
+        topic_chat = Chat(
+            session_id=session_id,
+            type=ChatType.TOPIC_SPECIFIC,
+            topic_id=topic.id,
+        )
+        db.add(topic_chat)
 
     # Create general review Chat
     general_chat = Chat(
@@ -279,14 +377,12 @@ async def save_plan(
     await db.commit()
 
     logger.info(
-        "Plan saved for session %s: %d topics created (%d total in plan)",
+        "Plan saved for session %s: %d topics created",
         session_id,
-        len(created_topics),
         len(body.topics),
     )
 
     return {
         "message": "Plan saved successfully",
-        "topics_created": len(created_topics),
-        "total_topics": len(body.topics),
+        "topics_created": len(body.topics),
     }

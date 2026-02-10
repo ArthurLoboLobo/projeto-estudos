@@ -58,18 +58,31 @@ The prompt should tell the AI to modify the plan according to the user's instruc
 
 ### Important: Topic creation logic
 
-Only create topics for items where `is_completed == false` (user marked "already know" topics should be skipped). But ALL topics (including completed ones) should be passed to the chunking phase later, because the AI needs the full plan context for `<RELATED_TOPICS>` mapping.
+Create `Topic` + `Chat` rows for **ALL** topics (including completed ones). Completed topics are created with `is_completed = true` — the student can still open the chat and unmark the topic later. This means every topic in the plan gets a real database row and a chat.
 
-Store the full plan (including completed topics) in `session.draft_plan` even after starting — the chunking step will read it from there.
+Store the full plan in `session.draft_plan` even after starting — the chunking step will read it from there.
+
+### 4. Plan History / Undo (`plan_history` JSONB column)
+
+Add a `plan_history` JSONB column (default `[]`) to `study_sessions`. This stores previous plan snapshots for undo:
+
+- **On every plan change** (`revise-plan`, `update-plan`): push the current `draft_plan` to `plan_history` before overwriting
+- **`POST /sessions/{id}/undo-plan`**: pop the last snapshot from `plan_history`, set it as `draft_plan`
+- **`POST /sessions/{id}/update-plan`**: save manual frontend edits (with history push)
+- **`GET /sessions/{id}/plan`**: return `can_undo: bool` so frontend knows if undo button is enabled
+- **`PUT /sessions/{id}/plan` (finalize)**: clear `plan_history` — no longer needed
 
 ## Acceptance Criteria
 
-- [x] `GET /sessions/{id}/plan` returns the draft plan
-- [x] `POST /sessions/{id}/revise-plan` calls AI and updates the draft
+- [x] `GET /sessions/{id}/plan` returns the draft plan + `can_undo` flag
+- [x] `POST /sessions/{id}/revise-plan` calls AI and updates the draft (with history push)
+- [x] `POST /sessions/{id}/update-plan` saves manual frontend edits (with history push)
+- [x] `POST /sessions/{id}/undo-plan` restores the previous plan snapshot
 - [x] `PUT /sessions/{id}/plan` creates topics + chats and transitions to `CHUNKING`
-- [x] Only non-completed topics get `Topic` rows and `Chat` rows
+- [x] ALL topics get `Topic` + `Chat` rows (completed ones start marked)
 - [x] A `GENERAL_REVIEW` chat is created for the session
 - [x] `draft_plan` is preserved (for chunking phase to reference)
+- [x] `plan_history` cleared on finalize
 - [x] Authorization checks on all endpoints
 
 ## When you're done
@@ -82,53 +95,45 @@ Edit this file:
 
 ## Completion Notes
 
-- **Files created:**
-  - `app/schemas/plan.py` — Pydantic schemas for plan editing:
-    - `DraftTopic(order_index, title, subtopics, is_completed)`: Represents a topic in the draft plan before DB persistence. Includes `is_completed` flag to mark topics the user already knows.
-    - `DraftPlan`: Type alias for `list[DraftTopic]` for cleaner type hints.
-    - `SavePlanRequest(topics)`: Request body for `PUT /sessions/{id}/plan`. Contains the final edited plan from the frontend.
-    - `RevisePlanRequest(instruction)`: Request body for `POST /sessions/{id}/revise-plan`. Contains the user's natural language instruction for AI modification (e.g., "merge topics 3 and 4").
+### Files created
 
-- **Files modified:**
-  - `app/prompts.py` — Added plan revision prompts:
-    - `PLAN_REVISION_SYSTEM_PROMPT`: Instructs AI to act as an academic tutor modifying a study plan based on user instruction. Enforces JSON-only output (no markdown, no explanations).
-    - `PLAN_REVISION_USER_PROMPT_TEMPLATE`: Template with `{language}`, `{current_plan}`, and `{instruction}` placeholders. Instructs AI to follow the user's modification request (merge, split, reorder, add, delete) while maintaining plan quality (sequential order_index, at least 2 subtopics per topic, specific and actionable subtopics).
+- **`app/schemas/plan.py`** — Pydantic schemas:
+  - `DraftTopic(order_index, title, subtopics, is_completed=False)`
+  - `DraftPlan` — type alias for `list[DraftTopic]`
+  - `SavePlanRequest(topics)` — final plan for `PUT /plan`
+  - `UpdatePlanRequest(topics)` — manual edits for `POST /update-plan`
+  - `PlanResponse(topics, can_undo)` — response for `GET /plan`
+  - `RevisePlanRequest(instruction)` — AI revision instruction
 
-  - `app/services/study_plan.py` — Added plan revision function:
-    - `async def revise_plan(current_plan, instruction, language) -> list[dict]`: Sends current plan + user instruction to AI via `generate_text()`. AI returns the modified plan in the same `[{order_index, title, subtopics}]` format. Uses `_parse_plan_json()` to validate the response structure. Wrapped with retry logic (inherited from `generate_text()`). Logs the number of topics in the revised plan.
-    - Added imports for the new prompts (`PLAN_REVISION_SYSTEM_PROMPT`, `PLAN_REVISION_USER_PROMPT_TEMPLATE`).
+- **`alembic/versions/9d1ce31fb5d4_add_plan_history_to_study_sessions.py`** — Migration adding `plan_history JSONB NOT NULL DEFAULT '[]'` to `study_sessions`
 
-  - `app/routers/sessions.py` — Added three endpoints:
-    - **`GET /sessions/{session_id}/plan`**: Returns `session.draft_plan`. Validates session ownership via `get_authorized_session()`. Returns 404 if no draft plan exists (user must generate first).
+### Files modified
 
-    - **`POST /sessions/{session_id}/revise-plan`**: AI-assisted plan modification. Validates session status is `EDITING_PLAN`. Calls `revise_plan()` service function with current plan + user instruction + language. Updates `session.draft_plan` with the revised plan. Returns the revised plan to the frontend.
+- **`app/models/session.py`** — Added `plan_history: Mapped[list] = mapped_column(JSON, nullable=False, server_default="[]")`
 
-    - **`PUT /sessions/{session_id}/plan`**: Finalizes the plan and starts studying. Validates session status is `EDITING_PLAN`. Updates `session.draft_plan` with the final edited version from the frontend (preserves ALL topics, including completed ones, for chunking phase). Creates database rows:
-      - **Topics**: Creates `Topic` rows ONLY for items where `is_completed == false`. Each topic includes `session_id`, `title`, `subtopics`, `order_index`, and `is_completed` (set to false). Uses `db.flush()` after adding each topic to get the `topic.id` before creating the chat.
-      - **Topic chats**: Creates one `Chat` (type: `TOPIC_SPECIFIC`) for each created topic. Links via `topic_id`.
-      - **General review chat**: Creates one `Chat` (type: `GENERAL_REVIEW`) with `topic_id=None` for the session.
-    - Transitions session status to `CHUNKING`. Returns a summary: `{message, topics_created, total_topics}`.
+- **`app/prompts.py`** — Added `PLAN_REVISION_SYSTEM_PROMPT` and `PLAN_REVISION_USER_PROMPT_TEMPLATE`
 
-    - Added imports: `Chat`, `ChatType`, `Topic`, `DraftPlan`, `RevisePlanRequest`, `SavePlanRequest`, `revise_plan`.
+- **`app/services/study_plan.py`** — Added `revise_plan()` function
 
-- **Design decisions:**
-  - **Draft plan preservation**: The `PUT /sessions/{id}/plan` endpoint updates `session.draft_plan` with the final frontend state (including completed topics) before creating Topic rows. This ensures the chunking phase (Step 08) can read the full plan from `session.draft_plan` and use all topics (even completed ones) for `<RELATED_TOPICS>` mapping. Completed topics are NOT created as Topic rows, so they won't appear in the study interface.
+- **`app/routers/sessions.py`** — Five plan-related endpoints:
+  - **`GET /plan`**: Returns `PlanResponse(topics, can_undo)` — current draft plan + whether undo history exists
+  - **`POST /revise-plan`**: AI-assisted modification. Pushes current plan to `plan_history` before overwriting with AI result.
+  - **`POST /update-plan`**: Saves manual frontend edits. Pushes current plan to `plan_history` before overwriting.
+  - **`POST /undo-plan`**: Pops last snapshot from `plan_history`, sets it as `draft_plan`. Returns 400 if history is empty.
+  - **`PUT /plan`**: Finalizes plan — creates `Topic` + `Chat` rows for ALL topics (completed ones start with `is_completed=True`), creates one `GENERAL_REVIEW` chat, transitions to `CHUNKING`, clears `plan_history`.
 
-  - **Plan revision vs. plan generation prompts**: The revision prompt is similar to the generation prompt but focuses on user-driven modifications rather than document-driven updates. The revision prompt explicitly mentions merge/split/reorder operations and emphasizes following the user's instruction exactly.
+### Design decisions
 
-  - **Authorization pattern**: All three endpoints use `get_authorized_session()` to verify the user owns the session. This prevents cross-user data access (same pattern as previous endpoints).
+- **All topics get DB rows**: Changed from "skip completed topics" to "create all topics with their `is_completed` status". This lets the student open any topic's chat and unmark it later. The completed flag is just a starting state, not a permanent exclusion.
 
-  - **Status validation**: `POST /revise-plan` and `PUT /plan` both require session status to be `EDITING_PLAN`. This prevents users from modifying the plan after it's been finalized (topics created). The `GET /plan` endpoint has no status requirement since it's read-only.
+- **Undo via `plan_history` JSONB column**: Chose a JSONB array on `study_sessions` over a separate table or frontend-only state. Each plan snapshot is ~2-5 KB, and users won't make more than ~20 edits, so ~100 KB max. Persists across page refreshes. Cleared on finalize to avoid carrying dead weight.
 
-  - **Async flush pattern**: The `PUT /plan` endpoint uses `await db.flush()` after adding each `Topic` to immediately get the generated `topic.id` before creating the associated `Chat`. This is more efficient than using `db.refresh()` and allows batch committing at the end.
+- **History push pattern**: Both `revise-plan` and `update-plan` push the current `draft_plan` to `plan_history` before overwriting. This means every change is undoable. The `undo-plan` endpoint simply pops the last item and restores it.
 
-  - **Chat creation order**: Topic-specific chats are created in the same loop as topics, then the general review chat is created once after the loop. This ensures all chats are created in a single transaction with the session status update.
+- **`update-plan` vs `PUT /plan`**: `POST /update-plan` saves intermediate manual edits (with undo history). `PUT /plan` is the final save that creates DB rows and transitions status. This separation is important — the frontend calls `update-plan` on each user action (delete topic, reorder, toggle completion, etc.) and `PUT /plan` only when the user clicks "Continue".
 
-- **Testing notes:**
-  - Verified all imports work correctly with `./venv/bin/python -c "from ... import ..."`.
-  - Plan schemas, revision function, and router all import without errors.
-  - The prompts follow the same pattern as existing prompts (centralized in `app/prompts.py`).
+### Next step considerations
 
-- **Next step considerations:**
-  - Step 08 (chunking) will read `session.draft_plan` to get the full topic list (including completed topics) for `<RELATED_TOPICS>` mapping.
-  - The `CHUNKING` status set by `PUT /plan` signals that the frontend should navigate to the chunking phase.
+- Step 08 (chunking) reads `session.draft_plan` to get the full topic list for `<RELATED_TOPICS>` mapping. All topics (including completed) are in the draft plan.
+- The `CHUNKING` status set by `PUT /plan` signals the frontend to navigate to the chunking phase.
+- The migration (`9d1ce31fb5d4`) must be run on the database before deploying.

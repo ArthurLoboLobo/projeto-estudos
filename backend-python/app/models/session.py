@@ -43,6 +43,9 @@ class StudySession(Base):
         server_default="UPLOADING",
     )
     draft_plan: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    plan_history: Mapped[list] = mapped_column(
+        JSON, nullable=False, server_default="[]"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
