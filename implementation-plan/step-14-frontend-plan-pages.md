@@ -76,16 +76,14 @@ The main interactive page where users review and modify their study plan.
    - **Lock the topic list** while AI is processing (show loading overlay)
    - When response arrives, update the plan display
 
-5. **Undo/Redo** — track plan states in an array:
-   ```typescript
-   const [history, setHistory] = useState<DraftPlan[]>([initialPlan]);
-   const [historyIndex, setHistoryIndex] = useState(0);
-   // Push to history on every edit action
-   // Undo: historyIndex--
-   // Redo: historyIndex++
-   ```
-   - Keyboard shortcuts: Ctrl+Z / Ctrl+Shift+Z
-   - Undo/Redo buttons in the toolbar
+5. **Undo** — persisted on the backend via `plan_history` JSONB column:
+   - Every edit calls `POST /sessions/{id}/update-plan` which pushes the old plan to `plan_history` before overwriting
+   - AI revisions (`POST /revise-plan`) also push to history automatically
+   - Undo: `POST /sessions/{id}/undo-plan` — pops the last snapshot and restores it
+   - `GET /sessions/{id}/plan` returns `can_undo: bool` — use it to enable/disable undo button
+   - Survives page refreshes (server-side storage)
+   - Keyboard shortcut: Ctrl+Z
+   - Undo button in the toolbar (disabled when `can_undo` is false)
 
 6. **"Continue" Button** — saves the final plan:
    - Calls `PUT /sessions/{id}/plan` with the current plan
@@ -98,10 +96,11 @@ The main interactive page where users review and modify their study plan.
 
 ### Data Flow:
 
-- Load initial plan: `GET /sessions/{id}/plan` → use as initial state
-- All edits happen **client-side** (no API calls until save or AI revision)
-- AI revision: `POST /sessions/{id}/revise-plan` → replaces current plan state (clears undo history or pushes as new state)
-- Save: `PUT /sessions/{id}/plan` → creates topics/chats in DB
+- Load initial plan: `GET /sessions/{id}/plan` → returns `{ topics, can_undo }`
+- On every manual edit (reorder, delete, add, toggle, inline edit): call `POST /sessions/{id}/update-plan` with the new plan — backend pushes old plan to history automatically
+- AI revision: `POST /sessions/{id}/revise-plan` → backend pushes old plan to history, returns revised plan
+- Undo: `POST /sessions/{id}/undo-plan` → returns the restored plan
+- Finalize: `PUT /sessions/{id}/plan` → creates topics/chats in DB, clears history
 
 ## Acceptance Criteria
 
@@ -112,7 +111,8 @@ The main interactive page where users review and modify their study plan.
 - [ ] Plan editing: drag-and-drop reorder
 - [ ] Plan editing: toggle "already know" per topic
 - [ ] AI revision chat works, locks UI during processing
-- [ ] Undo/Redo works (keyboard shortcuts + buttons)
+- [ ] Undo works via backend `plan_history` (persists across refreshes)
+- [ ] Undo button disabled when `can_undo` is false
 - [ ] Validation prevents "Continue" with empty plan or empty subtopics
 - [ ] "Continue" saves plan and navigates to chunking
 - [ ] Error handling with retry options

@@ -78,7 +78,10 @@ Test the happy path end-to-end (with mocked AI):
 
 - Create session → upload document (mock extraction) → generate plan (mock AI) → save plan → create chunks (mock AI + embeddings) → send chat message (mock AI)
 - Verify session status transitions: `UPLOADING → GENERATING_PLAN → EDITING_PLAN → CHUNKING → ACTIVE`
-- Verify topics and chats are created correctly
+- Verify ALL topics get DB rows (including completed ones with `is_completed=True`)
+- Verify each topic gets a `TOPIC_SPECIFIC` chat, plus one `GENERAL_REVIEW` chat per session
+- Verify `plan_history` is cleared after finalizing
+- Test undo: revise plan → undo → verify previous plan is restored
 - Verify chunks are stored with correct types and relationships
 
 ### 6. RAG Tests (`tests/test_rag.py`)

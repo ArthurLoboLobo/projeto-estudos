@@ -66,7 +66,7 @@ Parse `<FILE_DESCRIPTION>`, `<THEORETICAL_CONTENT>`, `<PROBLEM>` blocks using re
 
 #### order_index → UUID mapping:
 - Read the full draft plan from `session.draft_plan`
-- Build a map: `{order_index: topic_uuid}` from the topics table
+- Build a map: `{order_index: topic_uuid}` from the topics table (ALL topics exist in DB, including completed ones — step 07 creates rows for every topic)
 - If a `<RELATED_TOPICS>` value doesn't match any `order_index` → set `related_topic_ids` to empty (don't fail)
 
 ### 3. Embedding Service (`app/services/embeddings.py`)

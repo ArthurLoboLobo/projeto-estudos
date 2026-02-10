@@ -172,7 +172,7 @@ During generation, topics use `order_index` for ordering:
 | **Ask AI** | Chat with AI to modify the plan (e.g., "merge topics 3 and 4") |
 
 ### UX Features:
-- **Undo/Redo**: Keep last states in memory during editing
+- **Undo**: Backend persists previous plan snapshots in `plan_history` JSONB column — survives page refreshes. Every edit (manual or AI revision) pushes the current plan to history before overwriting. Undo pops the last snapshot.
 - **Drag-and-drop**: For reordering topics
 - **Inline editing**: Click subtopic to edit in place
 - **Add subtopic**: "+" button at end of subtopic list
@@ -181,7 +181,8 @@ During generation, topics use `order_index` for ordering:
 - **Validation**: Warn if any topic has no subtopics, or if there are 0 topics
 
 ### When user clicks "Continue":
-- Save final study plan to database (topics get real UUIDs)
+- Create `Topic` + `Chat` rows for **ALL** topics (completed ones start with `is_completed=True` — student can unmark later)
+- Clear `plan_history` (no longer needed)
 - Study plan becomes read-only
 - Proceed to chunk creation
 
@@ -494,6 +495,7 @@ CREATE TABLE study_sessions (
     description TEXT,
     status session_status NOT NULL DEFAULT 'UPLOADING',
     draft_plan JSONB,
+    plan_history JSONB NOT NULL DEFAULT '[]',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -672,6 +674,7 @@ backend-python/
 │   │   ├── auth.py
 │   │   ├── session.py
 │   │   ├── document.py
+│   │   ├── plan.py
 │   │   └── ...
 │   │
 │   ├── routers/             # REST API routes
@@ -753,7 +756,11 @@ All models are accessed through OpenRouter's OpenAI-compatible API. To swap chat
 | DELETE | `/sessions/{id}/documents/{doc_id}` | Delete document |
 | GET | `/sessions/{id}/documents` | List session documents |
 | GET | `/sessions/{id}/generate-plan` | **SSE** — stream plan generation progress |
-| PUT | `/sessions/{id}/plan` | Save final plan (start studying) |
+| GET | `/sessions/{id}/plan` | Get current draft plan + `can_undo` flag |
+| POST | `/sessions/{id}/revise-plan` | Ask AI to modify the draft plan |
+| POST | `/sessions/{id}/update-plan` | Save manual frontend edits (with undo history) |
+| POST | `/sessions/{id}/undo-plan` | Restore previous plan snapshot |
+| PUT | `/sessions/{id}/plan` | Finalize plan — create topics + chats, start chunking |
 | GET | `/sessions/{id}/create-chunks` | **SSE** — stream chunking progress |
 | GET | `/sessions/{id}/topics` | Get topics with completion status |
 | PUT | `/topics/{id}` | Update topic (completion, etc.) |

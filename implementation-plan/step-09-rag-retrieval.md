@@ -46,7 +46,7 @@ async def search_chunks_global(
     """Search all chunks in session, ordered by similarity."""
 ```
 
-Use pgvector's cosine distance operator (`<=>`) for similarity search. Only search chunks where `embedding IS NOT NULL` (excludes parent problem chunks).
+Use pgvector's cosine distance operator (`<=>`) for similarity search. Only search chunks where `embedding IS NOT NULL` (excludes parent problem chunks). Note: all topics (including completed ones) have chunks linked to them — don't filter by `is_completed`.
 
 #### Interleaved Selection with Token Budget:
 
