@@ -153,3 +153,86 @@ Modify the study plan according to the user's instruction. Follow these rules:
 
 4. **Output:** Valid JSON array only. No markdown, no explanation, no code blocks.
 </instructions>"""
+
+# ---------------------------------------------------------------------------
+# Document chunking — structured analysis for RAG
+# ---------------------------------------------------------------------------
+
+CHUNKING_SYSTEM_PROMPT = (
+    "You are an expert academic content analyzer. You will receive a document's "
+    "extracted text and a study plan with numbered topics. Your job is to analyze "
+    "the document and return a structured response that separates theoretical "
+    "content from problems/exercises.\n\n"
+    "Output ONLY the structured XML-like format described below. No markdown, "
+    "no explanation, no surrounding text."
+)
+
+CHUNKING_USER_PROMPT_TEMPLATE = """<language>
+Analyze this document in **{language}**.
+</language>
+
+<study_plan>
+{study_plan}
+</study_plan>
+
+<document_text>
+{document_text}
+</document_text>
+
+<instructions>
+Analyze this document and return a structured response using the XML-like format below.
+
+1. **FILE_DESCRIPTION** (required): A short description of the file (subject, exam name, year, university, etc.)
+
+2. **THEORETICAL_CONTENT** (optional): If the document contains theoretical/explanatory content (lecture notes, textbook content, slides), include it here. Omit this section entirely for pure problem/exam documents.
+   - RELATED_TOPICS: Comma-separated list of order_index integers from the study plan that this content relates to. Leave empty if no match.
+   - CONTENT: The theoretical text, preserving the original content and language.
+
+3. **PROBLEM** (optional, one per problem): If the document contains problems/exercises, create one block per problem. Omit for pure theory documents.
+   - DESCRIPTION: Context about the problem (question number, points, exam name, etc.)
+   - RELATED_TOPICS: Comma-separated list of order_index integers from the study plan.
+   - STATEMENT: The problem statement.
+   - SOLUTION: The solution, if present in the document. Omit this tag if no solution is given.
+
+**Important:**
+- Use ONLY order_index integers (e.g., 1, 2, 3) from the study plan for RELATED_TOPICS — not topic names or UUIDs.
+- Multi-part problems (e.g., 5a, 5b, 5c) should be kept as ONE problem block.
+- Preserve all mathematical notation in LaTeX format.
+- A document can be pure theory, pure problems, or hybrid (both).
+
+**Output format:**
+
+<FILE_DESCRIPTION>
+Description of the file
+</FILE_DESCRIPTION>
+
+<THEORETICAL_CONTENT>
+<RELATED_TOPICS>1, 2</RELATED_TOPICS>
+<CONTENT>
+The theoretical text here...
+</CONTENT>
+</THEORETICAL_CONTENT>
+
+<PROBLEM>
+<DESCRIPTION>Question 1 - 10 points</DESCRIPTION>
+<RELATED_TOPICS>1</RELATED_TOPICS>
+<STATEMENT>
+The problem statement here...
+</STATEMENT>
+<SOLUTION>
+The solution here...
+</SOLUTION>
+</PROBLEM>
+</instructions>"""
+
+CHUNKING_RETRY_PROMPT_TEMPLATE = """Your previous response had invalid XML structure. Specifically: {error}
+
+Please try again with the same document. Return ONLY the structured XML-like format with <FILE_DESCRIPTION>, <THEORETICAL_CONTENT>, and <PROBLEM> tags as described.
+
+<document_text>
+{document_text}
+</document_text>
+
+<study_plan>
+{study_plan}
+</study_plan>"""

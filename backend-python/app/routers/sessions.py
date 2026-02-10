@@ -4,12 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_language
 from app.models.chat import Chat, ChatType
+from app.models.chunk import DocumentChunk
 from app.models.document import Document, ProcessingStatus
 from app.models.profile import Profile
 from app.models.session import SessionStatus, StudySession
@@ -23,6 +24,7 @@ from app.schemas.plan import (
 )
 from app.schemas.session import CreateSessionRequest, SessionResponse
 from app.services.authorization import get_authorized_session
+from app.services.chunking import process_document_for_chunks
 from app.services.study_plan import generate_plan_stream, revise_plan
 
 logger = logging.getLogger(__name__)
@@ -386,3 +388,122 @@ async def save_plan(
         "message": "Plan saved successfully",
         "topics_created": len(body.topics),
     }
+
+
+@router.get("/{session_id}/create-chunks")
+async def create_chunks(
+    session_id: UUID,
+    user: Profile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    language: str = Depends(get_language),
+):
+    """SSE endpoint that processes all documents for chunking.
+
+    For each document, the AI analyzes its content and creates structured
+    chunks (theory + problems) with embeddings. Progress events are streamed
+    as each document completes.
+
+    On success: session status → ACTIVE.
+    On error: session status → EDITING_PLAN (so user can retry).
+    """
+    session = await get_authorized_session(session_id, user.id, db)
+
+    if session.status != SessionStatus.CHUNKING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Session status is '{session.status.value}', "
+                f"expected 'CHUNKING'"
+            ),
+        )
+
+    # Fetch all completed documents
+    result = await db.execute(
+        select(Document)
+        .where(
+            Document.session_id == session_id,
+            Document.processing_status == ProcessingStatus.COMPLETED,
+        )
+        .order_by(Document.created_at)
+    )
+    documents = result.scalars().all()
+
+    if not documents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No completed documents found.",
+        )
+
+    # Fetch all topics for this session (for order_index → UUID mapping)
+    topic_result = await db.execute(
+        select(Topic)
+        .where(Topic.session_id == session_id)
+        .order_by(Topic.order_index)
+    )
+    topics = topic_result.scalars().all()
+
+    # Get the draft plan
+    plan = session.draft_plan or []
+
+    async def event_stream():
+        try:
+            # Delete any existing chunks for idempotent restart
+            await db.execute(
+                delete(DocumentChunk).where(
+                    DocumentChunk.session_id == session_id
+                )
+            )
+            await db.flush()
+
+            total = len(documents)
+
+            # Process documents sequentially — each document does AI calls +
+            # DB writes on the same session, so concurrent access would be
+            # unsafe. AI calls are the bottleneck anyway.
+            for i, doc in enumerate(documents):
+                try:
+                    await process_document_for_chunks(
+                        doc, topics, plan, language, db
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Failed to chunk document %s", doc.id
+                    )
+                    # Continue with remaining documents rather than aborting
+
+                yield (
+                    f"event: document_chunked\n"
+                    f"data: {json.dumps({'doc': i + 1, 'total': total}, ensure_ascii=False)}\n\n"
+                )
+
+            # Transition to ACTIVE
+            session_obj = await db.get(StudySession, session_id)
+            if session_obj:
+                session_obj.status = SessionStatus.ACTIVE
+            await db.commit()
+
+            yield f"event: completed\ndata: {json.dumps({'message': 'Chunking complete'})}\n\n"
+
+        except Exception as exc:
+            logger.exception("Chunking failed for session %s", session_id)
+            # Revert status so user can retry
+            try:
+                await db.rollback()
+                reloaded = await db.get(StudySession, session_id)
+                if reloaded:
+                    reloaded.status = SessionStatus.EDITING_PLAN
+                    await db.commit()
+            except Exception:
+                logger.exception(
+                    "Failed to revert session status for %s", session_id
+                )
+            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
